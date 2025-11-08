@@ -34,6 +34,7 @@ export function MapContent({ selectedEvent }: MapContentProps) {
         maxBoundsViscosity={1.0}
         className="h-full w-full"
         zoomControl={false}
+        attributionControl={false}
         scrollWheelZoom={true}
         zoomSnap={0.8}
         boxZoom={false}
