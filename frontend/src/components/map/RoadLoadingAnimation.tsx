@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react'
-import { GeoJSON, useMap } from 'react-leaflet'
+import { useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { useMartaBusRoutes, useMartaTrainRoutes } from '../../services/geojsonApi'
-import type { PathOptions } from 'leaflet'
 
 export function RoadLoadingAnimation() {
   const map = useMap()
@@ -10,7 +9,8 @@ export function RoadLoadingAnimation() {
   const { data: trainRoutes, isLoading: trainLoading } = useMartaTrainRoutes()
   const animationRef = useRef<number>()
   const progressRef = useRef<number>(0)
-  const layersRef = useRef<Map<string, L.Layer>>(new Map())
+  const pulseRef = useRef<number>(0)
+  const polylineRef = useRef<L.Polyline | null>(null)
 
   useEffect(() => {
     if (busLoading || trainLoading || !busRoutes || !trainRoutes) {
@@ -22,27 +22,62 @@ export function RoadLoadingAnimation() {
       return
     }
 
+    const allCoordinates: [number, number][] = []
+    
+    allRoutes.slice(0, 150).forEach((feature) => {
+      if (feature.geometry.type === 'LineString') {
+        const coords = feature.geometry.coordinates as [number, number][]
+        allCoordinates.push(...coords)
+      } else if (feature.geometry.type === 'MultiLineString') {
+        feature.geometry.coordinates.forEach((line) => {
+          allCoordinates.push(...(line as [number, number][]))
+        })
+      }
+    })
+
+    if (allCoordinates.length === 0) {
+      return
+    }
+
+    const segmentLength = Math.max(50, Math.floor(allCoordinates.length * 0.1))
+    
+    const updatePolyline = () => {
+      if (polylineRef.current) {
+        map.removeLayer(polylineRef.current)
+      }
+
+      const startIndex = Math.floor(progressRef.current * (allCoordinates.length - segmentLength))
+      const endIndex = Math.min(startIndex + segmentLength, allCoordinates.length)
+      const segment = allCoordinates.slice(startIndex, endIndex)
+
+      if (segment.length > 1) {
+        const polyline = L.polyline(segment, {
+          color: '#ef4444',
+          weight: 2,
+          opacity: 0.4,
+          fillOpacity: 0,
+        }).addTo(map)
+        
+        polylineRef.current = polyline
+      }
+    }
+
+    updatePolyline()
+
     const animate = () => {
-      progressRef.current = (progressRef.current + 0.015) % 1
+      progressRef.current = (progressRef.current + 0.003) % 1
+      pulseRef.current = (pulseRef.current + 0.015) % 1
       
-      layersRef.current.forEach((layer, layerId) => {
-        if (layer && (layer as any).setStyle) {
-          const index = parseInt(layerId.split('-')[1] || '0')
-          const offset = (index * 0.05) % 1
-          const progress = (progressRef.current + offset) % 1
-          
-          const intensity = Math.sin(progress * Math.PI * 2) * 0.5 + 0.5
-          const pulseIntensity = Math.sin(progress * Math.PI * 4) * 0.3 + 0.7
-          
-          const dashArray = `${20 * pulseIntensity} ${10 * (1 - pulseIntensity)}`
-          
-          ;(layer as any).setStyle({
-            opacity: 0.4 + intensity * 0.6,
-            weight: 2 + intensity * 3,
-            dashArray: dashArray,
-          })
-        }
-      })
+      const pulse = Math.sin(pulseRef.current * Math.PI * 2) * 0.08 + 0.92
+      
+      updatePolyline()
+      
+      if (polylineRef.current) {
+        polylineRef.current.setStyle({
+          opacity: 0.3 + pulse * 0.15,
+          weight: 1.8 + pulse * 0.4,
+        })
+      }
       
       animationRef.current = requestAnimationFrame(animate)
     }
@@ -53,49 +88,12 @@ export function RoadLoadingAnimation() {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
       }
+      if (polylineRef.current) {
+        map.removeLayer(polylineRef.current)
+      }
     }
   }, [map, busRoutes, trainRoutes, busLoading, trainLoading])
 
-  if (busLoading || trainLoading || !busRoutes || !trainRoutes) {
-    return null
-  }
-
-  const allRoutes = [...(busRoutes.features || []), ...(trainRoutes.features || [])]
-  if (allRoutes.length === 0) {
-    return null
-  }
-
-  const getRouteStyle = (feature: GeoJSON.Feature, index: number): PathOptions => {
-    const routeColor = feature.properties?.route_color 
-      ? `#${feature.properties.route_color}` 
-      : '#3b82f6'
-    
-    const offset = (index * 0.05) % 1
-    const progress = (progressRef.current + offset) % 1
-    const intensity = Math.sin(progress * Math.PI * 2) * 0.5 + 0.5
-    
-    return {
-      color: routeColor,
-      weight: 2 + intensity * 2,
-      opacity: 0.4 + intensity * 0.6,
-      fillOpacity: 0,
-      dashArray: `${15 + intensity * 10} ${10 - intensity * 5}`,
-    }
-  }
-
-  return (
-    <>
-      {allRoutes.slice(0, 200).map((feature, index) => (
-        <GeoJSON
-          key={`route-${index}`}
-          data={feature as GeoJSON.Feature}
-          style={(f) => getRouteStyle(f, index)}
-          onEachFeature={(feature, layer) => {
-            layersRef.current.set(`route-${index}`, layer)
-          }}
-        />
-      ))}
-    </>
-  )
+  return null
 }
 
