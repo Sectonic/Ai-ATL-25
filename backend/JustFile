@@ -11,6 +11,9 @@ run:
   export DATABASE_URL={{DATABASE_URL}}
   bin/backend
 
+dev:
+  cargo run
+
 # Database commands
 db-init:
   #!/usr/bin/env bash
@@ -45,6 +48,24 @@ db-create:
 db-status:
   #!/usr/bin/env bash
   brew services list | grep postgresql || pg_ctl -D /opt/homebrew/var/postgresql@17 status
+
+test:
+  #!/usr/bin/env bash
+  BASE_URL="http://localhost:8080"
+  echo "Testing backend endpoints..."
+  echo ""
+  
+  echo "1. Testing POST /api/process-geo-data"
+  echo "-----------------------------------"
+  curl -X POST "${BASE_URL}/api/process-geo-data" \
+    -H "Content-Type: application/json" \
+    -d '{"data": "test geo data"}' \
+    -w "\nHTTP Status: %{http_code}\n" \
+    -s
+  echo ""
+  echo ""
+  
+  echo "All endpoint tests completed!"
 
 clean:
   cargo clean && rm -rf bin/backend
