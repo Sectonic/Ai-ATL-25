@@ -10,29 +10,9 @@ export interface Comment {
   timestamp: number
 }
 
-export interface EventMetrics {
+export type NeighborhoodMetrics = Partial<NeighborhoodProperties> & {
   zoneId: string
   zoneName: string
-  population?: number
-  populationChange?: number
-  housingUnits?: number
-  housingUnitsChange?: number
-  trafficFlow?: number
-  trafficFlowChange?: number
-  economicIndex?: number
-  economicIndexChange?: number
-  averageIncome?: number
-  averageIncomeChange?: number
-  unemploymentRate?: number
-  unemploymentRateChange?: number
-  housingAffordabilityIndex?: number
-  housingAffordabilityIndexChange?: number
-  trafficCongestionIndex?: number
-  trafficCongestionIndexChange?: number
-  airQualityIndex?: number
-  airQualityIndexChange?: number
-  livabilityIndex?: number
-  livabilityIndexChange?: number
 }
 
 export interface EventNotification {
@@ -46,7 +26,7 @@ export interface EventNotification {
   positivity: number
   coordinates: [number, number]
   comments: Comment[]
-  metrics?: EventMetrics
+  metrics?: NeighborhoodMetrics
 }
 
 export interface NeighborhoodProperties {
@@ -89,6 +69,9 @@ export interface NeighborhoodProperties {
     higher_ed_percent: number
     density_index: number
   }
+  baseline_description?: string
+  current_events?: string[]
+  neighboring_neighborhoods?: string[]
 }
 
 export interface LayerVisibility {
@@ -116,8 +99,9 @@ interface SimulationState {
   previousMapView: MapView | null
   promptText: string
   simulationSummary: string
-  zoneMetrics: Record<string, EventMetrics>
-  cityMetrics: EventMetrics
+  originalNeighborhoodData: Record<string, NeighborhoodProperties>
+  simulatedNeighborhoodData: Record<string, NeighborhoodProperties>
+  neighborhoodDeltas: Record<string, Partial<NeighborhoodProperties>>
   layerVisibility: LayerVisibility
 
   setSimulationStatus: (status: SimulationStatus) => void
@@ -131,15 +115,12 @@ interface SimulationState {
   clearEventNotifications: () => void
   setSelectedEventId: (id: string | null) => void
   setPreviousMapView: (view: MapView | null) => void
+  initializeSimulationData: (neighborhoods: Record<string, NeighborhoodProperties>) => void
   updateMetricsFromEvent: (event: EventNotification) => void
+  calculateDeltas: () => void
   toggleLayerVisibility: (layer: keyof LayerVisibility) => void
   resetSimulation: () => void
 }
-
-const createEmptyMetrics = (zoneId: string, zoneName: string): EventMetrics => ({
-  zoneId,
-  zoneName,
-})
 
 export const useSimulationStore = create<SimulationState>((set) => ({
   simulationStatus: 'idle',
@@ -149,8 +130,9 @@ export const useSimulationStore = create<SimulationState>((set) => ({
   previousMapView: null,
   promptText: '',
   simulationSummary: '',
-  zoneMetrics: {},
-  cityMetrics: createEmptyMetrics('city', 'Atlanta'),
+  originalNeighborhoodData: {},
+  simulatedNeighborhoodData: {},
+  neighborhoodDeltas: {},
   layerVisibility: {
     buildings: false,
     neighborhoods: true,
@@ -199,41 +181,178 @@ export const useSimulationStore = create<SimulationState>((set) => ({
 
   setPreviousMapView: (view) => set({ previousMapView: view }),
 
+  initializeSimulationData: (neighborhoods) =>
+    set({
+      originalNeighborhoodData: neighborhoods,
+      simulatedNeighborhoodData: JSON.parse(JSON.stringify(neighborhoods)),
+      neighborhoodDeltas: {},
+    }),
+
   updateMetricsFromEvent: (event) =>
     set((state) => {
       if (!event.metrics) return state
 
       const metrics = event.metrics
-      const updatedZoneMetrics = {
-        ...state.zoneMetrics,
-        [metrics.zoneId]: {
-          ...state.zoneMetrics[metrics.zoneId],
-          ...metrics,
-        },
+      const zoneId = metrics.zoneId
+
+      if (!state.simulatedNeighborhoodData[zoneId]) {
+        return state
       }
 
-      const updatedCityMetrics: EventMetrics = {
-        ...state.cityMetrics,
-        population: metrics.population !== undefined ? metrics.population : state.cityMetrics.population,
-        populationChange: metrics.populationChange !== undefined ? metrics.populationChange : state.cityMetrics.populationChange,
-        averageIncome: metrics.averageIncome !== undefined ? metrics.averageIncome : state.cityMetrics.averageIncome,
-        averageIncomeChange: metrics.averageIncomeChange !== undefined ? metrics.averageIncomeChange : state.cityMetrics.averageIncomeChange,
-        unemploymentRate: metrics.unemploymentRate !== undefined ? metrics.unemploymentRate : state.cityMetrics.unemploymentRate,
-        unemploymentRateChange: metrics.unemploymentRateChange !== undefined ? metrics.unemploymentRateChange : state.cityMetrics.unemploymentRateChange,
-        housingAffordabilityIndex: metrics.housingAffordabilityIndex !== undefined ? metrics.housingAffordabilityIndex : state.cityMetrics.housingAffordabilityIndex,
-        housingAffordabilityIndexChange: metrics.housingAffordabilityIndexChange !== undefined ? metrics.housingAffordabilityIndexChange : state.cityMetrics.housingAffordabilityIndexChange,
-        trafficCongestionIndex: metrics.trafficCongestionIndex !== undefined ? metrics.trafficCongestionIndex : state.cityMetrics.trafficCongestionIndex,
-        trafficCongestionIndexChange: metrics.trafficCongestionIndexChange !== undefined ? metrics.trafficCongestionIndexChange : state.cityMetrics.trafficCongestionIndexChange,
-        airQualityIndex: metrics.airQualityIndex !== undefined ? metrics.airQualityIndex : state.cityMetrics.airQualityIndex,
-        airQualityIndexChange: metrics.airQualityIndexChange !== undefined ? metrics.airQualityIndexChange : state.cityMetrics.airQualityIndexChange,
-        livabilityIndex: metrics.livabilityIndex !== undefined ? metrics.livabilityIndex : state.cityMetrics.livabilityIndex,
-        livabilityIndexChange: metrics.livabilityIndexChange !== undefined ? metrics.livabilityIndexChange : state.cityMetrics.livabilityIndexChange,
+      const currentSimulated = state.simulatedNeighborhoodData[zoneId]
+      const updatedSimulated: NeighborhoodProperties = {
+        ...currentSimulated,
+        ...(metrics.population_total !== undefined && { population_total: metrics.population_total }),
+        ...(metrics.median_age !== undefined && { median_age: metrics.median_age }),
+        ...(metrics.population_density !== undefined && { population_density: metrics.population_density }),
+        ...(metrics.median_income !== undefined && { median_income: metrics.median_income }),
+        ...(metrics.median_home_value !== undefined && { median_home_value: metrics.median_home_value }),
+        ...(metrics.affordability_index !== undefined && { affordability_index: metrics.affordability_index }),
+        ...(metrics.housing_units !== undefined && { housing_units: metrics.housing_units }),
+        ...(metrics.households !== undefined && { households: metrics.households }),
+        ...(metrics.vacant_units !== undefined && { vacant_units: metrics.vacant_units }),
+        ...(metrics.vacancy_rate !== undefined && { vacancy_rate: metrics.vacancy_rate }),
+        ...(metrics.owner_occupancy !== undefined && { owner_occupancy: metrics.owner_occupancy }),
+        ...(metrics.housing_density !== undefined && { housing_density: metrics.housing_density }),
+        ...(metrics.education_distribution !== undefined && { education_distribution: metrics.education_distribution }),
+        ...(metrics.race_distribution !== undefined && { race_distribution: metrics.race_distribution }),
+        ...(metrics.diversity_index !== undefined && { diversity_index: metrics.diversity_index }),
+        ...(metrics.livability_index !== undefined && { livability_index: metrics.livability_index }),
+        ...(metrics.commute !== undefined && { commute: metrics.commute }),
+        ...(metrics.derived !== undefined && { derived: metrics.derived }),
       }
 
       return {
-        zoneMetrics: updatedZoneMetrics,
-        cityMetrics: updatedCityMetrics,
+        simulatedNeighborhoodData: {
+          ...state.simulatedNeighborhoodData,
+          [zoneId]: updatedSimulated,
+        },
       }
+    }),
+
+  calculateDeltas: () =>
+    set((state) => {
+      const deltas: Record<string, Partial<NeighborhoodProperties>> = {}
+
+      for (const [zoneId, simulated] of Object.entries(state.simulatedNeighborhoodData)) {
+        const original = state.originalNeighborhoodData[zoneId]
+        if (!original) continue
+
+        const delta: Partial<NeighborhoodProperties> = {}
+
+        if (simulated.population_total !== original.population_total) {
+          delta.population_total = simulated.population_total - original.population_total
+        }
+        if (simulated.median_age !== original.median_age) {
+          delta.median_age = simulated.median_age - original.median_age
+        }
+        if (simulated.population_density !== original.population_density) {
+          delta.population_density = simulated.population_density - original.population_density
+        }
+        if (simulated.median_income !== original.median_income) {
+          delta.median_income = simulated.median_income - original.median_income
+        }
+        if (simulated.median_home_value !== original.median_home_value) {
+          delta.median_home_value = simulated.median_home_value - original.median_home_value
+        }
+        if (simulated.affordability_index !== original.affordability_index) {
+          delta.affordability_index = simulated.affordability_index - original.affordability_index
+        }
+        if (simulated.housing_units !== original.housing_units) {
+          delta.housing_units = simulated.housing_units - original.housing_units
+        }
+        if (simulated.households !== original.households) {
+          delta.households = simulated.households - original.households
+        }
+        if (simulated.vacant_units !== original.vacant_units) {
+          delta.vacant_units = simulated.vacant_units - original.vacant_units
+        }
+        if (simulated.vacancy_rate !== original.vacancy_rate) {
+          delta.vacancy_rate = simulated.vacancy_rate - original.vacancy_rate
+        }
+        if (simulated.owner_occupancy !== original.owner_occupancy) {
+          delta.owner_occupancy = simulated.owner_occupancy - original.owner_occupancy
+        }
+        if (simulated.housing_density !== original.housing_density) {
+          delta.housing_density = simulated.housing_density - original.housing_density
+        }
+        if (simulated.diversity_index !== original.diversity_index) {
+          delta.diversity_index = simulated.diversity_index - original.diversity_index
+        }
+        if (simulated.livability_index !== original.livability_index) {
+          delta.livability_index = simulated.livability_index - original.livability_index
+        }
+
+        if (simulated.education_distribution) {
+          const eduChanged =
+            simulated.education_distribution.high_school_or_less !== original.education_distribution.high_school_or_less ||
+            simulated.education_distribution.some_college !== original.education_distribution.some_college ||
+            simulated.education_distribution.bachelors !== original.education_distribution.bachelors ||
+            simulated.education_distribution.graduate !== original.education_distribution.graduate
+
+          if (eduChanged) {
+            delta.education_distribution = {
+              high_school_or_less: simulated.education_distribution.high_school_or_less - original.education_distribution.high_school_or_less,
+              some_college: simulated.education_distribution.some_college - original.education_distribution.some_college,
+              bachelors: simulated.education_distribution.bachelors - original.education_distribution.bachelors,
+              graduate: simulated.education_distribution.graduate - original.education_distribution.graduate,
+            }
+          }
+        }
+
+        if (simulated.race_distribution) {
+          const raceChanged =
+            simulated.race_distribution.white !== original.race_distribution.white ||
+            simulated.race_distribution.black !== original.race_distribution.black ||
+            simulated.race_distribution.asian !== original.race_distribution.asian ||
+            simulated.race_distribution.mixed !== original.race_distribution.mixed ||
+            simulated.race_distribution.hispanic !== original.race_distribution.hispanic
+
+          if (raceChanged) {
+            delta.race_distribution = {
+              white: simulated.race_distribution.white - original.race_distribution.white,
+              black: simulated.race_distribution.black - original.race_distribution.black,
+              asian: simulated.race_distribution.asian - original.race_distribution.asian,
+              mixed: simulated.race_distribution.mixed - original.race_distribution.mixed,
+              hispanic: simulated.race_distribution.hispanic - original.race_distribution.hispanic,
+            }
+          }
+        }
+
+        if (simulated.commute) {
+          const commuteChanged =
+            simulated.commute.avg_minutes !== original.commute.avg_minutes ||
+            simulated.commute.car_dependence !== original.commute.car_dependence ||
+            simulated.commute.transit_usage !== original.commute.transit_usage
+
+          if (commuteChanged) {
+            delta.commute = {
+              avg_minutes: simulated.commute.avg_minutes - original.commute.avg_minutes,
+              car_dependence: simulated.commute.car_dependence - original.commute.car_dependence,
+              transit_usage: simulated.commute.transit_usage - original.commute.transit_usage,
+            }
+          }
+        }
+
+        if (simulated.derived) {
+          const derivedChanged =
+            simulated.derived.higher_ed_percent !== original.derived.higher_ed_percent ||
+            simulated.derived.density_index !== original.derived.density_index
+
+          if (derivedChanged) {
+            delta.derived = {
+              higher_ed_percent: simulated.derived.higher_ed_percent - original.derived.higher_ed_percent,
+              density_index: simulated.derived.density_index - original.derived.density_index,
+            }
+          }
+        }
+
+        if (Object.keys(delta).length > 0) {
+          deltas[zoneId] = delta
+        }
+      }
+
+      return { neighborhoodDeltas: deltas }
     }),
 
   toggleLayerVisibility: (layer) =>
@@ -253,7 +372,7 @@ export const useSimulationStore = create<SimulationState>((set) => ({
       eventNotifications: [],
       selectedEventId: null,
       previousMapView: null,
-      zoneMetrics: {},
-      cityMetrics: createEmptyMetrics('city', 'Atlanta'),
+      simulatedNeighborhoodData: {},
+      neighborhoodDeltas: {},
     }),
 }))

@@ -138,103 +138,64 @@ function SelectedEventView({ event, onClose, containerRef }: { event: EventNotif
             <div className="text-sm font-medium text-white/90 mb-3">Impact Metrics</div>
             <div className="p-2 rounded-lg bg-white/5">
               <div className="grid grid-cols-2 gap-1.5 text-xs">
-                {event.metrics.population !== undefined && (
+                {event.metrics.population_total !== undefined && (
                   <div>
                     <span className="text-white/50">Population: </span>
-                    <span className="text-white/90">{Math.round(event.metrics.population).toLocaleString()}</span>
-                    {event.metrics.populationChange !== undefined && (
-                      <span className={`ml-1 ${event.metrics.populationChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        ({event.metrics.populationChange >= 0 ? '+' : ''}{event.metrics.populationChange.toFixed(1)}%)
-                      </span>
-                    )}
+                    <span className="text-white/90">{event.metrics.population_total.toLocaleString()}</span>
                   </div>
                 )}
-                {event.metrics.housingUnits !== undefined && (
+                {event.metrics.housing_units !== undefined && (
                   <div>
                     <span className="text-white/50">Housing Units: </span>
-                    <span className="text-white/90">{Math.round(event.metrics.housingUnits).toLocaleString()}</span>
-                    {event.metrics.housingUnitsChange !== undefined && (
-                      <span className={`ml-1 ${event.metrics.housingUnitsChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        ({event.metrics.housingUnitsChange >= 0 ? '+' : ''}{event.metrics.housingUnitsChange.toFixed(1)}%)
-                      </span>
-                    )}
+                    <span className="text-white/90">{event.metrics.housing_units.toLocaleString()}</span>
                   </div>
                 )}
-                {event.metrics.trafficFlow !== undefined && (
+                {event.metrics.median_income !== undefined && (
                   <div>
-                    <span className="text-white/50">Traffic Flow: </span>
-                    <span className="text-white/90">{event.metrics.trafficFlow.toFixed(1)}</span>
-                    {event.metrics.trafficFlowChange !== undefined && (
-                      <span className={`ml-1 ${event.metrics.trafficFlowChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        ({event.metrics.trafficFlowChange >= 0 ? '+' : ''}{event.metrics.trafficFlowChange.toFixed(1)})
-                      </span>
-                    )}
+                    <span className="text-white/50">Median Income: </span>
+                    <span className="text-white/90">${Math.round(event.metrics.median_income / 1000)}k</span>
                   </div>
                 )}
-                {event.metrics.economicIndex !== undefined && (
+                {event.metrics.median_home_value !== undefined && (
                   <div>
-                    <span className="text-white/50">Economic Index: </span>
-                    <span className="text-white/90">{event.metrics.economicIndex.toFixed(1)}</span>
-                    {event.metrics.economicIndexChange !== undefined && (
-                      <span className={`ml-1 ${event.metrics.economicIndexChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        ({event.metrics.economicIndexChange >= 0 ? '+' : ''}{event.metrics.economicIndexChange.toFixed(1)})
-                      </span>
-                    )}
+                    <span className="text-white/50">Home Value: </span>
+                    <span className="text-white/90">${Math.round(event.metrics.median_home_value / 1000)}k</span>
                   </div>
                 )}
-                {event.metrics.averageIncome !== undefined && (
-                  <div>
-                    <span className="text-white/50">Avg Income: </span>
-                    <span className="text-white/90">${Math.round(event.metrics.averageIncome / 1000)}k</span>
-                    {event.metrics.averageIncomeChange !== undefined && (
-                      <span className={`ml-1 ${event.metrics.averageIncomeChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        ({event.metrics.averageIncomeChange >= 0 ? '+' : ''}{event.metrics.averageIncomeChange.toFixed(1)}%)
-                      </span>
-                    )}
-                  </div>
-                )}
-                {event.metrics.trafficCongestionIndex !== undefined && (
-                  <div>
-                    <span className="text-white/50">Traffic: </span>
-                    <span className="text-white/90">{event.metrics.trafficCongestionIndex.toFixed(1)}</span>
-                    {event.metrics.trafficCongestionIndexChange !== undefined && (
-                      <span className={`ml-1 ${event.metrics.trafficCongestionIndexChange >= 0 ? 'text-red-400' : 'text-green-400'}`}>
-                        ({event.metrics.trafficCongestionIndexChange >= 0 ? '+' : ''}{event.metrics.trafficCongestionIndexChange.toFixed(1)})
-                      </span>
-                    )}
-                  </div>
-                )}
-                {event.metrics.housingAffordabilityIndex !== undefined && (
+                {event.metrics.affordability_index !== undefined && (
                   <div>
                     <span className="text-white/50">Affordability: </span>
-                    <span className="text-white/90">{event.metrics.housingAffordabilityIndex.toFixed(1)}</span>
-                    {event.metrics.housingAffordabilityIndexChange !== undefined && (
-                      <span className={`ml-1 ${event.metrics.housingAffordabilityIndexChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        ({event.metrics.housingAffordabilityIndexChange >= 0 ? '+' : ''}{event.metrics.housingAffordabilityIndexChange.toFixed(1)})
-                      </span>
-                    )}
+                    <span className="text-white/90">{event.metrics.affordability_index.toFixed(2)}</span>
                   </div>
                 )}
-                {event.metrics.airQualityIndex !== undefined && (
+                {event.metrics.vacancy_rate !== undefined && (
                   <div>
-                    <span className="text-white/50">Air Quality: </span>
-                    <span className="text-white/90">{event.metrics.airQualityIndex.toFixed(1)}</span>
-                    {event.metrics.airQualityIndexChange !== undefined && (
-                      <span className={`ml-1 ${event.metrics.airQualityIndexChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        ({event.metrics.airQualityIndexChange >= 0 ? '+' : ''}{event.metrics.airQualityIndexChange.toFixed(1)})
-                      </span>
-                    )}
+                    <span className="text-white/50">Vacancy Rate: </span>
+                    <span className="text-white/90">{event.metrics.vacancy_rate.toFixed(1)}%</span>
                   </div>
                 )}
-                {event.metrics.livabilityIndex !== undefined && (
+                {event.metrics.owner_occupancy !== undefined && (
+                  <div>
+                    <span className="text-white/50">Owner Occupancy: </span>
+                    <span className="text-white/90">{event.metrics.owner_occupancy.toFixed(1)}%</span>
+                  </div>
+                )}
+                {event.metrics.livability_index !== undefined && (
                   <div>
                     <span className="text-white/50">Livability: </span>
-                    <span className="text-white/90">{event.metrics.livabilityIndex.toFixed(1)}</span>
-                    {event.metrics.livabilityIndexChange !== undefined && (
-                      <span className={`ml-1 ${event.metrics.livabilityIndexChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        ({event.metrics.livabilityIndexChange >= 0 ? '+' : ''}{event.metrics.livabilityIndexChange.toFixed(1)})
-                      </span>
-                    )}
+                    <span className="text-white/90">{event.metrics.livability_index.toFixed(1)}</span>
+                  </div>
+                )}
+                {event.metrics.diversity_index !== undefined && (
+                  <div>
+                    <span className="text-white/50">Diversity: </span>
+                    <span className="text-white/90">{event.metrics.diversity_index.toFixed(2)}</span>
+                  </div>
+                )}
+                {event.metrics.commute?.avg_minutes !== undefined && (
+                  <div>
+                    <span className="text-white/50">Commute: </span>
+                    <span className="text-white/90">{event.metrics.commute.avg_minutes.toFixed(1)} min</span>
                   </div>
                 )}
               </div>
@@ -382,7 +343,7 @@ export function EventNotificationPanel() {
   }, [eventNotifications, selectedEvent])
 
   return (
-    <div className="fixed left-3 top-[80px] bottom-0 w-1/5 z-10 pointer-events-none">
+    <div className="fixed left-3 top-[80px] bottom-0 w-[22%] z-10 pointer-events-none">
       <div className="relative h-full pointer-events-auto flex flex-col">
         <div className="flex flex-col gap-3 mb-3 ml-1">
           <motion.div

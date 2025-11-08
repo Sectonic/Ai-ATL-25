@@ -53,6 +53,7 @@ pub struct Derived {
 /// - Housing data (units, ownership, vacancy)
 /// - Economic indicators (household income, home values)
 /// - Commute patterns
+/// - Contextual information (baseline description, current events, neighboring neighborhoods)
 ///
 /// This data is used by the AI to generate realistic, neighborhood-specific
 /// simulation results based on actual Atlanta neighborhood characteristics.
@@ -96,163 +97,99 @@ pub struct NeighborhoodProperties {
     pub livability_index: f64,
     pub commute: Commute,
     pub derived: Derived,
+    #[serde(
+        rename = "baseline_description",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub baseline_description: Option<String>,
+    #[serde(
+        rename = "current_events",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub current_events: Option<Vec<String>>,
+    #[serde(
+        rename = "neighboring_neighborhoods",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub neighboring_neighborhoods: Option<Vec<String>>,
 }
 
-/// Combined metrics for an event, including both zone-level and city-wide metrics
+/// Partial neighborhood metrics for event updates
 ///
-/// This combines zone and city metrics into a single object to avoid duplication.
-/// The AI should use neighborhood_properties to generate accurate zone-level data.
-/// This is the single metrics type used throughout the system.
+/// This represents a partial update to neighborhood properties.
+/// Events only include the fields that change, not the complete state.
+/// All fields are optional since events may affect different aspects of a neighborhood.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
-pub struct EventMetrics {
+pub struct NeighborhoodMetrics {
     #[serde(rename = "zoneId")]
     pub zone_id: String,
     #[serde(rename = "zoneName")]
     pub zone_name: String,
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub population: Option<f64>,
-    #[serde(
-        rename = "populationChange",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub population_change: Option<f64>,
-    #[serde(
-        rename = "housingUnits",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub housing_units: Option<f64>,
-    #[serde(
-        rename = "housingUnitsChange",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub housing_units_change: Option<f64>,
-    #[serde(
-        rename = "trafficFlow",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub traffic_flow: Option<f64>,
-    #[serde(
-        rename = "trafficFlowChange",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub traffic_flow_change: Option<f64>,
-    #[serde(
-        rename = "economicIndex",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub economic_index: Option<f64>,
-    #[serde(
-        rename = "economicIndexChange",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub economic_index_change: Option<f64>,
-    #[serde(
-        rename = "averageIncome",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub average_income: Option<f64>,
-    #[serde(
-        rename = "averageIncomeChange",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub average_income_change: Option<f64>,
-    #[serde(
-        rename = "unemploymentRate",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub unemployment_rate: Option<f64>,
-    #[serde(
-        rename = "unemploymentRateChange",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub unemployment_rate_change: Option<f64>,
-    #[serde(
-        rename = "housingAffordabilityIndex",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub housing_affordability_index: Option<f64>,
-    #[serde(
-        rename = "housingAffordabilityIndexChange",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub housing_affordability_index_change: Option<f64>,
-    #[serde(
-        rename = "trafficCongestionIndex",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub traffic_congestion_index: Option<f64>,
-    #[serde(
-        rename = "trafficCongestionIndexChange",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub traffic_congestion_index_change: Option<f64>,
-    #[serde(
-        rename = "airQualityIndex",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub air_quality_index: Option<f64>,
-    #[serde(
-        rename = "airQualityIndexChange",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub air_quality_index_change: Option<f64>,
-    #[serde(
-        rename = "livabilityIndex",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
+    pub population_total: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub median_age: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub population_density: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub median_income: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub median_home_value: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub affordability_index: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub housing_units: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub households: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub vacant_units: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub vacancy_rate: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub owner_occupancy: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub housing_density: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub education_distribution: Option<EducationDistribution>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub race_distribution: Option<RaceDistribution>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub diversity_index: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub livability_index: Option<f64>,
-    #[serde(
-        rename = "livabilityIndexChange",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
-    pub livability_index_change: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub commute: Option<Commute>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub derived: Option<Derived>,
 }
 
-impl Default for EventMetrics {
+impl Default for NeighborhoodMetrics {
     fn default() -> Self {
-        EventMetrics {
+        NeighborhoodMetrics {
             zone_id: String::new(),
             zone_name: String::new(),
-            population: None,
-            population_change: None,
+            population_total: None,
+            median_age: None,
+            population_density: None,
+            median_income: None,
+            median_home_value: None,
+            affordability_index: None,
             housing_units: None,
-            housing_units_change: None,
-            traffic_flow: None,
-            traffic_flow_change: None,
-            economic_index: None,
-            economic_index_change: None,
-            average_income: None,
-            average_income_change: None,
-            unemployment_rate: None,
-            unemployment_rate_change: None,
-            housing_affordability_index: None,
-            housing_affordability_index_change: None,
-            traffic_congestion_index: None,
-            traffic_congestion_index_change: None,
-            air_quality_index: None,
-            air_quality_index_change: None,
+            households: None,
+            vacant_units: None,
+            vacancy_rate: None,
+            owner_occupancy: None,
+            housing_density: None,
+            education_distribution: None,
+            race_distribution: None,
+            diversity_index: None,
             livability_index: None,
-            livability_index_change: None,
+            commute: None,
+            derived: None,
         }
     }
 }
@@ -267,8 +204,9 @@ impl Default for EventMetrics {
 /// - `positivity` (-1.0 to 1.0): How positive/negative the event is (affects color: red to yellow to green)
 ///
 /// ## Metrics
-/// Each event includes a single combined metrics object that contains both zone-level and city-wide
-/// metrics, allowing the client to track event-specific state and aggregate data for charts.
+/// Each event includes a partial neighborhood metrics object that contains only the fields
+/// that change as a result of this event. The client applies these partial updates incrementally
+/// to build up the simulated neighborhood state.
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct EventNotification {
@@ -285,7 +223,7 @@ pub struct EventNotification {
     pub positivity: f64,
     pub coordinates: Vec<f64>,
     #[serde(rename = "metrics", skip_serializing_if = "Option::is_none")]
-    pub metrics: Option<EventMetrics>,
+    pub metrics: Option<NeighborhoodMetrics>,
 }
 
 impl Default for EventNotification {
@@ -332,13 +270,10 @@ pub struct SimulationComplete {
 ///
 /// Contains all the information needed to generate a simulation:
 /// - The policy proposal to simulate
-/// - Current city state (metrics) - using EventMetrics format for consistency
 /// - Optional zone and neighborhood data for more accurate results
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SimulationRequest {
     pub prompt: String,
-    #[serde(rename = "cityMetrics")]
-    pub city_metrics: EventMetrics,
     #[serde(rename = "selectedZones", default)]
     pub selected_zones: Vec<String>,
     #[serde(rename = "neighborhoodProperties", default)]

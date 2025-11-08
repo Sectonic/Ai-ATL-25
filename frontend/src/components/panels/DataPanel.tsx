@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useSimulationStore, type EventMetrics } from '../../stores/simulationStore'
+import { useSimulationStore, type NeighborhoodProperties } from '../../stores/simulationStore'
 import { useNeighborhoods } from '../../services/geojsonApi'
-import { Users, Home, DollarSign, Car, Leaf, Scale, Star } from 'lucide-react'
+import { Users, Home, DollarSign, Car, Leaf, Scale, Star, ArrowUp, ArrowDown } from 'lucide-react'
 import { DoughnutChart } from '../charts/DoughnutChart'
 import { RadarChart } from '../charts/RadarChart'
 import { SegmentedBar } from '../charts/SegmentedBar'
@@ -42,9 +42,43 @@ interface AggregatedData {
   selectedNames: string[]
 }
 
+interface AggregatedDeltas {
+  population?: number
+  medianIncome?: number
+  housingAffordability?: number
+  environmentalScore?: number
+  livabilityScore?: number
+  trafficCongestion?: number
+  raceDistribution?: {
+    white: number
+    black: number
+    asian: number
+    mixed: number
+    hispanic: number
+  }
+  educationDistribution?: {
+    high_school_or_less: number
+    some_college: number
+    bachelors: number
+    graduate: number
+  }
+  diversityIndex?: number
+  higherEdPercent?: number
+  medianHomeValue?: number
+  affordabilityIndex?: number
+  commute?: {
+    avg_minutes: number
+    car_dependence: number
+    transit_usage: number
+  }
+  vacancyRate?: number
+  ownerOccupancy?: number
+  densityIndex?: number
+}
+
 function aggregateNeighborhoodData(
   selectedZones: string[],
-  zoneMetrics: Record<string, EventMetrics>,
+  neighborhoodData: Record<string, NeighborhoodProperties>,
   neighborhoodsData: GeoJSON.FeatureCollection | undefined
 ): AggregatedData | null {
   if (!neighborhoodsData) return null
@@ -57,57 +91,13 @@ function aggregateNeighborhoodData(
 
   const selectedZoneData = zonesToAggregate
     .map(name => {
+      const simulatedData = neighborhoodData[name]
+      if (simulatedData) {
+        return simulatedData
+      }
       const feature = neighborhoodsData.features.find(f => f.properties?.name === name)
       if (!feature || !feature.properties) return null
-
-      const baseProperties = feature.properties
-      const zoneMetric = zoneMetrics[name]
-
-      if (!zoneMetric) {
-        return baseProperties
-      }
-
-      const updatedProperties = { ...baseProperties }
-
-      if (zoneMetric.population !== undefined && zoneMetric.population !== baseProperties.population_total) {
-        const populationRatio = baseProperties.population_total > 0
-          ? zoneMetric.population / baseProperties.population_total
-          : 1
-        updatedProperties.population_total = zoneMetric.population
-        updatedProperties.households = Math.round((baseProperties.households || 0) * populationRatio)
-      }
-
-      if (zoneMetric.housingUnits !== undefined && zoneMetric.housingUnits !== baseProperties.housing_units) {
-        updatedProperties.housing_units = zoneMetric.housingUnits
-        const vacancyRate = baseProperties.housing_units > 0
-          ? ((baseProperties.vacant_units || 0) / baseProperties.housing_units) * 100
-          : 0
-        updatedProperties.vacant_units = Math.round((zoneMetric.housingUnits * vacancyRate) / 100)
-        updatedProperties.vacancy_rate = vacancyRate
-      }
-
-      if (zoneMetric.trafficFlow !== undefined) {
-        const densityIndex = updatedProperties.derived?.density_index || 0
-        const carDependence = Math.max(0, Math.min(100, zoneMetric.trafficFlow - (densityIndex * 100)))
-        updatedProperties.commute = {
-          ...updatedProperties.commute,
-          car_dependence: carDependence,
-        }
-      }
-
-      if (zoneMetric.economicIndex !== undefined) {
-        const normalizedIndex = Math.min(1, Math.max(0, zoneMetric.economicIndex / 100))
-        const homeValueEstimate = normalizedIndex * 1000000
-        const incomeEstimate = normalizedIndex * 200000
-        updatedProperties.median_home_value = Math.round(homeValueEstimate)
-        updatedProperties.median_income = Math.round(incomeEstimate)
-
-        if (updatedProperties.median_income > 0 && updatedProperties.median_home_value > 0) {
-          updatedProperties.affordability_index = updatedProperties.median_income / (updatedProperties.median_home_value / 1000)
-        }
-      }
-
-      return updatedProperties
+      return feature.properties as any
     })
     .filter(Boolean)
 
@@ -124,9 +114,9 @@ function aggregateNeighborhoodData(
     sum + (z.affordability_index || 0), 0) / selectedZoneData.length
 
   const avgCarDependence = selectedZoneData.reduce((sum, z) =>
-    sum + (z.commute?.car_dependence || 0), 0) / selectedZoneData.length
+    sum + ((z.commute?.car_dependence || 0) * (z.population_total || 0)), 0) / totalPopulation
   const avgDensityIndex = selectedZoneData.reduce((sum, z) =>
-    sum + (z.derived?.density_index || 0), 0) / selectedZoneData.length
+    sum + ((z.derived?.density_index || 0) * (z.population_total || 0)), 0) / totalPopulation
 
   const trafficCongestion = Math.min(100, avgCarDependence + (avgDensityIndex * 100))
   const environmentalScore = Math.max(0, 100 - trafficCongestion)
@@ -140,26 +130,33 @@ function aggregateNeighborhoodData(
   }
 
   const educationDistribution = {
-    high_school_or_less: selectedZoneData.reduce((sum, z) => sum + (z.education_distribution?.high_school_or_less || 0), 0) / selectedZoneData.length,
-    some_college: selectedZoneData.reduce((sum, z) => sum + (z.education_distribution?.some_college || 0), 0) / selectedZoneData.length,
-    bachelors: selectedZoneData.reduce((sum, z) => sum + (z.education_distribution?.bachelors || 0), 0) / selectedZoneData.length,
-    graduate: selectedZoneData.reduce((sum, z) => sum + (z.education_distribution?.graduate || 0), 0) / selectedZoneData.length,
+    high_school_or_less: selectedZoneData.reduce((sum, z) => 
+      sum + ((z.education_distribution?.high_school_or_less || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation * 100,
+    some_college: selectedZoneData.reduce((sum, z) => 
+      sum + ((z.education_distribution?.some_college || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation * 100,
+    bachelors: selectedZoneData.reduce((sum, z) => 
+      sum + ((z.education_distribution?.bachelors || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation * 100,
+    graduate: selectedZoneData.reduce((sum, z) => 
+      sum + ((z.education_distribution?.graduate || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation * 100,
   }
 
-  const avgDiversityIndex = selectedZoneData.reduce((sum, z) => sum + (z.diversity_index || 0), 0) / selectedZoneData.length
-  const avgHigherEdPercent = selectedZoneData.reduce((sum, z) => sum + (z.derived?.higher_ed_percent || 0), 0) / selectedZoneData.length
+  const avgDiversityIndex = selectedZoneData.reduce((sum, z) => 
+    sum + ((z.diversity_index || 0) * (z.population_total || 0)), 0) / totalPopulation
+  const avgHigherEdPercent = selectedZoneData.reduce((sum, z) => 
+    sum + ((z.derived?.higher_ed_percent || 0) * (z.population_total || 0)), 0) / totalPopulation
 
   const weightedHomeValue = selectedZoneData.reduce((sum, z) =>
     sum + ((z.median_home_value || 0) * (z.households || 0)), 0)
   const avgHomeValue = totalHouseholds > 0 ? weightedHomeValue / totalHouseholds : 0
 
   const avgCommuteMinutes = selectedZoneData.reduce((sum, z) =>
-    sum + (z.commute?.avg_minutes || 0), 0) / selectedZoneData.length
+    sum + ((z.commute?.avg_minutes || 0) * (z.population_total || 0)), 0) / totalPopulation
 
   const avgVacancyRate = selectedZoneData.reduce((sum, z) => sum + (z.vacancy_rate || 0), 0) / selectedZoneData.length
   const avgOwnerOccupancy = selectedZoneData.reduce((sum, z) => sum + (z.owner_occupancy || 0), 0) / selectedZoneData.length
 
-  const avgLivabilityScore = selectedZoneData.reduce((sum, z) => sum + (z.livability_index || 0), 0) / selectedZoneData.length;
+  const avgLivabilityScore = selectedZoneData.reduce((sum, z) => 
+    sum + ((z.livability_index || 0) * (z.population_total || 0)), 0) / totalPopulation
 
   const affordabilityScore = Math.min(100, Math.max(0, 100 - (avgAffordability * 10)))
 
@@ -179,7 +176,8 @@ function aggregateNeighborhoodData(
     commute: {
       avg_minutes: avgCommuteMinutes,
       car_dependence: avgCarDependence,
-      transit_usage: selectedZoneData.reduce((sum, z) => sum + (z.commute?.transit_usage || 0), 0) / selectedZoneData.length,
+      transit_usage: selectedZoneData.reduce((sum, z) => 
+        sum + ((z.commute?.transit_usage || 0) * (z.population_total || 0)), 0) / totalPopulation,
     },
     vacancyRate: avgVacancyRate,
     ownerOccupancy: avgOwnerOccupancy,
@@ -188,57 +186,159 @@ function aggregateNeighborhoodData(
   }
 }
 
+function calculateAggregatedDeltas(
+  selectedZones: string[],
+  originalData: Record<string, NeighborhoodProperties>,
+  simulatedData: Record<string, NeighborhoodProperties>,
+  neighborhoodsData: GeoJSON.FeatureCollection | undefined
+): AggregatedDeltas | null {
+  if (!neighborhoodsData) return null
+
+  const zonesToAggregate = selectedZones.length === 0
+    ? neighborhoodsData.features.map(f => f.properties?.name).filter(Boolean) as string[]
+    : selectedZones
+
+  if (zonesToAggregate.length === 0) return null
+
+  const originalAggregated = aggregateNeighborhoodData(selectedZones, originalData, neighborhoodsData)
+  const simulatedAggregated = aggregateNeighborhoodData(selectedZones, simulatedData, neighborhoodsData)
+
+  if (!originalAggregated || !simulatedAggregated) return null
+
+  const result: AggregatedDeltas = {}
+
+  if (Math.abs(simulatedAggregated.population - originalAggregated.population) >= EPSILON) {
+    result.population = simulatedAggregated.population - originalAggregated.population
+  }
+  if (Math.abs(simulatedAggregated.medianIncome - originalAggregated.medianIncome) >= EPSILON) {
+    result.medianIncome = simulatedAggregated.medianIncome - originalAggregated.medianIncome
+  }
+  if (Math.abs(simulatedAggregated.housingAffordability - originalAggregated.housingAffordability) >= EPSILON) {
+    result.housingAffordability = simulatedAggregated.housingAffordability - originalAggregated.housingAffordability
+  }
+  if (Math.abs(simulatedAggregated.environmentalScore - originalAggregated.environmentalScore) >= EPSILON) {
+    result.environmentalScore = simulatedAggregated.environmentalScore - originalAggregated.environmentalScore
+  }
+  if (Math.abs(simulatedAggregated.livabilityScore - originalAggregated.livabilityScore) >= EPSILON) {
+    result.livabilityScore = simulatedAggregated.livabilityScore - originalAggregated.livabilityScore
+  }
+  if (Math.abs(simulatedAggregated.trafficCongestion - originalAggregated.trafficCongestion) >= EPSILON) {
+    result.trafficCongestion = simulatedAggregated.trafficCongestion - originalAggregated.trafficCongestion
+  }
+  if (Math.abs(simulatedAggregated.diversityIndex - originalAggregated.diversityIndex) >= EPSILON) {
+    result.diversityIndex = simulatedAggregated.diversityIndex - originalAggregated.diversityIndex
+  }
+  if (Math.abs(simulatedAggregated.higherEdPercent - originalAggregated.higherEdPercent) >= EPSILON) {
+    result.higherEdPercent = simulatedAggregated.higherEdPercent - originalAggregated.higherEdPercent
+  }
+  if (Math.abs(simulatedAggregated.medianHomeValue - originalAggregated.medianHomeValue) >= EPSILON) {
+    result.medianHomeValue = simulatedAggregated.medianHomeValue - originalAggregated.medianHomeValue
+  }
+  if (Math.abs(simulatedAggregated.affordabilityIndex - originalAggregated.affordabilityIndex) >= EPSILON) {
+    result.affordabilityIndex = simulatedAggregated.affordabilityIndex - originalAggregated.affordabilityIndex
+  }
+  if (Math.abs(simulatedAggregated.vacancyRate - originalAggregated.vacancyRate) >= EPSILON) {
+    result.vacancyRate = simulatedAggregated.vacancyRate - originalAggregated.vacancyRate
+  }
+  if (Math.abs(simulatedAggregated.ownerOccupancy - originalAggregated.ownerOccupancy) >= EPSILON) {
+    result.ownerOccupancy = simulatedAggregated.ownerOccupancy - originalAggregated.ownerOccupancy
+  }
+  if (Math.abs(simulatedAggregated.densityIndex - originalAggregated.densityIndex) >= EPSILON) {
+    result.densityIndex = simulatedAggregated.densityIndex - originalAggregated.densityIndex
+  }
+
+  const raceChanged =
+    Math.abs(simulatedAggregated.raceDistribution.white - originalAggregated.raceDistribution.white) >= EPSILON ||
+    Math.abs(simulatedAggregated.raceDistribution.black - originalAggregated.raceDistribution.black) >= EPSILON ||
+    Math.abs(simulatedAggregated.raceDistribution.asian - originalAggregated.raceDistribution.asian) >= EPSILON ||
+    Math.abs(simulatedAggregated.raceDistribution.mixed - originalAggregated.raceDistribution.mixed) >= EPSILON ||
+    Math.abs(simulatedAggregated.raceDistribution.hispanic - originalAggregated.raceDistribution.hispanic) >= EPSILON
+
+  if (raceChanged) {
+    result.raceDistribution = {
+      white: simulatedAggregated.raceDistribution.white - originalAggregated.raceDistribution.white,
+      black: simulatedAggregated.raceDistribution.black - originalAggregated.raceDistribution.black,
+      asian: simulatedAggregated.raceDistribution.asian - originalAggregated.raceDistribution.asian,
+      mixed: simulatedAggregated.raceDistribution.mixed - originalAggregated.raceDistribution.mixed,
+      hispanic: simulatedAggregated.raceDistribution.hispanic - originalAggregated.raceDistribution.hispanic,
+    }
+  }
+
+  const eduChanged =
+    Math.abs(simulatedAggregated.educationDistribution.high_school_or_less - originalAggregated.educationDistribution.high_school_or_less) >= EPSILON ||
+    Math.abs(simulatedAggregated.educationDistribution.some_college - originalAggregated.educationDistribution.some_college) >= EPSILON ||
+    Math.abs(simulatedAggregated.educationDistribution.bachelors - originalAggregated.educationDistribution.bachelors) >= EPSILON ||
+    Math.abs(simulatedAggregated.educationDistribution.graduate - originalAggregated.educationDistribution.graduate) >= EPSILON
+
+  if (eduChanged) {
+    result.educationDistribution = {
+      high_school_or_less: simulatedAggregated.educationDistribution.high_school_or_less - originalAggregated.educationDistribution.high_school_or_less,
+      some_college: simulatedAggregated.educationDistribution.some_college - originalAggregated.educationDistribution.some_college,
+      bachelors: simulatedAggregated.educationDistribution.bachelors - originalAggregated.educationDistribution.bachelors,
+      graduate: simulatedAggregated.educationDistribution.graduate - originalAggregated.educationDistribution.graduate,
+    }
+  }
+
+  const commuteChanged =
+    Math.abs(simulatedAggregated.commute.avg_minutes - originalAggregated.commute.avg_minutes) >= EPSILON ||
+    Math.abs(simulatedAggregated.commute.car_dependence - originalAggregated.commute.car_dependence) >= EPSILON ||
+    Math.abs(simulatedAggregated.commute.transit_usage - originalAggregated.commute.transit_usage) >= EPSILON
+
+  if (commuteChanged) {
+    result.commute = {
+      avg_minutes: simulatedAggregated.commute.avg_minutes - originalAggregated.commute.avg_minutes,
+      car_dependence: simulatedAggregated.commute.car_dependence - originalAggregated.commute.car_dependence,
+      transit_usage: simulatedAggregated.commute.transit_usage - originalAggregated.commute.transit_usage,
+    }
+  }
+
+  return result
+}
+
+const EPSILON = 0.005
+
+function formatDelta(value: number | undefined, positiveIsGood: boolean = true): { display: string; isPositive: boolean; color: string } | null {
+  if (value === undefined || Math.abs(value) < EPSILON) return null
+  const isPositive = value > 0
+  const isGood = positiveIsGood ? isPositive : !isPositive
+  return {
+    display: `${isPositive ? '+' : ''}${value.toFixed(1)}`,
+    isPositive,
+    color: isGood ? 'text-green-400' : 'text-red-400',
+  }
+}
+
 export function DataPanel() {
-  const { selectedZones, zoneMetrics, cityMetrics, selectedEventId, eventNotifications } = useSimulationStore()
+  const {
+    selectedZones,
+    simulationStatus,
+    originalNeighborhoodData,
+    simulatedNeighborhoodData,
+  } = useSimulationStore()
   const { data: neighborhoodsData } = useNeighborhoods()
   const containerRef = useRef<HTMLDivElement>(null)
   const [showGradient, setShowGradient] = useState(false)
 
-  const selectedEvent = selectedEventId ? eventNotifications.find(e => e.id === selectedEventId) : null
+  const hasSimulation = Object.keys(simulatedNeighborhoodData).length > 0
+  const dataToUse = hasSimulation ? simulatedNeighborhoodData : originalNeighborhoodData
 
   const aggregated = useMemo(() => {
-    let zonesToUse = selectedZones
-    let zoneMetricsToUse = zoneMetrics
-    let cityMetricsToUse = cityMetrics
-
-    if (selectedEvent?.metrics) {
-      const metrics = selectedEvent.metrics
-      zonesToUse = [selectedEvent.zoneId]
-      zoneMetricsToUse = {
-        ...zoneMetrics,
-        [selectedEvent.zoneId]: metrics,
-      }
-      cityMetricsToUse = {
-        ...cityMetrics,
-        ...metrics,
-      }
+    if (Object.keys(dataToUse).length === 0 && neighborhoodsData) {
+      const fallbackData: Record<string, NeighborhoodProperties> = {}
+      neighborhoodsData.features.forEach((feature) => {
+        if (feature.properties?.name) {
+          fallbackData[feature.properties.name] = feature.properties as any
+        }
+      })
+      return aggregateNeighborhoodData(selectedZones, fallbackData, neighborhoodsData)
     }
+    return aggregateNeighborhoodData(selectedZones, dataToUse, neighborhoodsData)
+  }, [selectedZones, dataToUse, neighborhoodsData])
 
-    const aggregatedData = aggregateNeighborhoodData(zonesToUse, zoneMetricsToUse, neighborhoodsData)
-    if (!aggregatedData) return null
-
-    const hasSimulationUpdates = cityMetricsToUse.populationChange !== undefined
-
-    if (!hasSimulationUpdates) {
-      return aggregatedData
-    }
-
-    return {
-      ...aggregatedData,
-      population: cityMetricsToUse.population && cityMetricsToUse.population > 0 ? cityMetricsToUse.population : aggregatedData.population,
-      medianIncome: cityMetricsToUse.averageIncome && cityMetricsToUse.averageIncome > 0 ? cityMetricsToUse.averageIncome : aggregatedData.medianIncome,
-      housingAffordability: cityMetricsToUse.housingAffordabilityIndex && cityMetricsToUse.housingAffordabilityIndex > 0
-        ? cityMetricsToUse.housingAffordabilityIndex
-        : aggregatedData.housingAffordability,
-      livabilityScore: cityMetricsToUse.livabilityIndex && cityMetricsToUse.livabilityIndex > 0 ? cityMetricsToUse.livabilityIndex : aggregatedData.livabilityScore,
-      trafficCongestion: cityMetricsToUse.trafficCongestionIndex && cityMetricsToUse.trafficCongestionIndex > 0
-        ? cityMetricsToUse.trafficCongestionIndex
-        : aggregatedData.trafficCongestion,
-      environmentalScore: cityMetricsToUse.airQualityIndex && cityMetricsToUse.airQualityIndex > 0
-        ? cityMetricsToUse.airQualityIndex
-        : aggregatedData.environmentalScore,
-    }
-  }, [selectedZones, zoneMetrics, neighborhoodsData, cityMetrics, selectedEvent])
+  const aggregatedDeltas = useMemo(() => {
+    if (simulationStatus !== 'complete' || !hasSimulation) return null
+    return calculateAggregatedDeltas(selectedZones, originalNeighborhoodData, simulatedNeighborhoodData, neighborhoodsData)
+  }, [selectedZones, simulationStatus, hasSimulation, originalNeighborhoodData, simulatedNeighborhoodData, neighborhoodsData])
 
   useEffect(() => {
     const checkOverflow = () => {
@@ -282,6 +382,13 @@ export function DataPanel() {
     aggregated.raceDistribution.hispanic,
   ]
   const raceColors = ['#737373', '#525252', '#a3a3a3', '#d4d4d4', '#e5e5e5']
+  const raceDeltas = aggregatedDeltas?.raceDistribution ? [
+    aggregatedDeltas.raceDistribution.white,
+    aggregatedDeltas.raceDistribution.black,
+    aggregatedDeltas.raceDistribution.asian,
+    aggregatedDeltas.raceDistribution.mixed,
+    aggregatedDeltas.raceDistribution.hispanic,
+  ] : undefined
 
   const educationLabels = ['High School', 'Some College', "Bachelor's", 'Graduate']
   const educationData = [
@@ -291,6 +398,12 @@ export function DataPanel() {
     aggregated.educationDistribution.graduate,
   ]
   const educationColors = ['#525252', '#737373', '#a3a3a3', '#d4d4d4']
+  const educationDeltas = aggregatedDeltas?.educationDistribution ? [
+    aggregatedDeltas.educationDistribution.high_school_or_less,
+    aggregatedDeltas.educationDistribution.some_college,
+    aggregatedDeltas.educationDistribution.bachelors,
+    aggregatedDeltas.educationDistribution.graduate,
+  ] : undefined
 
   const commuteSegments = [
     { value: aggregated.commute.car_dependence, color: '#737373', label: 'Car' },
@@ -321,11 +434,7 @@ export function DataPanel() {
               transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
               className="px-1 mb-2 pointer-events-auto"
             >
-              {selectedEvent ? (
-                <h2 className="text-lg font-semibold text-white/70 leading-relaxed">
-                  {selectedEvent.zoneName}
-                </h2>
-              ) : selectedZones.length === 0 ? (
+              {selectedZones.length === 0 ? (
                 <h2 className="text-lg font-semibold text-white/70 leading-relaxed">
                   ALL ZONES
                 </h2>
@@ -358,6 +467,12 @@ export function DataPanel() {
                   <div className="text-sm font-semibold text-white">
                     {(aggregated.population / 1000).toFixed(1)}k
                   </div>
+                  {aggregatedDeltas?.population !== undefined && Math.abs(aggregatedDeltas.population) >= EPSILON && (
+                    <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.population / 1000, true)?.color || ''}`}>
+                      {aggregatedDeltas.population > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                      {formatDelta(aggregatedDeltas.population / 1000, true)?.display}
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-2 rounded-lg bg-white/5">
@@ -370,6 +485,12 @@ export function DataPanel() {
                   <div className="text-sm font-semibold text-white">
                     ${Math.round(aggregated.medianIncome / 1000)}k
                   </div>
+                  {aggregatedDeltas?.medianIncome !== undefined && Math.abs(aggregatedDeltas.medianIncome) >= EPSILON && (
+                    <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.medianIncome / 1000, true)?.color || ''}`}>
+                      {aggregatedDeltas.medianIncome > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                      ${formatDelta(aggregatedDeltas.medianIncome / 1000, true)?.display}k
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-2 rounded-lg bg-white/5">
@@ -382,6 +503,12 @@ export function DataPanel() {
                   <div className="text-sm font-semibold text-white">
                     {aggregated.housingAffordability}/100
                   </div>
+                  {aggregatedDeltas?.housingAffordability !== undefined && Math.abs(aggregatedDeltas.housingAffordability) >= EPSILON && (
+                    <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.housingAffordability, true)?.color || ''}`}>
+                      {aggregatedDeltas.housingAffordability > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                      {formatDelta(aggregatedDeltas.housingAffordability, true)?.display}
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-2 rounded-lg bg-white/5">
@@ -394,6 +521,12 @@ export function DataPanel() {
                   <div className="text-sm font-semibold text-white">
                     {aggregated.environmentalScore}/100
                   </div>
+                  {aggregatedDeltas?.environmentalScore !== undefined && Math.abs(aggregatedDeltas.environmentalScore) >= EPSILON && (
+                    <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.environmentalScore, true)?.color || ''}`}>
+                      {aggregatedDeltas.environmentalScore > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                      {formatDelta(aggregatedDeltas.environmentalScore, true)?.display}
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-2 rounded-lg bg-white/5">
@@ -406,6 +539,12 @@ export function DataPanel() {
                   <div className="text-sm font-semibold text-white">
                     {aggregated.livabilityScore}/100
                   </div>
+                  {aggregatedDeltas?.livabilityScore !== undefined && Math.abs(aggregatedDeltas.livabilityScore) >= EPSILON && (
+                    <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.livabilityScore, true)?.color || ''}`}>
+                      {aggregatedDeltas.livabilityScore > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                      {formatDelta(aggregatedDeltas.livabilityScore, true)?.display}
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-2 rounded-lg bg-white/5">
@@ -426,6 +565,12 @@ export function DataPanel() {
                   <div className="text-[10px] text-white/50">
                     {aggregated.trafficCongestion}%
                   </div>
+                  {aggregatedDeltas?.trafficCongestion !== undefined && Math.abs(aggregatedDeltas.trafficCongestion) >= EPSILON && (
+                    <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.trafficCongestion, false)?.color || ''}`}>
+                      {aggregatedDeltas.trafficCongestion > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                      {formatDelta(aggregatedDeltas.trafficCongestion, false)?.display}%
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -445,11 +590,18 @@ export function DataPanel() {
                   labels={raceLabels}
                   data={raceData}
                   backgroundColor={raceColors}
+                  deltas={raceDeltas}
                 />
               </div>
               <div className="text-center">
-                <div className="text-xs font-medium text-white/70">
+                <div className="text-xs font-medium text-white/70 flex items-center justify-center gap-1">
                   Diversity: {aggregated.diversityIndex.toFixed(2)}
+                  {aggregatedDeltas?.diversityIndex !== undefined && Math.abs(aggregatedDeltas.diversityIndex) >= EPSILON && (
+                    <span className={`text-[10px] flex items-center gap-0.5 ${formatDelta(aggregatedDeltas.diversityIndex, true)?.color || ''}`}>
+                      {aggregatedDeltas.diversityIndex > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                      {formatDelta(aggregatedDeltas.diversityIndex, true)?.display}
+                    </span>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -469,11 +621,18 @@ export function DataPanel() {
                   labels={educationLabels}
                   data={educationData}
                   backgroundColor={educationColors}
+                  deltas={educationDeltas}
                 />
               </div>
               <div className="text-center">
-                <div className="text-xs font-medium text-white/70">
+                <div className="text-xs font-medium text-white/70 flex items-center justify-center gap-1">
                   Higher Ed: {Math.round(aggregated.higherEdPercent)}%
+                  {aggregatedDeltas?.higherEdPercent !== undefined && Math.abs(aggregatedDeltas.higherEdPercent) >= EPSILON && (
+                    <span className={`text-[10px] flex items-center gap-0.5 ${formatDelta(aggregatedDeltas.higherEdPercent, true)?.color || ''}`}>
+                      {aggregatedDeltas.higherEdPercent > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                      {formatDelta(aggregatedDeltas.higherEdPercent, true)?.display}%
+                    </span>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -496,6 +655,12 @@ export function DataPanel() {
                   <div className="text-sm font-semibold text-white">
                     ${Math.round(aggregated.medianIncome / 1000)}k
                   </div>
+                  {aggregatedDeltas?.medianIncome !== undefined && Math.abs(aggregatedDeltas.medianIncome) >= EPSILON && (
+                    <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.medianIncome / 1000, true)?.color || ''}`}>
+                      {aggregatedDeltas.medianIncome > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                      ${formatDelta(aggregatedDeltas.medianIncome / 1000, true)?.display}k
+                    </div>
+                  )}
                 </div>
                 <div className="p-2 rounded-lg bg-white/5">
                   <div className="flex items-center gap-1 text-[10px] text-white/50 mb-0.5">
@@ -505,6 +670,12 @@ export function DataPanel() {
                   <div className="text-sm font-semibold text-white">
                     ${Math.round(aggregated.medianHomeValue / 1000)}k
                   </div>
+                  {aggregatedDeltas?.medianHomeValue !== undefined && Math.abs(aggregatedDeltas.medianHomeValue) >= EPSILON && (
+                    <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.medianHomeValue / 1000, false)?.color || ''}`}>
+                      {aggregatedDeltas.medianHomeValue > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                      ${formatDelta(aggregatedDeltas.medianHomeValue / 1000, false)?.display}k
+                    </div>
+                  )}
                 </div>
                 <div className="p-2 rounded-lg bg-white/5 col-span-2">
                   <div className="flex items-center gap-1 text-[10px] text-white/50 mb-0.5">
@@ -514,6 +685,12 @@ export function DataPanel() {
                   <div className="text-sm font-semibold text-white">
                     {aggregated.affordabilityIndex.toFixed(2)}
                   </div>
+                  {aggregatedDeltas?.affordabilityIndex !== undefined && Math.abs(aggregatedDeltas.affordabilityIndex) >= EPSILON && (
+                    <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.affordabilityIndex, true)?.color || ''}`}>
+                      {aggregatedDeltas.affordabilityIndex > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                      {formatDelta(aggregatedDeltas.affordabilityIndex, true)?.display}
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -524,8 +701,14 @@ export function DataPanel() {
               transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.25 }}
               className="p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto"
             >
-              <h3 className="text-xs font-medium text-white/60 mb-2">
+              <h3 className="text-xs font-medium text-white/60 mb-2 flex items-center gap-1">
                 Commute ({Math.round(aggregated.commute.avg_minutes)} min avg)
+                {aggregatedDeltas?.commute?.avg_minutes !== undefined && Math.abs(aggregatedDeltas.commute.avg_minutes) >= EPSILON && (
+                  <span className={`text-[10px] flex items-center gap-0.5 ${formatDelta(aggregatedDeltas.commute.avg_minutes, false)?.color || ''}`}>
+                    {aggregatedDeltas.commute.avg_minutes > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                    {formatDelta(aggregatedDeltas.commute.avg_minutes, false)?.display} min
+                  </span>
+                )}
               </h3>
               <div className="h-24">
                 <SegmentedBar segments={commuteSegments} />
@@ -543,8 +726,14 @@ export function DataPanel() {
               </h3>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <div className="text-[10px] text-white/50 mb-1">
+                  <div className="text-[10px] text-white/50 mb-1 flex items-center gap-1">
                     Vacancy
+                    {aggregatedDeltas?.vacancyRate !== undefined && Math.abs(aggregatedDeltas.vacancyRate) >= EPSILON && (
+                      <span className={`text-[10px] flex items-center gap-0.5 ${formatDelta(aggregatedDeltas.vacancyRate, false)?.color || ''}`}>
+                        {aggregatedDeltas.vacancyRate > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                        {formatDelta(aggregatedDeltas.vacancyRate, false)?.display}%
+                      </span>
+                    )}
                   </div>
                   <div className="h-1.5 bg-white/10 rounded-full overflow-hidden mb-1">
                     <motion.div
@@ -559,8 +748,14 @@ export function DataPanel() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-white/50 mb-1">
+                  <div className="text-[10px] text-white/50 mb-1 flex items-center gap-1">
                     Owner Occ.
+                    {aggregatedDeltas?.ownerOccupancy !== undefined && Math.abs(aggregatedDeltas.ownerOccupancy) >= EPSILON && (
+                      <span className={`text-[10px] flex items-center gap-0.5 ${formatDelta(aggregatedDeltas.ownerOccupancy, true)?.color || ''}`}>
+                        {aggregatedDeltas.ownerOccupancy > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                        {formatDelta(aggregatedDeltas.ownerOccupancy, true)?.display}%
+                      </span>
+                    )}
                   </div>
                   <div className="h-1.5 bg-white/10 rounded-full overflow-hidden mb-1">
                     <motion.div

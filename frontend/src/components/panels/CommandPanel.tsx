@@ -127,12 +127,13 @@ export function CommandPanel() {
     simulationStatus,
     simulationSummary,
     selectedZones,
-    cityMetrics,
     setSimulationStatus,
     setPromptText,
     setSimulationSummary,
     addEventNotification,
     updateMetricsFromEvent,
+    initializeSimulationData,
+    calculateDeltas,
     resetSimulation,
     clearEventNotifications,
     clearSelectedZones,
@@ -145,6 +146,58 @@ export function CommandPanel() {
   const handleStartSimulation = async () => {
     if (!localPrompt.trim() || !neighborhoodsData) return
 
+    const neighborhoodsMap: Record<string, any> = {}
+    neighborhoodsData.features.forEach((feature) => {
+      if (feature.properties?.name) {
+        const props = feature.properties
+        neighborhoodsMap[props.name] = {
+          name: props.name,
+          npu: props.npu || '',
+          area_acres: props.area_acres || 0,
+          population_total: props.population_total || 0,
+          median_age: props.median_age || 0,
+          population_density: props.population_density || 0,
+          median_income: props.median_income || 0,
+          median_home_value: props.median_home_value || 0,
+          affordability_index: props.affordability_index || 0,
+          housing_units: props.housing_units || 0,
+          households: props.households || 0,
+          vacant_units: props.vacant_units || 0,
+          vacancy_rate: props.vacancy_rate || 0,
+          owner_occupancy: props.owner_occupancy || 0,
+          housing_density: props.housing_density || 0,
+          education_distribution: props.education_distribution || {
+            high_school_or_less: 0,
+            some_college: 0,
+            bachelors: 0,
+            graduate: 0,
+          },
+          race_distribution: props.race_distribution || {
+            white: 0,
+            black: 0,
+            asian: 0,
+            mixed: 0,
+            hispanic: 0,
+          },
+          diversity_index: props.diversity_index || 0,
+          livability_index: props.livability_index || 0,
+          commute: props.commute || {
+            avg_minutes: 0,
+            car_dependence: 0,
+            transit_usage: 0,
+          },
+          derived: props.derived || {
+            higher_ed_percent: 0,
+            density_index: 0,
+          },
+          baseline_description: props.baseline_description,
+          current_events: props.current_events,
+          neighboring_neighborhoods: props.neighboring_neighborhoods,
+        }
+      }
+    })
+
+    initializeSimulationData(neighborhoodsMap)
     setPromptText(localPrompt)
     setSimulationStatus('loading')
     clearEventNotifications()
@@ -153,7 +206,7 @@ export function CommandPanel() {
       await new Promise(resolve => setTimeout(resolve, 1000))
 
       let chunkCount = 0
-      for await (const chunk of simulatePolicy(localPrompt, cityMetrics, selectedZones, neighborhoodsData)) {
+      for await (const chunk of simulatePolicy(localPrompt, selectedZones, neighborhoodsData)) {
         chunkCount++
         console.log('Received chunk:', chunk.type, chunk)
 
@@ -164,6 +217,7 @@ export function CommandPanel() {
           }
         } else if (chunk.type === 'complete') {
           setSimulationSummary(chunk.data.summary)
+          calculateDeltas()
           setSimulationStatus('complete')
           clearSelectedZones()
         }

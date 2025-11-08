@@ -18,8 +18,8 @@ mod azure;
 mod handlers;
 mod types;
 
-use actix_web::{App, HttpServer, web};
 use actix_cors::Cors;
+use actix_web::{App, HttpServer, web};
 use std::path::PathBuf;
 
 /// Loads environment variables from .env files
@@ -52,7 +52,7 @@ fn load_env() {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     load_env();
-    
+
     eprintln!("\n╔════════════════════════════════════════════════════════════╗");
     eprintln!("║   City Simulation Backend API                              ║");
     eprintln!("╚════════════════════════════════════════════════════════════╝");
@@ -73,10 +73,8 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         let cors = Cors::permissive();
-        
-        App::new()
-            .wrap(cors)
-            .service(
+
+        App::new().wrap(cors).service(
             web::scope("/api").route("/simulate", web::post().to(handlers::simulate_policy)),
         )
     })

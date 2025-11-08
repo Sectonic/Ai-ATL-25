@@ -12,6 +12,7 @@ reqwest = { version = "0.12", features = ["json", "stream"] }
 futures-util = "0.3"
 dotenv = "0.15.0"
 tokio = { version = "1", features = ["time"] }
+async-stream = "0.3"
 
 [profile.release]
 # Optimize for both size and speed

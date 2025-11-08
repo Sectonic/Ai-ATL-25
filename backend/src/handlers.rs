@@ -5,10 +5,7 @@
 
 use crate::azure;
 use crate::types::SimulationRequest;
-use actix_web::web::Bytes;
 use actix_web::{HttpResponse, Result, web};
-use futures_util::stream;
-use tokio::time::{Duration, sleep};
 
 /// Simulates the impact of a city policy proposal
 ///
@@ -47,66 +44,13 @@ pub async fn simulate_policy(body: web::Json<SimulationRequest>) -> Result<HttpR
         "Neighborhood Properties Count: {}",
         request.neighborhood_properties.len()
     );
-    if let Ok(city_metrics_json) = serde_json::to_string_pretty(&request.city_metrics) {
-        eprintln!("City Metrics:\n{}", city_metrics_json);
-    }
     eprintln!("=== END REQUEST INFO ===\n");
 
-    // Generate simulation chunks using AI
-    let chunks_result = azure::generate_simulation(request).await;
+    let stream = azure::generate_simulation(request).await?;
 
-    match chunks_result {
-        Ok(chunks) => {
-            // Log all chunks in pretty format for debugging
-            eprintln!("\n=== SIMULATION CHUNKS ({} total) ===\n", chunks.len());
-            for (i, chunk) in chunks.iter().enumerate() {
-                if let Ok(pretty) = serde_json::to_string_pretty(chunk) {
-                    eprintln!("Chunk {}:\n{}\n", i + 1, pretty);
-                }
-            }
-            eprintln!("=== END SIMULATION CHUNKS ===\n");
-
-            // Convert the vector of chunks into a streaming response
-            // Each chunk is sent as a Server-Sent Event (SSE) with format: "data: {json}\n\n"
-            // We add delays between chunks to simulate progressive streaming
-            let stream = stream::unfold((chunks, 0usize), move |(chunks, mut index)| async move {
-                if index >= chunks.len() {
-                    return None;
-                }
-
-                // Add delay between chunks (400ms for events, 300ms for complete)
-                // Skip delay for first chunk
-                if index > 0 {
-                    let delay_ms = match &chunks[index - 1] {
-                        crate::types::SimulationChunk::Event { .. } => 400,
-                        crate::types::SimulationChunk::Complete { .. } => 300,
-                    };
-                    sleep(Duration::from_millis(delay_ms)).await;
-                }
-
-                let chunk = &chunks[index];
-                let json = match serde_json::to_string(chunk) {
-                    Ok(json) => json,
-                    Err(_) => return None,
-                };
-
-                // SSE format: "data: {json}\n\n"
-                let data = format!("data: {}\n\n", json);
-                index += 1;
-
-                Some((
-                    Ok::<_, actix_web::Error>(Bytes::from(data)),
-                    (chunks, index),
-                ))
-            });
-
-            // Return SSE stream with appropriate headers
-            Ok(HttpResponse::Ok()
-                .content_type("text/event-stream")
-                .append_header(("Cache-Control", "no-cache"))
-                .append_header(("Connection", "keep-alive"))
-                .streaming(stream))
-        }
-        Err(e) => Err(e),
-    }
+    Ok(HttpResponse::Ok()
+        .content_type("text/event-stream")
+        .append_header(("Cache-Control", "no-cache"))
+        .append_header(("Connection", "keep-alive"))
+        .streaming(stream))
 }

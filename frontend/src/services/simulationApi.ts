@@ -1,4 +1,4 @@
-import type { EventNotification, EventMetrics, Comment, NeighborhoodProperties } from '../stores/simulationStore'
+import type { EventNotification, Comment, NeighborhoodProperties } from '../stores/simulationStore'
 
 export type SimulationChunk =
   | { type: 'event'; data: EventNotification }
@@ -237,14 +237,16 @@ export function buildNeighborhoodProperties(
           higher_ed_percent: props.derived?.higher_ed_percent || 0,
           density_index: props.derived?.density_index || 0,
         },
+        baseline_description: props.baseline_description,
+        current_events: props.current_events,
+        neighboring_neighborhoods: props.neighboring_neighborhoods,
       }
     })
-    .filter((props): props is NeighborhoodProperties => props !== null)
+    .filter((props) => props !== null) as NeighborhoodProperties[]
 }
 
 export async function* simulatePolicy(
   prompt: string,
-  cityMetrics: EventMetrics,
   selectedZones: string[],
   neighborhoodsData: GeoJSON.FeatureCollection
 ): AsyncGenerator<SimulationChunk> {
@@ -256,30 +258,9 @@ export async function* simulatePolicy(
 
   const payload = {
     prompt,
-    cityMetrics: {
-      zoneId: cityMetrics.zoneId || 'city',
-      zoneName: cityMetrics.zoneName || 'Atlanta',
-      population: cityMetrics.population,
-      populationChange: cityMetrics.populationChange,
-      averageIncome: cityMetrics.averageIncome,
-      averageIncomeChange: cityMetrics.averageIncomeChange,
-      unemploymentRate: cityMetrics.unemploymentRate,
-      unemploymentRateChange: cityMetrics.unemploymentRateChange,
-      housingAffordabilityIndex: cityMetrics.housingAffordabilityIndex,
-      housingAffordabilityIndexChange: cityMetrics.housingAffordabilityIndexChange,
-      trafficCongestionIndex: cityMetrics.trafficCongestionIndex,
-      trafficCongestionIndexChange: cityMetrics.trafficCongestionIndexChange,
-      airQualityIndex: cityMetrics.airQualityIndex,
-      airQualityIndexChange: cityMetrics.airQualityIndexChange,
-      livabilityIndex: cityMetrics.livabilityIndex,
-      livabilityIndexChange: cityMetrics.livabilityIndexChange,
-    },
     selectedZones: zonesToSend,
     neighborhoodProperties,
   }
-
-  console.log('Sending request to backend:', BACKEND_URL)
-  console.log('Request payload:', payload)
 
   const response = await fetch(BACKEND_URL, {
     method: 'POST',
