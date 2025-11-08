@@ -1,0 +1,21 @@
+import { createFileRoute } from '@tanstack/react-router'
+import { AtlantaMap } from '../components/map/AtlantaMap'
+import { EventNotificationPanel } from '../components/panels/EventNotificationPanel'
+import { CommandPanel } from '../components/panels/CommandPanel'
+import { DataPanel } from '../components/panels/DataPanel'
+
+export const Route = createFileRoute('/dashboard')({
+  component: Dashboard,
+})
+
+function Dashboard() {
+  return (
+    <div className="h-screen w-screen overflow-hidden bg-slate-950 relative">
+      <AtlantaMap />
+      <EventNotificationPanel />
+      <CommandPanel />
+      <DataPanel />
+    </div>
+  )
+}
+
