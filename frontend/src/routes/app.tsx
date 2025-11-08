@@ -4,11 +4,11 @@ import { EventNotificationPanel } from '../components/panels/EventNotificationPa
 import { CommandPanel } from '../components/panels/CommandPanel'
 import { DataPanel } from '../components/panels/DataPanel'
 
-export const Route = createFileRoute('/dashboard')({
-  component: Dashboard,
+export const Route = createFileRoute('/app')({
+  component: App,
 })
 
-function Dashboard() {
+function App() {
   return (
     <div className="h-screen w-screen overflow-hidden bg-slate-950 relative">
       <AtlantaMap />
