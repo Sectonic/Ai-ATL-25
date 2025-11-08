@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Share2 } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { useSimulationStore } from '../../stores/simulationStore'
 import { Button } from '../ui/button'
 
@@ -22,8 +23,10 @@ export function AppHeader() {
             transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.1 }}
             className="flex items-center gap-2"
           >
-            <img src="/mimic_logo.png" alt="Mimic Logo" className="w-14 h-14" />
-            <h1 className="text-2xl font-light text-white/85 uppercase">Mimic</h1>
+            <Link to="/" className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
+              <img src="/mimic_logo.png" alt="Mimic Logo" className="w-14 h-14" />
+              <h1 className="text-2xl font-light text-white/85 uppercase">Mimic</h1>
+            </Link>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: -10 }}
