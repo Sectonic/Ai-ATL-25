@@ -154,13 +154,20 @@ fn default_model() -> String {
 pub async fn generate_simulation(
     request: SimulationRequest,
 ) -> Result<Vec<SimulationChunk>, actix_web::Error> {
+    eprintln!("\n=== STARTING AI SIMULATION ===");
+    
     let api_key = env::var("AZURE_API_KEY")
         .map_err(|_| actix_web::error::ErrorInternalServerError("AZURE_API_KEY not set"))?;
 
+    eprintln!("✓ Azure API key found");
+
     // Serialize city metrics for inclusion in the prompt
     let city_metrics_json = serde_json::to_string(&request.city_metrics).map_err(|e| {
+        eprintln!("✗ Failed to serialize city metrics: {}", e);
         actix_web::error::ErrorInternalServerError(format!("Serialization error: {}", e))
     })?;
+    
+    eprintln!("✓ City metrics serialized");
 
     // Build a summary of neighborhood properties for the AI prompt
     // If no specific neighborhoods provided, use general Atlanta characteristics
@@ -205,7 +212,7 @@ Relevant Neighborhood Data:
 Output Format Requirements:
 You must return a JSON array of simulation chunks. Each chunk must be one of these types:
 
-1. Event chunks (3-6 events recommended):
+1. Event chunks:
    {{"type": "event", "data": {{
      "id": "event-<timestamp>-<index>",
      "zoneId": "<neighborhood-id>",
@@ -218,7 +225,7 @@ You must return a JSON array of simulation chunks. Each chunk must be one of the
      "coordinates": [<latitude>, <longitude>]
    }}}}
 
-2. Zone Update chunks (2-5 zones recommended):
+2. Zone Update chunks:
    {{"type": "zoneUpdate", "data": {{
      "zoneId": "<neighborhood-id>",
      "zoneName": "<neighborhood-name>",
@@ -232,7 +239,7 @@ You must return a JSON array of simulation chunks. Each chunk must be one of the
      "economicIndexChange": <number> (optional)
    }}}}
 
-3. Metrics Update chunk (exactly one):
+3. Metrics Update chunk:
    {{"type": "metricsUpdate", "data": {{
      "population": <number> (optional, only include if changed),
      "populationChange": <number> (optional, change from baseline),
@@ -301,7 +308,7 @@ Generate a complete simulation with events, zone updates, and metrics changes. R
             },
         ],
         stream: false, // We get the full response, then stream it ourselves
-        max_tokens: 4000,
+        max_tokens: 100000,
         temperature: 0.7, // Balance between creativity and consistency
         top_p: 0.9,
         presence_penalty: 0.0,
@@ -313,6 +320,11 @@ Generate a complete simulation with events, zone updates, and metrics changes. R
     let url = "https://aiatlai.services.ai.azure.com/models/chat/completions?api-version=2024-05-01-preview";
     let client = reqwest::Client::new();
 
+    eprintln!("📤 Sending request to Azure AI...");
+    eprintln!("   Model: {}", chat_request.model);
+    eprintln!("   Max tokens: {}", chat_request.max_tokens);
+    eprintln!("   Temperature: {}", chat_request.temperature);
+
     let response = client
         .post(url)
         .header("Content-Type", "application/json")
@@ -321,8 +333,11 @@ Generate a complete simulation with events, zone updates, and metrics changes. R
         .send()
         .await
         .map_err(|e| {
+            eprintln!("✗ Azure API request failed: {}", e);
             actix_web::error::ErrorInternalServerError(format!("Request failed: {}", e))
         })?;
+    
+    eprintln!("📥 Received response from Azure AI");
 
     let status = response.status();
     let response_text = response.text().await.map_err(|e| {
@@ -387,8 +402,10 @@ Generate a complete simulation with events, zone updates, and metrics changes. R
     // - ZoneUpdate chunks with neighborhood-level changes
     // - MetricsUpdate chunk with city-wide changes
     // - Complete chunk with final summary
+    eprintln!("🔍 Parsing AI response...");
+    
     let chunks: Vec<SimulationChunk> = serde_json::from_str(cleaned_response).map_err(|e| {
-        eprintln!("Failed to parse AI response. Error: {}", e);
+        eprintln!("✗ Failed to parse AI response. Error: {}", e);
 
         // Pretty print the cleaned response if it's valid JSON
         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&cleaned_response) {
@@ -416,6 +433,9 @@ Generate a complete simulation with events, zone updates, and metrics changes. R
             cleaned_response.len()
         ))
     })?;
+
+    eprintln!("✓ Successfully parsed {} simulation chunks", chunks.len());
+    eprintln!("=== END AI SIMULATION ===\n");
 
     Ok(chunks)
 }

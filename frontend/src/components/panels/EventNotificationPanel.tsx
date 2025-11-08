@@ -225,7 +225,7 @@ export function EventNotificationPanel() {
   }
 
   return (
-    <div className="fixed left-3 top-[140px] bottom-0 w-1/4 z-10 pointer-events-none">
+    <div className="fixed left-3 top-[160px] bottom-0 w-1/4 z-10 pointer-events-none">
       <div className="relative h-full">
         <div ref={containerRef} className="h-full overflow-y-auto pr-2 pl-1 scrollbar-hide" style={{ overflowX: 'visible' }}>
           <div className="space-y-2 py-1">

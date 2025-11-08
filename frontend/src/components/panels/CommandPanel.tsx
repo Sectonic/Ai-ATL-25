@@ -5,7 +5,7 @@ import { simulatePolicy } from '../../services/simulationApi'
 import { useNeighborhoods } from '../../services/geojsonApi'
 import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
-import { Loader2, Play, ChevronUp } from 'lucide-react'
+import { Loader2, Play, ChevronUp, Layers } from 'lucide-react'
 
 function TypewriterText({ text }: { text: string }) {
   const [displayedText, setDisplayedText] = useState('')
@@ -110,6 +110,7 @@ export function CommandPanel() {
     updateCityMetrics,
     resetSimulation,
     clearEventNotifications,
+    clearSelectedZones,
   } = useSimulationStore()
 
   const [localPrompt, setLocalPrompt] = useState('')
@@ -136,6 +137,7 @@ export function CommandPanel() {
         } else if (chunk.type === 'complete') {
           setSimulationSummary(chunk.data.summary)
           setSimulationStatus('complete')
+          clearSelectedZones()
         }
       }
     } catch (error) {
@@ -160,58 +162,93 @@ export function CommandPanel() {
 
   return (
     <div className="fixed bottom-4 left-[49.2%] -translate-x-1/2 w-[calc(50%-50px)] z-10 pointer-events-none">
-      <AnimatePresence>
-        {simulationStatus !== 'loading' && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: 'auto' }}
-            exit={{ opacity: 0, y: -10, height: 0 }}
-            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-            className="flex items-center gap-2 mb-2 pointer-events-auto"
-            style={{ overflow: 'visible' }}
-          >
-            <PreviousSimulationsTab
-              isOpen={isPreviousSimulationsOpen}
-              onToggle={() => setIsPreviousSimulationsOpen(!isPreviousSimulationsOpen)}
-            />
-            <button
-              onClick={handleReset}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 hover:bg-white/15 transition-colors text-white text-sm font-medium cursor-pointer"
+      <motion.div layout transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}>
+        <AnimatePresence>
+          {simulationStatus !== 'loading' && (
+            <motion.div
+              layout
+              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+              animate={{ opacity: 1, height: 'auto', marginBottom: 8 }}
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              transition={{ 
+                duration: 0.3, 
+                ease: [0.4, 0, 0.2, 1],
+                layout: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
+              }}
+              className="flex items-center gap-2 pointer-events-auto overflow-hidden"
+              style={{ overflow: 'visible' }}
             >
-              New Simulation
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      <AnimatePresence mode="wait">
-        {simulationStatus === 'idle' && (
-          <motion.div
-            key="idle"
-            layout
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.98 }}
-            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-            className="pointer-events-auto w-full mx-auto"
-          >
-            <div className="relative rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
-              <Textarea
-                value={localPrompt}
-                onChange={(e) => setLocalPrompt(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type In Some City Policies"
-                className="min-h-[60px] pr-20 pb-12 bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              <PreviousSimulationsTab
+                isOpen={isPreviousSimulationsOpen}
+                onToggle={() => setIsPreviousSimulationsOpen(!isPreviousSimulationsOpen)}
               />
-              <Button
-                onClick={handleStartSimulation}
-                disabled={!localPrompt.trim()}
-                className="absolute bottom-2 right-2 h-8 px-3 bg-white/20 hover:bg-white/30 text-white border-0 disabled:opacity-50"
+              <button
+                onClick={handleReset}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 hover:bg-white/15 transition-colors text-white text-sm font-medium cursor-pointer"
               >
-                <Play className="w-4 h-4" />
-              </Button>
-            </div>
-          </motion.div>
-        )}
+                New Simulation
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <AnimatePresence mode="wait">
+          {simulationStatus === 'idle' && (
+            <motion.div
+              key="idle"
+              layout
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.98 }}
+              transition={{ 
+                duration: 0.3, 
+                ease: [0.4, 0, 0.2, 1],
+                layout: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
+              }}
+              className="pointer-events-auto w-full mx-auto"
+            >
+              <div className="relative rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
+                <AnimatePresence>
+                  {selectedZones.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -5 }}
+                      transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                      className="absolute top-2.5 left-2.5 z-10"
+                    >
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
+                        <Layers className="w-3 h-3 text-white/70" />
+                        <span className="text-xs text-white/90 font-medium">
+                          {selectedZones.length} {selectedZones.length === 1 ? 'zone' : 'zones'} in context
+                        </span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <motion.div
+                  layout
+                  animate={{ paddingTop: selectedZones.length > 0 ? 36 : 0 }}
+                  transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                  className="relative"
+                >
+                  <Textarea
+                    value={localPrompt}
+                    onChange={(e) => setLocalPrompt(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type In Some City Policies"
+                    className="min-h-[60px] pr-20 pb-12 bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  />
+                </motion.div>
+                <Button
+                  onClick={handleStartSimulation}
+                  disabled={!localPrompt.trim()}
+                  className="absolute bottom-2 right-2 h-8 px-3 bg-white/20 hover:bg-white/30 text-white border-0 disabled:opacity-50"
+                >
+                  <Play className="w-4 h-4" />
+                </Button>
+              </div>
+            </motion.div>
+          )}
 
         {simulationStatus === 'loading' && (
           <motion.div
@@ -220,7 +257,11 @@ export function CommandPanel() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ 
+              duration: 0.25, 
+              ease: [0.4, 0, 0.2, 1],
+              layout: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
+            }}
             className="pointer-events-auto"
           >
             <div className="rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg p-4 flex items-center justify-center">
@@ -239,7 +280,11 @@ export function CommandPanel() {
             initial={{ opacity: 0, y: 20, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.98 }}
-            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ 
+              duration: 0.3, 
+              ease: [0.4, 0, 0.2, 1],
+              layout: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
+            }}
             className="pointer-events-auto w-full mx-auto"
           >
             <div className="relative rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
@@ -255,6 +300,7 @@ export function CommandPanel() {
           </motion.div>
         )}
       </AnimatePresence>
+      </motion.div>
     </div>
   )
 }

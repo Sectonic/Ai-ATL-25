@@ -146,75 +146,98 @@ function generateComments(eventType: EventNotification['type'], positivity: numb
 }
 
 interface NeighborhoodProperties {
-  name: string
-  npu: string
+  OBJECTID_1: number
+  OBJECTID?: number
+  LOCALID: string
+  NAME: string
+  GEOTYPE: string
+  FULLFIPS: string
+  LEGALAREA: number
+  EFFECTDATE?: string
+  ENDDATE?: string
+  SRCREF: string
+  ACRES: number
+  SQMILES: number
+  OLDNAME: string
+  NPU: string
+  CREATED_US: string
+  CREATED_DA?: string
+  LAST_EDITE: string
+  LAST_EDI_1: string
+  GLOBALID: string
+  Shape_Leng: number
+  aggregatio: string
+  HasData: number
+  ORIGINAL_O: number
+  sourceCoun: string
+  apportionm: number
   population: number
   populati_1: number
-  gender_med: number
-  gender_mal: number
-  gender_m_1: number
-  gender_m_2: number
-  gender_m_3: number
-  gender_m_4: number
-  gender_m_5: number
-  gender_m_6: number
-  gender_m_7: number
-  gender_m_8: number
-  gender_m_9: number
-  gender_10: number
-  gender_11: number
-  gender_12: number
-  gender_13: number
-  gender_14: number
-  gender_15: number
-  gender_16: number
-  gender_17: number
-  gender_18: number
-  gender_19: number
-  gender_20: number
-  gender_21: number
-  gender_22: number
-  gender_23: number
-  gender_24: number
-  gender_25: number
-  gender_26: number
-  gender_27: number
-  gender_fem: number
-  gender_f_1: number
-  gender_f_2: number
-  gender_f_3: number
-  gender_f_4: number
-  gender_f_5: number
-  gender_f_6: number
-  gender_f_7: number
-  gender_f_8: number
-  gender_f_9: number
-  gender_28: number
-  gender_29: number
-  gender_30: number
-  gender_31: number
-  gender_32: number
-  gender_33: number
-  gender_34: number
-  gender_35: number
-  gender_36: number
-  gender_37: number
-  gender_38: number
-  gender_39: number
-  gender_40: number
-  gender_41: number
-  gender_42: number
-  gender_43: number
-  gender_44: number
-  gender_45: number
+  gender_MED: number
+  gender_MAL: number
+  gender_M_1: number
+  gender_M_2: number
+  gender_M_3: number
+  gender_M_4: number
+  gender_M_5: number
+  gender_M_6: number
+  gender_M_7: number
+  gender_M_8: number
+  gender_M_9: number
+  gender__10: number
+  gender__11: number
+  gender__12: number
+  gender__13: number
+  gender__14: number
+  gender__15: number
+  gender__16: number
+  gender__17: number
+  gender__18: number
+  gender__19: number
+  gender__20: number
+  gender__21: number
+  gender__22: number
+  gender__23: number
+  gender__24: number
+  gender__25: number
+  gender__26: number
+  gender__27: number
+  gender_FEM: number
+  gender_F_1: number
+  gender_F_2: number
+  gender_F_3: number
+  gender_F_4: number
+  gender_F_5: number
+  gender_F_6: number
+  gender_F_7: number
+  gender_F_8: number
+  gender_F_9: number
+  gender__28: number
+  gender__29: number
+  gender__30: number
+  gender__31: number
+  gender__32: number
+  gender__33: number
+  gender__34: number
+  gender__35: number
+  gender__36: number
+  gender__37: number
+  gender__38: number
+  gender__39: number
+  gender__40: number
+  gender__41: number
+  gender__42: number
+  gender__43: number
+  gender__44: number
+  gender__45: number
   householdt: number
-  owner_rente: number
-  owner_ren_1: number
-  owner_ren_2: number
-  owner_ren_3: number
+  OwnerRente: number
+  OwnerRen_1: number
+  OwnerRen_2: number
+  OwnerRen_3: number
   housinguni: number
-  vacant_vac: number
-  vacant_v_1: number
+  vacant_VAC: number
+  vacant_V_1: number
   raceandhis: number
   raceandh_1: number
   raceandh_2: number
@@ -239,8 +262,8 @@ interface NeighborhoodProperties {
   househol_1: number
   households: number
   householdi: number
-  homevalue: number
-  f5yearincre: number
+  homevalue_: number
+  F5yearincre: number
   unitsinstr: number
   unitsins_1: number
   unitsins_2: number
@@ -257,19 +280,25 @@ interface NeighborhoodProperties {
   unitsin_13: number
   unitsin_14: number
   unitsin_15: number
-  commute_ac: number
-  commute_1: number
-  commute_2: number
-  commute_3: number
-  commute_4: number
-  commute_5: number
-  commute_6: number
+  commute_AC: number
+  commute__1: number
+  commute__2: number
+  commute__3: number
+  commute__4: number
+  commute__5: number
+  commute__6: number
+  Shape__Area: number
+  Shape__Length: number
 }
 
 export function buildNeighborhoodProperties(
   selectedZones: string[],
   neighborhoodsData: GeoJSON.FeatureCollection
 ): NeighborhoodProperties[] {
+  if (selectedZones.length === 0) {
+    return []
+  }
+  
   return selectedZones
     .map((zoneId) => {
       const feature = neighborhoodsData.features.find(
@@ -281,75 +310,98 @@ export function buildNeighborhoodProperties(
       const props = feature.properties
       
       return {
-        name: props.NAME || '',
-        npu: props.NPU || '',
+        OBJECTID_1: props.OBJECTID_1 || 0,
+        OBJECTID: props.OBJECTID,
+        LOCALID: props.LOCALID || '',
+        NAME: props.NAME || '',
+        GEOTYPE: props.GEOTYPE || '',
+        FULLFIPS: props.FULLFIPS || '',
+        LEGALAREA: props.LEGALAREA || 0,
+        EFFECTDATE: props.EFFECTDATE,
+        ENDDATE: props.ENDDATE,
+        SRCREF: props.SRCREF || '',
+        ACRES: props.ACRES || 0,
+        SQMILES: props.SQMILES || 0,
+        OLDNAME: props.OLDNAME || '',
+        NPU: props.NPU || '',
+        CREATED_US: props.CREATED_US || '',
+        CREATED_DA: props.CREATED_DA,
+        LAST_EDITE: props.LAST_EDITE || '',
+        LAST_EDI_1: props.LAST_EDI_1 || '',
+        GLOBALID: props.GLOBALID || '',
+        Shape_Leng: props.Shape_Leng || 0,
+        aggregatio: props.aggregatio || '',
+        HasData: props.HasData || 0,
+        ORIGINAL_O: props.ORIGINAL_O || 0,
+        sourceCoun: props.sourceCoun || '',
+        apportionm: props.apportionm || 0,
         population: props.population || 0,
         populati_1: props.populati_1 || 0,
-        gender_med: props.gender_MED || 0,
-        gender_mal: props.gender_MAL || 0,
-        gender_m_1: props.gender_M_1 || 0,
-        gender_m_2: props.gender_M_2 || 0,
-        gender_m_3: props.gender_M_3 || 0,
-        gender_m_4: props.gender_M_4 || 0,
-        gender_m_5: props.gender_M_5 || 0,
-        gender_m_6: props.gender_M_6 || 0,
-        gender_m_7: props.gender_M_7 || 0,
-        gender_m_8: props.gender_M_8 || 0,
-        gender_m_9: props.gender_M_9 || 0,
-        gender_10: props.gender__10 || 0,
-        gender_11: props.gender__11 || 0,
-        gender_12: props.gender__12 || 0,
-        gender_13: props.gender__13 || 0,
-        gender_14: props.gender__14 || 0,
-        gender_15: props.gender__15 || 0,
-        gender_16: props.gender__16 || 0,
-        gender_17: props.gender__17 || 0,
-        gender_18: props.gender__18 || 0,
-        gender_19: props.gender__19 || 0,
-        gender_20: props.gender__20 || 0,
-        gender_21: props.gender__21 || 0,
-        gender_22: props.gender__22 || 0,
-        gender_23: props.gender__23 || 0,
-        gender_24: props.gender__24 || 0,
-        gender_25: props.gender__25 || 0,
-        gender_26: props.gender__26 || 0,
-        gender_27: props.gender__27 || 0,
-        gender_fem: props.gender_FEM || 0,
-        gender_f_1: props.gender_F_1 || 0,
-        gender_f_2: props.gender_F_2 || 0,
-        gender_f_3: props.gender_F_3 || 0,
-        gender_f_4: props.gender_F_4 || 0,
-        gender_f_5: props.gender_F_5 || 0,
-        gender_f_6: props.gender_F_6 || 0,
-        gender_f_7: props.gender_F_7 || 0,
-        gender_f_8: props.gender_F_8 || 0,
-        gender_f_9: props.gender_F_9 || 0,
-        gender_28: props.gender__28 || 0,
-        gender_29: props.gender__29 || 0,
-        gender_30: props.gender__30 || 0,
-        gender_31: props.gender__31 || 0,
-        gender_32: props.gender__32 || 0,
-        gender_33: props.gender__33 || 0,
-        gender_34: props.gender__34 || 0,
-        gender_35: props.gender__35 || 0,
-        gender_36: props.gender__36 || 0,
-        gender_37: props.gender__37 || 0,
-        gender_38: props.gender__38 || 0,
-        gender_39: props.gender__39 || 0,
-        gender_40: props.gender__40 || 0,
-        gender_41: props.gender__41 || 0,
-        gender_42: props.gender__42 || 0,
-        gender_43: props.gender__43 || 0,
-        gender_44: props.gender__44 || 0,
-        gender_45: props.gender__45 || 0,
+        gender_MED: props.gender_MED || 0,
+        gender_MAL: props.gender_MAL || 0,
+        gender_M_1: props.gender_M_1 || 0,
+        gender_M_2: props.gender_M_2 || 0,
+        gender_M_3: props.gender_M_3 || 0,
+        gender_M_4: props.gender_M_4 || 0,
+        gender_M_5: props.gender_M_5 || 0,
+        gender_M_6: props.gender_M_6 || 0,
+        gender_M_7: props.gender_M_7 || 0,
+        gender_M_8: props.gender_M_8 || 0,
+        gender_M_9: props.gender_M_9 || 0,
+        gender__10: props.gender__10 || 0,
+        gender__11: props.gender__11 || 0,
+        gender__12: props.gender__12 || 0,
+        gender__13: props.gender__13 || 0,
+        gender__14: props.gender__14 || 0,
+        gender__15: props.gender__15 || 0,
+        gender__16: props.gender__16 || 0,
+        gender__17: props.gender__17 || 0,
+        gender__18: props.gender__18 || 0,
+        gender__19: props.gender__19 || 0,
+        gender__20: props.gender__20 || 0,
+        gender__21: props.gender__21 || 0,
+        gender__22: props.gender__22 || 0,
+        gender__23: props.gender__23 || 0,
+        gender__24: props.gender__24 || 0,
+        gender__25: props.gender__25 || 0,
+        gender__26: props.gender__26 || 0,
+        gender__27: props.gender__27 || 0,
+        gender_FEM: props.gender_FEM || 0,
+        gender_F_1: props.gender_F_1 || 0,
+        gender_F_2: props.gender_F_2 || 0,
+        gender_F_3: props.gender_F_3 || 0,
+        gender_F_4: props.gender_F_4 || 0,
+        gender_F_5: props.gender_F_5 || 0,
+        gender_F_6: props.gender_F_6 || 0,
+        gender_F_7: props.gender_F_7 || 0,
+        gender_F_8: props.gender_F_8 || 0,
+        gender_F_9: props.gender_F_9 || 0,
+        gender__28: props.gender__28 || 0,
+        gender__29: props.gender__29 || 0,
+        gender__30: props.gender__30 || 0,
+        gender__31: props.gender__31 || 0,
+        gender__32: props.gender__32 || 0,
+        gender__33: props.gender__33 || 0,
+        gender__34: props.gender__34 || 0,
+        gender__35: props.gender__35 || 0,
+        gender__36: props.gender__36 || 0,
+        gender__37: props.gender__37 || 0,
+        gender__38: props.gender__38 || 0,
+        gender__39: props.gender__39 || 0,
+        gender__40: props.gender__40 || 0,
+        gender__41: props.gender__41 || 0,
+        gender__42: props.gender__42 || 0,
+        gender__43: props.gender__43 || 0,
+        gender__44: props.gender__44 || 0,
+        gender__45: props.gender__45 || 0,
         householdt: props.householdt || 0,
-        owner_rente: props.OwnerRente || 0,
-        owner_ren_1: props.OwnerRen_1 || 0,
-        owner_ren_2: props.OwnerRen_2 || 0,
-        owner_ren_3: props.OwnerRen_3 || 0,
+        OwnerRente: props.OwnerRente || 0,
+        OwnerRen_1: props.OwnerRen_1 || 0,
+        OwnerRen_2: props.OwnerRen_2 || 0,
+        OwnerRen_3: props.OwnerRen_3 || 0,
         housinguni: props.housinguni || 0,
-        vacant_vac: props.vacant_VAC || 0,
-        vacant_v_1: props.vacant_V_1 || 0,
+        vacant_VAC: props.vacant_VAC || 0,
+        vacant_V_1: props.vacant_V_1 || 0,
         raceandhis: props.raceandhis || 0,
         raceandh_1: props.raceandh_1 || 0,
         raceandh_2: props.raceandh_2 || 0,
@@ -374,8 +426,8 @@ export function buildNeighborhoodProperties(
         househol_1: props.househol_1 || 0,
         households: props.households || 0,
         householdi: props.householdi || 0,
-        homevalue: props.homevalue_ || 0,
-        f5yearincre: props.F5yearincre || 0,
+        homevalue_: props.homevalue_ || 0,
+        F5yearincre: props.F5yearincre || 0,
         unitsinstr: props.unitsinstr || 0,
         unitsins_1: props.unitsins_1 || 0,
         unitsins_2: props.unitsins_2 || 0,
@@ -392,16 +444,18 @@ export function buildNeighborhoodProperties(
         unitsin_13: props.unitsin_13 || 0,
         unitsin_14: props.unitsin_14 || 0,
         unitsin_15: props.unitsin_15 || 0,
-        commute_ac: props.commute_AC || 0,
-        commute_1: props.commute__1 || 0,
-        commute_2: props.commute__2 || 0,
-        commute_3: props.commute__3 || 0,
-        commute_4: props.commute__4 || 0,
-        commute_5: props.commute__5 || 0,
-        commute_6: props.commute__6 || 0,
+        commute_AC: props.commute_AC || 0,
+        commute__1: props.commute__1 || 0,
+        commute__2: props.commute__2 || 0,
+        commute__3: props.commute__3 || 0,
+        commute__4: props.commute__4 || 0,
+        commute__5: props.commute__5 || 0,
+        commute__6: props.commute__6 || 0,
+        Shape__Area: props.Shape__Area || 0,
+        Shape__Length: props.Shape__Length || 0,
       }
     })
-    .filter((props): props is NeighborhoodProperties => props !== null)
+    .filter((props) => props !== null) as NeighborhoodProperties[]
 }
 
 export async function* simulatePolicy(
@@ -410,6 +464,7 @@ export async function* simulatePolicy(
   selectedZones: string[],
   neighborhoodsData: GeoJSON.FeatureCollection
 ): AsyncGenerator<SimulationChunk> {
+
   const neighborhoodProperties = buildNeighborhoodProperties(selectedZones, neighborhoodsData)
   
   const payload = {
@@ -436,6 +491,8 @@ export async function* simulatePolicy(
   })
 
   if (!response.ok) {
+    const errorText = await response.text()
+    console.error('Backend error response:', errorText)
     throw new Error(`Backend error: ${response.status} ${response.statusText}`)
   }
 

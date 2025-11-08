@@ -59,22 +59,39 @@ export function AppHeader() {
     <div className="fixed top-0 left-0 right-0 z-20 pointer-events-none">
       <div className="pointer-events-auto px-3 pt-3">
         <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-2">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.1 }}
+            className="flex items-center gap-2"
+          >
             <img src="/mimic_logo.png" alt="Mimic Logo" className="w-14 h-14" />
             <h1 className="text-2xl font-light text-white">Mimic</h1>
-          </div>
-          <Button
-            onClick={handleShareAnalysis}
-            disabled={simulationStatus !== 'complete'}
-            className="h-8 px-3 bg-white/20 hover:bg-white/30 text-white border-0 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.2 }}
           >
-            <Share2 className="w-4 h-4 mr-1.5" />
-            Share Analysis
-          </Button>
+            <Button
+              onClick={handleShareAnalysis}
+              disabled={simulationStatus !== 'complete'}
+              className="h-8 px-3 bg-white/20 hover:bg-white/30 text-white border-0 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+            >
+              <Share2 className="w-4 h-4 mr-1.5" />
+              Share Simulation
+            </Button>
+          </motion.div>
         </div>
 
         <div className="ml-1 flex flex-col gap-3">
-          <div className="relative" ref={cityDropdownRef}>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.3 }}
+            className="relative"
+            ref={cityDropdownRef}
+          >
             <button
               onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
               className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 hover:bg-white/15 transition-colors text-white text-sm font-medium"
@@ -117,11 +134,16 @@ export function AppHeader() {
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
+          </motion.div>
 
-          <div className="ml-1 text-xs font-medium text-white/70 uppercase tracking-wider">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.4 }}
+            className="ml-1 text-xs font-medium text-white/70 uppercase tracking-wider"
+          >
             {selectedEventId ? 'Selected Event' : 'Event Alerts'}
-          </div>
+          </motion.div>
         </div>
       </div>
     </div>

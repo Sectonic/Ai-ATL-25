@@ -23,19 +23,13 @@ export function DragSelection({ features }: DragSelectionProps) {
         return
       }
 
-      const target = e.originalEvent.target as HTMLElement
-      if (target === map.getContainer() || 
-          target.classList.contains('leaflet-container') ||
-          target.classList.contains('leaflet-pane') ||
-          target.classList.contains('leaflet-map-pane')) {
-        setIsDragging(true)
-        setStartPoint(e.latlng)
-        setEndPoint(e.latlng)
-        isShiftPressed.current = true
-        map.dragging.disable()
-        e.originalEvent.preventDefault()
-        e.originalEvent.stopPropagation()
-      }
+      setIsDragging(true)
+      setStartPoint(e.latlng)
+      setEndPoint(e.latlng)
+      isShiftPressed.current = true
+      map.dragging.disable()
+      e.originalEvent.preventDefault()
+      e.originalEvent.stopPropagation()
     },
     mousemove: (e: L.LeafletMouseEvent) => {
       if (isDragging && startPoint) {
@@ -141,9 +135,9 @@ export function DragSelection({ features }: DragSelectionProps) {
     <Rectangle
       bounds={bounds}
       pathOptions={{
-        color: '#94a3b8',
-        fillColor: '#64748b',
-        fillOpacity: 0.3,
+        color: 'rgba(255, 255, 255, 0.2)',
+        fillColor: 'rgba(255, 255, 255, 0.05)',
+        fillOpacity: 0.2,
         weight: 2,
         dashArray: '5, 5',
       }}

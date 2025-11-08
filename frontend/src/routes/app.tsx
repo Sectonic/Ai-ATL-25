@@ -11,7 +11,7 @@ export const Route = createFileRoute('/app')({
 
 function App() {
   return (
-    <div className="h-screen w-screen overflow-hidden bg-slate-950 relative">
+    <div className="h-screen w-screen overflow-hidden bg-dark relative">
       <AtlantaMap />
       <AppHeader />
       <EventNotificationPanel />

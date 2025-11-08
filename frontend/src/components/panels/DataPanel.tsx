@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSimulationStore } from '../../stores/simulationStore'
-import { Users, TrendingUp, Home, DollarSign, Shield, Building2, Car, Leaf } from 'lucide-react'
+import { Users, TrendingUp, Home, DollarSign, Shield, Building2, Car, Leaf, Loader2, Layers } from 'lucide-react'
 
 interface MetricCardProps {
   icon: React.ReactNode
@@ -31,7 +31,6 @@ function MetricCard({ icon, label, value, change, unit = '', index = 0, inverted
     <motion.div
       initial={{ opacity: 0, y: -20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -20, scale: 0.95 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
       className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto"
     >
@@ -92,22 +91,17 @@ export function DataPanel() {
       totalHousing: totalHousing,
       avgTraffic: Math.round(avgTraffic),
       avgEconomic: Math.round(avgEconomic),
-      zoneCount: selectedZones.length,
     }
   }, [selectedZones, zoneData])
 
-  const metrics = zoneMetrics || cityMetrics
+  const zoneCards: CardData[] = zoneMetrics ? [
+    { icon: <Layers className="w-3.5 h-3.5 text-blue-400" />, label: "Zone Population", value: zoneMetrics.totalPopulation },
+    { icon: <Layers className="w-3.5 h-3.5 text-blue-400" />, label: "Zone Housing", value: zoneMetrics.totalHousing },
+    { icon: <Layers className="w-3.5 h-3.5 text-blue-400" />, label: "Zone Traffic", value: zoneMetrics.avgTraffic },
+    { icon: <Layers className="w-3.5 h-3.5 text-blue-400" />, label: "Zone Economic Index", value: zoneMetrics.avgEconomic },
+  ] : []
 
-  if (!metrics) {
-    return null
-  }
-
-  const cards: CardData[] = zoneMetrics ? [
-    { icon: <Users className="w-3.5 h-3.5 text-white/90" />, label: "Population", value: zoneMetrics.totalPopulation },
-    { icon: <Home className="w-3.5 h-3.5 text-white/90" />, label: "Housing Units", value: zoneMetrics.totalHousing },
-    { icon: <Car className="w-3.5 h-3.5 text-white/90" />, label: "Traffic Flow", value: zoneMetrics.avgTraffic },
-    { icon: <DollarSign className="w-3.5 h-3.5 text-white/90" />, label: "Economic Index", value: zoneMetrics.avgEconomic },
-  ] : [
+  const cityCards: CardData[] = [
     { icon: <Users className="w-3.5 h-3.5 text-white/90" />, label: "Population", value: cityMetrics.population, change: cityMetrics.populationChange },
     { icon: <DollarSign className="w-3.5 h-3.5 text-white/90" />, label: "Avg Income", value: `$${(cityMetrics.averageIncome / 1000).toFixed(0)}k`, change: cityMetrics.averageIncomeChange ? Math.round(cityMetrics.averageIncomeChange / 1000) : undefined },
     { icon: <TrendingUp className="w-3.5 h-3.5 text-white/90" />, label: "Unemployment", value: cityMetrics.unemploymentRate, unit: "%", change: cityMetrics.unemploymentRateChange, inverted: true },
@@ -118,13 +112,38 @@ export function DataPanel() {
     { icon: <Leaf className="w-3.5 h-3.5 text-white/90" />, label: "Environmental Score", value: Math.round(100 - cityMetrics.trafficCongestionIndex), change: cityMetrics.trafficCongestionIndexChange ? Math.round(-cityMetrics.trafficCongestionIndexChange) : undefined },
   ]
 
+  const allCards = [...zoneCards, ...cityCards]
+
   return (
     <div className="fixed right-3 top-[60px] w-1/4 z-10 pointer-events-none overflow-visible">
-      <div className="grid grid-cols-2 gap-2">
-        <AnimatePresence mode="popLayout">
-          {cards.map((card, index) => (
+      <motion.div layout transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}>
+        <AnimatePresence>
+          {selectedZones.length > 0 && (
+            <motion.div
+              layout
+              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+              animate={{ opacity: 1, height: 'auto', marginBottom: 12 }}
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              transition={{ 
+                duration: 0.3, 
+                ease: [0.4, 0, 0.2, 1],
+                layout: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
+              }}
+              className="pointer-events-auto overflow-hidden"
+            >
+              <div className="flex items-center gap-3">
+                <Loader2 className="w-6 h-6 animate-spin text-white/90" />
+                <div className="text-lg font-semibold text-white">
+                  {selectedZones.length} {selectedZones.length === 1 ? 'zone' : 'zones'} selected
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <div className="grid grid-cols-2 gap-2">
+          {allCards.map((card, index) => (
             <MetricCard
-              key={`${zoneMetrics ? 'zone' : 'city'}-${index}-${card.label}`}
+              key={card.label}
               icon={card.icon}
               label={card.label}
               value={card.value}
@@ -134,8 +153,8 @@ export function DataPanel() {
               inverted={card.inverted}
             />
           ))}
-        </AnimatePresence>
-      </div>
+        </div>
+      </motion.div>
     </div>
   )
 }

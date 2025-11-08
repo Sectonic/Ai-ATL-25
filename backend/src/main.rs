@@ -52,7 +52,24 @@ fn load_env() {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     load_env();
-    println!("Server is running on port http://localhost:8080");
+    
+    eprintln!("\n╔════════════════════════════════════════════════════════════╗");
+    eprintln!("║   City Simulation Backend API                              ║");
+    eprintln!("╚════════════════════════════════════════════════════════════╝");
+    eprintln!();
+    eprintln!("🚀 Server starting on http://localhost:8080");
+    eprintln!();
+    eprintln!("📡 Available endpoints:");
+    eprintln!("   POST /api/simulate - Simulate city policy impacts");
+    eprintln!();
+    eprintln!("🔑 Environment check:");
+    match std::env::var("AZURE_API_KEY") {
+        Ok(_) => eprintln!("   ✓ AZURE_API_KEY is set"),
+        Err(_) => eprintln!("   ✗ AZURE_API_KEY is NOT set (required for AI features)"),
+    }
+    eprintln!();
+    eprintln!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    eprintln!("Waiting for requests...\n");
 
     HttpServer::new(move || {
         let cors = Cors::permissive();

@@ -41,6 +41,15 @@ use tokio::time::{sleep, Duration};
 pub async fn simulate_policy(body: web::Json<SimulationRequest>) -> Result<HttpResponse> {
     let request = body.into_inner();
 
+    eprintln!("\n=== INCOMING SIMULATION REQUEST ===");
+    eprintln!("Prompt: {}", request.prompt);
+    eprintln!("Selected Zones: {:?}", request.selected_zones);
+    eprintln!("Neighborhood Properties Count: {}", request.neighborhood_properties.len());
+    if let Ok(city_metrics_json) = serde_json::to_string_pretty(&request.city_metrics) {
+        eprintln!("City Metrics:\n{}", city_metrics_json);
+    }
+    eprintln!("=== END REQUEST INFO ===\n");
+
     // Generate simulation chunks using AI
     let chunks_result = azure::generate_simulation(request).await;
 

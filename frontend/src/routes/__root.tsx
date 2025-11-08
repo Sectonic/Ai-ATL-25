@@ -48,7 +48,7 @@ function NotFound() {
   }, [navigate])
 
   return (
-    <div className="h-screen w-screen flex items-center justify-center bg-slate-950">
+    <div className="h-screen w-screen flex items-center justify-center bg-dark">
       <div className="text-white">Redirecting...</div>
     </div>
   )
