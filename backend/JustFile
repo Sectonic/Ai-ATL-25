@@ -1,9 +1,84 @@
+# Database configuration - dynamically use current system user
+USER := env_var_or_default("USER", "postgres")
+DATABASE_URL := "postgresql://" + USER + "@localhost/atl_parcels"
+
 build:
   cargo build --release
   mv target/release/backend bin/backend
 
 run:
+  #!/usr/bin/env bash
+  export DATABASE_URL={{DATABASE_URL}}
   bin/backend
+
+dev:
+  cargo run
+
+# Database commands
+db-init:
+  #!/usr/bin/env bash
+  echo "Installing PostgreSQL and PostGIS..."
+  brew install postgresql@17 postgis
+  echo "PostgreSQL and PostGIS installed successfully!"
+  just db-setup
+
+db-start:
+  #!/usr/bin/env bash
+  brew services start postgresql@17 || pg_ctl -D /opt/homebrew/var/postgresql@17 start
+
+db-stop:
+  #!/usr/bin/env bash
+  brew services stop postgresql@17 || pg_ctl -D /opt/homebrew/var/postgresql@17 stop
+
+db-setup:
+  #!/usr/bin/env bash
+  just db-create
+  psql {{DATABASE_URL}} -f migrations/001_create_parcels_table.sql
+
+db-reset:
+  #!/usr/bin/env bash
+  psql postgres -c "DROP DATABASE IF EXISTS atl_parcels;"
+  just db-setup
+
+db-create:
+  #!/usr/bin/env bash
+  psql postgres -c "CREATE DATABASE atl_parcels;" || echo "Database may already exist"
+  psql {{DATABASE_URL}} -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+
+db-status:
+  #!/usr/bin/env bash
+  brew services list | grep postgresql || pg_ctl -D /opt/homebrew/var/postgresql@17 status
+
+test:
+  #!/usr/bin/env bash
+  BASE_URL="http://localhost:8080"
+  echo "Testing backend endpoints..."
+  echo ""
   
+  echo "Testing POST /api/simulate"
+  echo "-----------------------------------"
+  curl -X POST "${BASE_URL}/api/simulate" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "prompt": "Build a new light rail line connecting Midtown to the airport",
+      "cityMetrics": {
+        "population": 498715,
+        "averageIncome": 68500,
+        "unemploymentRate": 3.8,
+        "housingAffordabilityIndex": 72,
+        "trafficCongestionIndex": 68,
+        "airQualityIndex": 85,
+        "crimeRate": 4.2
+      },
+      "selectedZones": ["midtown", "downtown"],
+      "neighborhoodProperties": []
+    }' \
+    -w "\nHTTP Status: %{http_code}\n" \
+    -s | head -50
+  echo ""
+  echo ""
+  
+  echo "All endpoint tests completed!"
+
 clean:
   cargo clean && rm -rf bin/backend
