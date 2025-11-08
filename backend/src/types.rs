@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NeighborhoodProperties {
     #[serde(rename = "OBJECTID_1")]
     pub objectid_1: i32,
@@ -290,7 +290,7 @@ pub struct NeighborhoodProperties {
     pub shape_length: f64,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CityMetrics {
     pub population: f64,
     #[serde(rename = "populationChange", skip_serializing_if = "Option::is_none")]
@@ -448,7 +448,7 @@ pub struct SimulationComplete {
     pub summary: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SimulationRequest {
     pub prompt: String,
     #[serde(rename = "cityMetrics")]

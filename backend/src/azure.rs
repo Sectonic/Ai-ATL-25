@@ -7,6 +7,7 @@ use std::env;
 pub enum MessageRole {
     System,
     User,
+    Assistant,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -273,20 +274,33 @@ Generate a complete simulation with events, zone updates, and metrics changes. R
         })?;
 
     let status = response.status();
+    let response_text = response.text().await.map_err(|e| {
+        actix_web::error::ErrorInternalServerError(format!("Failed to read response body: {}", e))
+    })?;
+
     if !status.is_success() {
-        let error_text = response
-            .text()
-            .await
-            .unwrap_or_else(|_| "Unknown error".to_string());
+        eprintln!(
+            "Azure API error response (status {}): {}",
+            status, response_text
+        );
         return Err(actix_web::error::ErrorInternalServerError(format!(
             "API request failed with status {}: {}",
-            status, error_text
+            status, response_text
         )));
     }
 
-    let response_body: ChatCompletionResponse = response.json().await.map_err(|e| {
-        actix_web::error::ErrorInternalServerError(format!("Failed to parse response: {}", e))
-    })?;
+    eprintln!("Azure API response: {}", response_text);
+
+    let response_body: ChatCompletionResponse =
+        serde_json::from_str(&response_text).map_err(|e| {
+            eprintln!("Failed to parse ChatCompletionResponse. Error: {}", e);
+            eprintln!("Response text: {}", response_text);
+            actix_web::error::ErrorInternalServerError(format!(
+                "Failed to parse response: {}. Response: {}",
+                e,
+                response_text.chars().take(1000).collect::<String>()
+            ))
+        })?;
 
     let ai_response = response_body
         .choices
@@ -304,9 +318,13 @@ Generate a complete simulation with events, zone updates, and metrics changes. R
         .trim();
 
     let chunks: Vec<SimulationChunk> = serde_json::from_str(cleaned_response).map_err(|e| {
+        eprintln!("Failed to parse AI response. Error: {}", e);
+        eprintln!("Cleaned response: {}", cleaned_response);
+        eprintln!("Original response: {}", ai_response);
         actix_web::error::ErrorInternalServerError(format!(
-            "Failed to parse simulation chunks: {}. Response was: {}",
-            e, ai_response
+            "Failed to parse simulation chunks: {}. First 500 chars of response: {}",
+            e,
+            ai_response.chars().take(500).collect::<String>()
         ))
     })?;
 
