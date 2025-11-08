@@ -131,4 +131,3 @@ export function LoadingAnimation() {
 
   return null
 }
-

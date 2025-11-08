@@ -4,8 +4,7 @@ import { GeoJsonLayers } from './GeoJsonLayers'
 import { NeighborhoodMask } from './NeighborhoodMask'
 import { EventMarkers } from './EventMarkers'
 import { EventBlinkAnimation } from './EventBlinkAnimation'
-import { RoadLoadingAnimation } from './RoadLoadingAnimation'
-import { useSimulationStore } from '../../stores/simulationStore'
+import { LoadingAnimation } from './LoadingAnimation'
 import type { EventNotification } from '../../stores/simulationStore'
 
 const ATLANTA_CENTER: [number, number] = [33.7490, -84.3880]
@@ -23,8 +22,6 @@ interface MapContentProps {
 }
 
 export function MapContent({ selectedEvent }: MapContentProps) {
-  const { simulationStatus } = useSimulationStore()
-  const isLoading = simulationStatus === 'loading'
 
   return (
     <div className="absolute inset-0 z-0 transition-opacity duration-300">
@@ -46,7 +43,7 @@ export function MapContent({ selectedEvent }: MapContentProps) {
         />
         <NeighborhoodMask />
         <GeoJsonLayers />
-        {isLoading && <RoadLoadingAnimation />}
+        <LoadingAnimation />
         <EventMarkers />
         <EventBlinkAnimation event={selectedEvent} />
       </MapContainer>

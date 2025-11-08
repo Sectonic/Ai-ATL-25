@@ -245,7 +245,7 @@ export function CommandPanel() {
                       className="absolute bottom-full left-0 mb-2 z-50"
                     >
                       <div className="px-3 py-2 rounded-lg bg-slate-900/95 backdrop-blur-sm border border-white/20 shadow-lg">
-                        <div className="text-xs text-white/90 font-medium break-words">
+                        <div className="text-xs text-white/90 font-medium wrap-break-word">
                           {zoneNames.join(', ')}
                         </div>
                       </div>

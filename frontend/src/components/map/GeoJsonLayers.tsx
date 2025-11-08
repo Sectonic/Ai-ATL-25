@@ -1,23 +1,16 @@
-import { useRef, useMemo } from 'react'
+import { useRef } from 'react'
 import { GeoJSON, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { useSimulationStore } from '../../stores/simulationStore'
-import { DragSelection } from './DragSelection'
 import { useNeighborhoods } from '../../services/geojsonApi'
-import { hasEventsInNeighborhood } from '../../lib/eventNeighborhoodUtils'
+import { DragSelection } from './DragSelection'
 import type { PathOptions, Layer } from 'leaflet'
 import type { Feature } from 'geojson'
 
 export function GeoJsonLayers() {
   const map = useMap()
-  const { selectedZones, addSelectedZone, removeSelectedZone, clearSelectedZones, selectedEventId, simulationStatus, eventNotifications } = useSimulationStore()
+  const { selectedZones, addSelectedZone, removeSelectedZone, clearSelectedZones, selectedEventId, simulationStatus } = useSimulationStore()
   const { data: neighborhoodsData, isLoading } = useNeighborhoods()
-  
-  const selectedEventNeighborhoodId = useMemo(() => {
-    if (!selectedEventId) return null
-    const event = eventNotifications.find((e) => e.id === selectedEventId)
-    return event?.zoneId || null
-  }, [selectedEventId, eventNotifications])
   const clickStartTime = useRef<number>(0)
   const clickStartPos = useRef<{ x: number; y: number } | null>(null)
   const mapClickStartTime = useRef<number>(0)
@@ -103,43 +96,14 @@ export function GeoJsonLayers() {
 
   const getFeatureStyle = (feature: any): PathOptions => {
     const featureId = feature.properties.OBJECTID_1 || feature.properties.OBJECTID || feature.properties.id || feature.properties.NAME
-    const featureIdStr = featureId?.toString()
-    const isSelected = featureIdStr && selectedZones.includes(featureIdStr)
-    const hasEvents = featureIdStr && hasEventsInNeighborhood(eventNotifications, featureIdStr)
-    const isSelectedEventNeighborhood = featureIdStr === selectedEventNeighborhoodId
-    
-    if (isSelectedEventNeighborhood) {
-      return {
-        fillColor: '#fbbf24',
-        fillOpacity: 0.3,
-        color: '#f59e0b',
-        weight: 3,
-      }
-    }
-    
-    if (isSelected) {
-      return {
-        fillColor: '#475569',
-        fillOpacity: 0.4,
-        color: '#64748b',
-        weight: 2,
-      }
-    }
-    
-    if (hasEvents) {
-      return {
-        fillColor: '#3b82f6',
-        fillOpacity: 0.25,
-        color: '#60a5fa',
-        weight: 1.5,
-      }
-    }
+    const isSelected = featureId && selectedZones.includes(featureId.toString())
     
     return {
-      fillColor: '#1e293b',
-      fillOpacity: 0.15,
-      color: '#334155',
-      weight: 0.5,
+      fillColor: '#808080',
+      fillOpacity: isSelected ? 0.30 : 0.15,
+      color: isSelected ? '#FFFFFF' : '#606060',
+      weight: isSelected ? 1.5 : 0.8,
+      opacity: isSelected ? 0.9 : 0.4,
     }
   }
 
@@ -150,7 +114,7 @@ export function GeoJsonLayers() {
   return (
     <>
       <GeoJSON
-        key={`neighborhoods-${selectedZones.join(',')}-${selectedEventId}-${simulationStatus}-${eventNotifications.length}`}
+        key={`neighborhoods-${selectedZones.join(',')}-${selectedEventId}-${simulationStatus}`}
         data={neighborhoodsData}
         style={getFeatureStyle}
         onEachFeature={(feature: Feature, layer: Layer) => {
@@ -172,4 +136,3 @@ export function GeoJsonLayers() {
     </>
   )
 }
-
