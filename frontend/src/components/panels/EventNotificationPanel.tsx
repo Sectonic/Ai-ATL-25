@@ -70,9 +70,9 @@ function SelectedEventView({ event, onClose }: { event: EventNotification, onClo
             {event.comments.map((comment) => (
               <div key={comment.id} className="flex gap-3">
                 <img
-                  src={`https://ui-avatars.com/api/?name=${comment.userInitials}&background=random&size=40&bold=true&color=fff`}
+                  src={`https://ui-avatars.com/api/?name=${comment.userInitials}&background=1a1a1a&size=40&bold=true&color=fff`}
                   alt={comment.userName}
-                  className="w-10 h-10 rounded-full shrink-0"
+                  className="w-10 h-10 rounded-full shrink-0 border border-white/30"
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
