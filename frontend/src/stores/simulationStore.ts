@@ -10,17 +10,43 @@ export interface Comment {
   timestamp: number
 }
 
+export interface EventMetrics {
+  zoneId: string
+  zoneName: string
+  population?: number
+  populationChange?: number
+  housingUnits?: number
+  housingUnitsChange?: number
+  trafficFlow?: number
+  trafficFlowChange?: number
+  economicIndex?: number
+  economicIndexChange?: number
+  averageIncome?: number
+  averageIncomeChange?: number
+  unemploymentRate?: number
+  unemploymentRateChange?: number
+  housingAffordabilityIndex?: number
+  housingAffordabilityIndexChange?: number
+  trafficCongestionIndex?: number
+  trafficCongestionIndexChange?: number
+  airQualityIndex?: number
+  airQualityIndexChange?: number
+  livabilityIndex?: number
+  livabilityIndexChange?: number
+}
+
 export interface EventNotification {
   id: string
   zoneId: string
   zoneName: string
-  type: 'traffic' | 'housing' | 'population' | 'economic' | 'environmental'
+  type: string
+  title: string
   description: string
   severity: number
   positivity: number
-  timestamp: number
   coordinates: [number, number]
   comments: Comment[]
+  metrics?: EventMetrics
 }
 
 export interface NeighborhoodProperties {
@@ -65,37 +91,6 @@ export interface NeighborhoodProperties {
   }
 }
 
-export interface ZoneData {
-  zoneId: string
-  zoneName: string
-  population: number
-  populationChange?: number
-  housingUnits: number
-  housingUnitsChange?: number
-  trafficFlow: number
-  trafficFlowChange?: number
-  economicIndex: number
-  economicIndexChange?: number
-  properties: NeighborhoodProperties
-}
-
-export interface CityMetrics {
-  population: number
-  populationChange?: number
-  averageIncome: number
-  averageIncomeChange?: number
-  unemploymentRate: number
-  unemploymentRateChange?: number
-  housingAffordabilityIndex: number
-  housingAffordabilityIndexChange?: number
-  trafficCongestionIndex: number
-  trafficCongestionIndexChange?: number
-  airQualityIndex: number
-  airQualityIndexChange?: number
-  livabilityIndex: number
-  livabilityIndexChange?: number
-}
-
 export interface LayerVisibility {
   buildings: boolean
   neighborhoods: boolean
@@ -121,8 +116,8 @@ interface SimulationState {
   previousMapView: MapView | null
   promptText: string
   simulationSummary: string
-  zoneData: Record<string, ZoneData>
-  cityMetrics: CityMetrics
+  zoneMetrics: Record<string, EventMetrics>
+  cityMetrics: EventMetrics
   layerVisibility: LayerVisibility
 
   setSimulationStatus: (status: SimulationStatus) => void
@@ -136,50 +131,15 @@ interface SimulationState {
   clearEventNotifications: () => void
   setSelectedEventId: (id: string | null) => void
   setPreviousMapView: (view: MapView | null) => void
-  updateZoneData: (zoneId: string, data: Partial<ZoneData>) => void
-  updateCityMetrics: (metrics: Partial<CityMetrics>) => void
+  updateMetricsFromEvent: (event: EventNotification) => void
   toggleLayerVisibility: (layer: keyof LayerVisibility) => void
   resetSimulation: () => void
 }
 
-const computeCityMetrics = (zoneData: Record<string, ZoneData>): CityMetrics => {
-  const zones = Object.values(zoneData)
-  if (zones.length === 0) {
-    return {
-      population: 0,
-      averageIncome: 0,
-      unemploymentRate: 0,
-      housingAffordabilityIndex: 0,
-      trafficCongestionIndex: 0,
-      airQualityIndex: 0,
-      livabilityIndex: 0,
-    }
-  }
-
-  const totalPopulation = zones.reduce((sum, z) => sum + z.population, 0)
-  const totalIncome = zones.reduce((sum, z) => sum + (z.properties?.median_income || 0) * z.population, 0)
-  const avgIncome = totalPopulation > 0 ? totalIncome / totalPopulation : 0
-
-  const avgAffordability = zones.reduce((sum, z) => sum + (z.properties?.affordability_index || 0), 0) / zones.length
-  const avgCarDependence = zones.reduce((sum, z) => sum + (z.properties?.commute?.car_dependence || 0), 0) / zones.length
-  const avgDensityIndex = zones.reduce((sum, z) => sum + (z.properties?.derived?.density_index || 0), 0) / zones.length
-  const avgLivability = zones.reduce((sum, z) => sum + (z.properties?.livability_index || 0), 0) / zones.length
-
-  const trafficCongestion = Math.min(100, avgCarDependence + (avgDensityIndex * 100))
-  const environmentalScore = Math.max(0, 100 - trafficCongestion)
-  const airQuality = environmentalScore
-  const affordabilityScore = Math.min(100, Math.max(0, 100 - (avgAffordability * 10)))
-
-  return {
-    population: totalPopulation,
-    averageIncome: Math.round(avgIncome),
-    unemploymentRate: 0,
-    housingAffordabilityIndex: Math.round(affordabilityScore),
-    trafficCongestionIndex: Math.round(trafficCongestion),
-    airQualityIndex: Math.round(airQuality),
-    livabilityIndex: Math.round(avgLivability),
-  }
-}
+const createEmptyMetrics = (zoneId: string, zoneName: string): EventMetrics => ({
+  zoneId,
+  zoneName,
+})
 
 export const useSimulationStore = create<SimulationState>((set) => ({
   simulationStatus: 'idle',
@@ -189,8 +149,8 @@ export const useSimulationStore = create<SimulationState>((set) => ({
   previousMapView: null,
   promptText: '',
   simulationSummary: '',
-  zoneData: {},
-  cityMetrics: computeCityMetrics({}),
+  zoneMetrics: {},
+  cityMetrics: createEmptyMetrics('city', 'Atlanta'),
   layerVisibility: {
     buildings: false,
     neighborhoods: true,
@@ -239,89 +199,42 @@ export const useSimulationStore = create<SimulationState>((set) => ({
 
   setPreviousMapView: (view) => set({ previousMapView: view }),
 
-  updateZoneData: (zoneId, data) =>
+  updateMetricsFromEvent: (event) =>
     set((state) => {
-      const updatedZoneData = {
-        ...state.zoneData,
-        [zoneId]: {
-          ...state.zoneData[zoneId],
-          ...data,
+      if (!event.metrics) return state
+
+      const metrics = event.metrics
+      const updatedZoneMetrics = {
+        ...state.zoneMetrics,
+        [metrics.zoneId]: {
+          ...state.zoneMetrics[metrics.zoneId],
+          ...metrics,
         },
       }
-      const computedMetrics = computeCityMetrics(updatedZoneData)
-      const currentMetrics = state.cityMetrics
 
-      const preserveIfSetByMetricsUpdate = (
-        current: number,
-        computed: number,
-        changeField: number | undefined
-      ): number => {
-        if (changeField !== undefined) {
-          return current
-        }
-        if (current > 0 && Math.abs(current - computed) > 1) {
-          return current
-        }
-        return computed
+      const updatedCityMetrics: EventMetrics = {
+        ...state.cityMetrics,
+        population: metrics.population !== undefined ? metrics.population : state.cityMetrics.population,
+        populationChange: metrics.populationChange !== undefined ? metrics.populationChange : state.cityMetrics.populationChange,
+        averageIncome: metrics.averageIncome !== undefined ? metrics.averageIncome : state.cityMetrics.averageIncome,
+        averageIncomeChange: metrics.averageIncomeChange !== undefined ? metrics.averageIncomeChange : state.cityMetrics.averageIncomeChange,
+        unemploymentRate: metrics.unemploymentRate !== undefined ? metrics.unemploymentRate : state.cityMetrics.unemploymentRate,
+        unemploymentRateChange: metrics.unemploymentRateChange !== undefined ? metrics.unemploymentRateChange : state.cityMetrics.unemploymentRateChange,
+        housingAffordabilityIndex: metrics.housingAffordabilityIndex !== undefined ? metrics.housingAffordabilityIndex : state.cityMetrics.housingAffordabilityIndex,
+        housingAffordabilityIndexChange: metrics.housingAffordabilityIndexChange !== undefined ? metrics.housingAffordabilityIndexChange : state.cityMetrics.housingAffordabilityIndexChange,
+        trafficCongestionIndex: metrics.trafficCongestionIndex !== undefined ? metrics.trafficCongestionIndex : state.cityMetrics.trafficCongestionIndex,
+        trafficCongestionIndexChange: metrics.trafficCongestionIndexChange !== undefined ? metrics.trafficCongestionIndexChange : state.cityMetrics.trafficCongestionIndexChange,
+        airQualityIndex: metrics.airQualityIndex !== undefined ? metrics.airQualityIndex : state.cityMetrics.airQualityIndex,
+        airQualityIndexChange: metrics.airQualityIndexChange !== undefined ? metrics.airQualityIndexChange : state.cityMetrics.airQualityIndexChange,
+        livabilityIndex: metrics.livabilityIndex !== undefined ? metrics.livabilityIndex : state.cityMetrics.livabilityIndex,
+        livabilityIndexChange: metrics.livabilityIndexChange !== undefined ? metrics.livabilityIndexChange : state.cityMetrics.livabilityIndexChange,
       }
 
       return {
-        zoneData: updatedZoneData,
-        cityMetrics: {
-          ...computedMetrics,
-          population: preserveIfSetByMetricsUpdate(
-            currentMetrics.population,
-            computedMetrics.population,
-            currentMetrics.populationChange
-          ),
-          populationChange: currentMetrics.populationChange,
-          averageIncome: preserveIfSetByMetricsUpdate(
-            currentMetrics.averageIncome,
-            computedMetrics.averageIncome,
-            currentMetrics.averageIncomeChange
-          ),
-          averageIncomeChange: currentMetrics.averageIncomeChange,
-          unemploymentRate: preserveIfSetByMetricsUpdate(
-            currentMetrics.unemploymentRate,
-            computedMetrics.unemploymentRate,
-            currentMetrics.unemploymentRateChange
-          ),
-          unemploymentRateChange: currentMetrics.unemploymentRateChange,
-          housingAffordabilityIndex: preserveIfSetByMetricsUpdate(
-            currentMetrics.housingAffordabilityIndex,
-            computedMetrics.housingAffordabilityIndex,
-            currentMetrics.housingAffordabilityIndexChange
-          ),
-          housingAffordabilityIndexChange: currentMetrics.housingAffordabilityIndexChange,
-          livabilityIndex: preserveIfSetByMetricsUpdate(
-            currentMetrics.livabilityIndex,
-            computedMetrics.livabilityIndex,
-            currentMetrics.livabilityIndexChange
-          ),
-          livabilityIndexChange: currentMetrics.livabilityIndexChange,
-          trafficCongestionIndex: preserveIfSetByMetricsUpdate(
-            currentMetrics.trafficCongestionIndex,
-            computedMetrics.trafficCongestionIndex,
-            currentMetrics.trafficCongestionIndexChange
-          ),
-          trafficCongestionIndexChange: currentMetrics.trafficCongestionIndexChange,
-          airQualityIndex: preserveIfSetByMetricsUpdate(
-            currentMetrics.airQualityIndex,
-            computedMetrics.airQualityIndex,
-            currentMetrics.airQualityIndexChange
-          ),
-          airQualityIndexChange: currentMetrics.airQualityIndexChange,
-        },
+        zoneMetrics: updatedZoneMetrics,
+        cityMetrics: updatedCityMetrics,
       }
     }),
-
-  updateCityMetrics: (metrics) =>
-    set((state) => ({
-      cityMetrics: {
-        ...state.cityMetrics,
-        ...metrics,
-      },
-    })),
 
   toggleLayerVisibility: (layer) =>
     set((state) => ({
@@ -340,8 +253,7 @@ export const useSimulationStore = create<SimulationState>((set) => ({
       eventNotifications: [],
       selectedEventId: null,
       previousMapView: null,
-      zoneData: {},
-      cityMetrics: computeCityMetrics({}),
+      zoneMetrics: {},
+      cityMetrics: createEmptyMetrics('city', 'Atlanta'),
     }),
 }))
-

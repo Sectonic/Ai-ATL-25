@@ -27,12 +27,21 @@ const cities = [
   'Denver, CO',
 ]
 
-const eventIcons = {
+const eventIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   traffic: TrendingUp,
   housing: Home,
   population: Users,
   environmental: Leaf,
   economic: DollarSign,
+  transportation: TrendingUp,
+  infrastructure: TrendingUp,
+  education: Users,
+  healthcare: Users,
+  'public-safety': Users,
+}
+
+const getEventIcon = (eventType: string) => {
+  return eventIcons[eventType.toLowerCase()] || eventIcons[eventType] || TrendingUp
 }
 
 function PulsatingDot({ severity, positivity }: { severity: number; positivity: number }) {
@@ -54,7 +63,7 @@ function PulsatingDot({ severity, positivity }: { severity: number; positivity: 
 }
 
 function SelectedEventView({ event, onClose, containerRef }: { event: EventNotification, onClose: () => void, containerRef: React.RefObject<HTMLDivElement | null> }) {
-  const Icon = eventIcons[event.type]
+  const Icon = getEventIcon(event.type)
   const [showGradient, setShowGradient] = useState(false)
 
   useEffect(() => {
@@ -101,7 +110,7 @@ function SelectedEventView({ event, onClose, containerRef }: { event: EventNotif
         <div className="flex items-start justify-between mb-3 shrink-0">
           <div className="flex items-center gap-2">
             <Icon className="w-5 h-5 shrink-0 text-white/90" />
-            <div className="font-semibold text-base text-white">{event.zoneName}</div>
+            <div className="font-semibold text-base text-white">{event.title}</div>
           </div>
           <button
             onClick={onClose}
@@ -112,16 +121,126 @@ function SelectedEventView({ event, onClose, containerRef }: { event: EventNotif
           </button>
         </div>
         
+        <div className="text-xs text-white/60 mb-2 shrink-0">
+          {event.zoneName}
+        </div>
+        
         <p className="text-sm text-white/90 mb-3 leading-relaxed shrink-0">{event.description}</p>
         
         <div className="flex items-center gap-2 mb-4 shrink-0">
           <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/70">
             {event.type}
           </span>
-          <span className="text-xs text-white/60">
-            {new Date(event.timestamp).toLocaleTimeString()}
-          </span>
         </div>
+
+        {event.metrics && (
+          <div className="border-t border-white/10 pt-4 mb-4 shrink-0">
+            <div className="text-sm font-medium text-white/90 mb-3">Impact Metrics</div>
+            <div className="p-2 rounded-lg bg-white/5">
+              <div className="grid grid-cols-2 gap-1.5 text-xs">
+                {event.metrics.population !== undefined && (
+                  <div>
+                    <span className="text-white/50">Population: </span>
+                    <span className="text-white/90">{Math.round(event.metrics.population).toLocaleString()}</span>
+                    {event.metrics.populationChange !== undefined && (
+                      <span className={`ml-1 ${event.metrics.populationChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        ({event.metrics.populationChange >= 0 ? '+' : ''}{event.metrics.populationChange.toFixed(1)}%)
+                      </span>
+                    )}
+                  </div>
+                )}
+                {event.metrics.housingUnits !== undefined && (
+                  <div>
+                    <span className="text-white/50">Housing Units: </span>
+                    <span className="text-white/90">{Math.round(event.metrics.housingUnits).toLocaleString()}</span>
+                    {event.metrics.housingUnitsChange !== undefined && (
+                      <span className={`ml-1 ${event.metrics.housingUnitsChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        ({event.metrics.housingUnitsChange >= 0 ? '+' : ''}{event.metrics.housingUnitsChange.toFixed(1)}%)
+                      </span>
+                    )}
+                  </div>
+                )}
+                {event.metrics.trafficFlow !== undefined && (
+                  <div>
+                    <span className="text-white/50">Traffic Flow: </span>
+                    <span className="text-white/90">{event.metrics.trafficFlow.toFixed(1)}</span>
+                    {event.metrics.trafficFlowChange !== undefined && (
+                      <span className={`ml-1 ${event.metrics.trafficFlowChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        ({event.metrics.trafficFlowChange >= 0 ? '+' : ''}{event.metrics.trafficFlowChange.toFixed(1)})
+                      </span>
+                    )}
+                  </div>
+                )}
+                {event.metrics.economicIndex !== undefined && (
+                  <div>
+                    <span className="text-white/50">Economic Index: </span>
+                    <span className="text-white/90">{event.metrics.economicIndex.toFixed(1)}</span>
+                    {event.metrics.economicIndexChange !== undefined && (
+                      <span className={`ml-1 ${event.metrics.economicIndexChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        ({event.metrics.economicIndexChange >= 0 ? '+' : ''}{event.metrics.economicIndexChange.toFixed(1)})
+                      </span>
+                    )}
+                  </div>
+                )}
+                {event.metrics.averageIncome !== undefined && (
+                  <div>
+                    <span className="text-white/50">Avg Income: </span>
+                    <span className="text-white/90">${Math.round(event.metrics.averageIncome / 1000)}k</span>
+                    {event.metrics.averageIncomeChange !== undefined && (
+                      <span className={`ml-1 ${event.metrics.averageIncomeChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        ({event.metrics.averageIncomeChange >= 0 ? '+' : ''}{event.metrics.averageIncomeChange.toFixed(1)}%)
+                      </span>
+                    )}
+                  </div>
+                )}
+                {event.metrics.trafficCongestionIndex !== undefined && (
+                  <div>
+                    <span className="text-white/50">Traffic: </span>
+                    <span className="text-white/90">{event.metrics.trafficCongestionIndex.toFixed(1)}</span>
+                    {event.metrics.trafficCongestionIndexChange !== undefined && (
+                      <span className={`ml-1 ${event.metrics.trafficCongestionIndexChange >= 0 ? 'text-red-400' : 'text-green-400'}`}>
+                        ({event.metrics.trafficCongestionIndexChange >= 0 ? '+' : ''}{event.metrics.trafficCongestionIndexChange.toFixed(1)})
+                      </span>
+                    )}
+                  </div>
+                )}
+                {event.metrics.housingAffordabilityIndex !== undefined && (
+                  <div>
+                    <span className="text-white/50">Affordability: </span>
+                    <span className="text-white/90">{event.metrics.housingAffordabilityIndex.toFixed(1)}</span>
+                    {event.metrics.housingAffordabilityIndexChange !== undefined && (
+                      <span className={`ml-1 ${event.metrics.housingAffordabilityIndexChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        ({event.metrics.housingAffordabilityIndexChange >= 0 ? '+' : ''}{event.metrics.housingAffordabilityIndexChange.toFixed(1)})
+                      </span>
+                    )}
+                  </div>
+                )}
+                {event.metrics.airQualityIndex !== undefined && (
+                  <div>
+                    <span className="text-white/50">Air Quality: </span>
+                    <span className="text-white/90">{event.metrics.airQualityIndex.toFixed(1)}</span>
+                    {event.metrics.airQualityIndexChange !== undefined && (
+                      <span className={`ml-1 ${event.metrics.airQualityIndexChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        ({event.metrics.airQualityIndexChange >= 0 ? '+' : ''}{event.metrics.airQualityIndexChange.toFixed(1)})
+                      </span>
+                    )}
+                  </div>
+                )}
+                {event.metrics.livabilityIndex !== undefined && (
+                  <div>
+                    <span className="text-white/50">Livability: </span>
+                    <span className="text-white/90">{event.metrics.livabilityIndex.toFixed(1)}</span>
+                    {event.metrics.livabilityIndexChange !== undefined && (
+                      <span className={`ml-1 ${event.metrics.livabilityIndexChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        ({event.metrics.livabilityIndexChange >= 0 ? '+' : ''}{event.metrics.livabilityIndexChange.toFixed(1)})
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="border-t border-white/10 pt-4 min-h-0 flex flex-col">
           <div className="text-sm font-medium text-white/90 mb-3 shrink-0">Reactions</div>
@@ -167,7 +286,7 @@ function SelectedEventView({ event, onClose, containerRef }: { event: EventNotif
 }
 
 function EventCard({ event, onClick }: { event: EventNotification, onClick: () => void }) {
-  const Icon = eventIcons[event.type]
+  const Icon = getEventIcon(event.type)
 
   return (
     <motion.div
@@ -187,17 +306,17 @@ function EventCard({ event, onClick }: { event: EventNotification, onClick: () =
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-medium text-sm text-white leading-tight">
+            {event.title}
+          </div>
+          <div className="text-xs text-white/60 mt-0.5">
             {event.zoneName}
           </div>
-          <p className="text-xs text-white/80 mt-1 leading-tight">
+          <p className="text-xs text-white/80 mt-1 leading-tight line-clamp-2">
             {event.description}
           </p>
           <div className="flex items-center gap-2 mt-1.5">
             <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/10 text-white/70">
               {event.type}
-            </span>
-            <span className="text-xs text-white/60">
-              {new Date(event.timestamp).toLocaleTimeString()}
             </span>
           </div>
         </div>

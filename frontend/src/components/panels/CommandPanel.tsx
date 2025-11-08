@@ -132,8 +132,7 @@ export function CommandPanel() {
     setPromptText,
     setSimulationSummary,
     addEventNotification,
-    updateZoneData,
-    updateCityMetrics,
+    updateMetricsFromEvent,
     resetSimulation,
     clearEventNotifications,
     clearSelectedZones,
@@ -160,10 +159,9 @@ export function CommandPanel() {
 
         if (chunk.type === 'event') {
           addEventNotification(chunk.data)
-        } else if (chunk.type === 'zoneUpdate') {
-          updateZoneData(chunk.data.zoneId, chunk.data)
-        } else if (chunk.type === 'metricsUpdate') {
-          updateCityMetrics(chunk.data)
+          if (chunk.data.metrics) {
+            updateMetricsFromEvent(chunk.data)
+          }
         } else if (chunk.type === 'complete') {
           setSimulationSummary(chunk.data.summary)
           setSimulationStatus('complete')

@@ -141,8 +141,7 @@ fn default_model() -> String {
 ///
 /// The AI is instructed to generate:
 /// - 3-6 event notifications (traffic, housing, population, economic, environmental)
-/// - 2-5 zone updates (neighborhood-level changes)
-/// - 1 metrics update (city-wide changes)
+///   Each event includes a single combined metrics object with both zone-level and city-wide metrics
 /// - 1 completion summary
 ///
 /// ## Error Handling
@@ -249,12 +248,17 @@ The frontend displays the following metrics and visualizations that you should c
    - Density (density index * 100)
    - Affordability (affordability index * 10)
 
-IMPORTANT: When generating metricsUpdate chunks, prioritize updating metrics that are prominently displayed:
-- Always update population, averageIncome, and trafficCongestionIndex if the policy affects them
-- Update housingAffordabilityIndex for housing-related policies
-- Update airQualityIndex for environmental policies
-- Update livabilityIndex for policies that affect overall quality of life (combines factors like safety, amenities, walkability, etc.)
+IMPORTANT: When generating event chunks with embedded metrics:
+- Always include a single "metrics" object in each event chunk that combines both zone-level and city-wide metrics
+- Use the provided neighborhood_properties data to generate accurate zone-level metrics for the specific neighborhood where the event occurs
+- For zone-level metrics: Include population, housingUnits, trafficFlow, and economicIndex based on the neighborhood's current properties
+- For city-wide metrics: Always update population, averageIncome, and trafficCongestionIndex if the event affects them
+- Update housingAffordabilityIndex for housing-related events
+- Update airQualityIndex for environmental events
+- Update livabilityIndex for events that affect overall quality of life (combines factors like safety, amenities, walkability, etc.)
 - Consider how changes affect the Urban Profile radar chart metrics
+- Each event should mutate the zone stats and city metrics, so include cumulative updates
+- The metrics object should reflect realistic changes based on the neighborhood's current demographic and economic characteristics from neighborhood_properties
 
 CRITICAL OUTPUT FORMAT REQUIREMENTS:
 You MUST return a valid JSON array. The response must be:
@@ -267,76 +271,93 @@ You MUST return a valid JSON array. The response must be:
 
 The response must be a JSON array of simulation chunks. Each chunk must be one of these types:
 
-1. Event chunks:
+1. Event chunks (each event must include a single combined metrics object):
    {{"type": "event", "data": {{
-     "id": "event-<timestamp>-<index>",
+     "id": "event-<index>",
      "zoneId": "<neighborhood-name>",
      "zoneName": "<neighborhood-name>",
-     "type": "traffic" | "housing" | "population" | "economic" | "environmental",
+     "type": "<dynamic-event-type>",
+     "title": "<concise-event-title>",
      "description": "<detailed description of the event>",
      "severity": <number 0.0-1.0>,
      "positivity": <number -1.0 to 1.0>,
-     "timestamp": <unix-timestamp-in-milliseconds>,
-     "coordinates": [<latitude>, <longitude>]
+     "coordinates": [<latitude>, <longitude>],
+     "metrics": {{
+       "zoneId": "<neighborhood-name>",
+       "zoneName": "<neighborhood-name>",
+       "population": <number> (optional, zone-level population based on neighborhood_properties),
+       "populationChange": <number> (optional),
+       "housingUnits": <number> (optional, zone-level based on neighborhood_properties),
+       "housingUnitsChange": <number> (optional),
+       "trafficFlow": <number 0-100> (optional, zone-level traffic impact),
+       "trafficFlowChange": <number> (optional),
+       "economicIndex": <number 0-100> (optional, zone-level economic impact),
+       "economicIndexChange": <number> (optional),
+       "averageIncome": <number> (optional, city-wide average income),
+       "averageIncomeChange": <number> (optional),
+       "unemploymentRate": <number> (optional, city-wide),
+       "unemploymentRateChange": <number> (optional),
+       "housingAffordabilityIndex": <number 0-100> (optional, city-wide),
+       "housingAffordabilityIndexChange": <number> (optional),
+       "trafficCongestionIndex": <number 0-100> (optional, city-wide),
+       "trafficCongestionIndexChange": <number> (optional),
+       "airQualityIndex": <number 0-100> (optional, city-wide),
+       "airQualityIndexChange": <number> (optional),
+       "livabilityIndex": <number 0-100> (optional, city-wide),
+       "livabilityIndexChange": <number> (optional)
+     }} (optional, include if event affects metrics - use neighborhood_properties to generate accurate zone-level data)
    }}}}
 
-2. Zone Update chunks:
-   {{"type": "zoneUpdate", "data": {{
-     "zoneId": "<neighborhood-name>",
-     "zoneName": "<neighborhood-name>",
-     "population": <number>,
-     "populationChange": <number> (optional),
-     "housingUnits": <number>,
-     "housingUnitsChange": <number> (optional),
-     "trafficFlow": <number 0-100>,
-     "trafficFlowChange": <number> (optional),
-     "economicIndex": <number 0-100>,
-     "economicIndexChange": <number> (optional)
-   }}}}
-
-3. Metrics Update chunk:
-   {{"type": "metricsUpdate", "data": {{
-     "population": <number> (optional, only include if changed),
-     "populationChange": <number> (optional),
-     "averageIncome": <number> (optional, only include if changed),
-     "averageIncomeChange": <number> (optional),
-     "unemploymentRate": <number> (optional, only include if changed),
-     "unemploymentRateChange": <number> (optional),
-     "housingAffordabilityIndex": <number 0-100> (optional, only include if changed),
-     "housingAffordabilityIndexChange": <number> (optional),
-     "trafficCongestionIndex": <number 0-100> (optional, only include if changed),
-     "trafficCongestionIndexChange": <number> (optional),
-     "airQualityIndex": <number 0-100> (optional, only include if changed),
-     "airQualityIndexChange": <number> (optional),
-     "livabilityIndex": <number 0-100> (optional, only include if changed),
-     "livabilityIndexChange": <number> (optional)
-   }}}}
-
-4. Complete chunk (exactly one, at the end):
+2. Complete chunk (exactly one, at the end):
    {{"type": "complete", "data": {{
      "summary": "<brief summary of the simulation results>"
    }}}}
 
 Example valid response format:
 [
-  {{"type": "event", "data": {{"id": "event-1234567890-1", "zoneId": "Ridgewood Heights", "zoneName": "Ridgewood Heights", "type": "traffic", "description": "...", "severity": 0.7, "positivity": -0.3, "timestamp": 1234567890000, "coordinates": [33.826, -84.443]}}}},
-  {{"type": "zoneUpdate", "data": {{"zoneId": "Ridgewood Heights", "zoneName": "Ridgewood Heights", "population": 500, "populationChange": 4, "housingUnits": 170, "trafficFlow": 65, "economicIndex": 72}}}},
-  {{"type": "metricsUpdate", "data": {{"population": 500000, "populationChange": 5000, "trafficCongestionIndex": 68, "trafficCongestionIndexChange": 3}}}},
+  {{"type": "event", "data": {{
+    "id": "event-1",
+    "zoneId": "Ridgewood Heights",
+    "zoneName": "Ridgewood Heights",
+    "type": "transportation",
+    "title": "Light Rail Construction Begins",
+    "description": "New light rail construction begins...",
+    "severity": 0.7,
+    "positivity": -0.3,
+    "coordinates": [33.826, -84.443],
+    "metrics": {{
+      "zoneId": "Ridgewood Heights",
+      "zoneName": "Ridgewood Heights",
+      "population": 500,
+      "populationChange": 4,
+      "housingUnits": 170,
+      "trafficFlow": 65,
+      "economicIndex": 72,
+      "averageIncome": 55000,
+      "averageIncomeChange": 2.5,
+      "trafficCongestionIndex": 68,
+      "trafficCongestionIndexChange": 3
+    }}
+  }}}},
   {{"type": "complete", "data": {{"summary": "The policy implementation shows..."}}}}
 ]
 
 Important Guidelines:
 - Use neighborhood names from the provided neighborhood data for zoneId and zoneName
+- The event "type" field should be a descriptive string that best categorizes the event based on the policy being simulated (e.g., "transportation", "housing", "economic", "environmental", "infrastructure", "education", "healthcare", "public-safety", etc.). Choose the most appropriate type based on the policy's primary impact.
+- Each event MUST include a "title" field with a concise, descriptive title (3-8 words) that summarizes the event
 - Make changes realistic and proportional to the policy's scope
 - Consider both positive and negative impacts
 - Use Atlanta-specific context (neighborhoods, demographics, geography)
 - Ensure all numeric values are realistic
 - Events should be specific and actionable
-- Zone updates should reflect differential impacts across neighborhoods
-- Metrics updates should show city-wide aggregate changes and include updates for metrics displayed in the Overview section
-- When generating metricsUpdate chunks, ensure you update at least 2-3 key metrics that are prominently displayed (population, averageIncome, trafficCongestionIndex, housingAffordabilityIndex, or airQualityIndex)
-- Consider how zone updates affect the Urban Profile radar chart (Income, Education, Diversity, Density, Affordability)
-- Generate 3-6 events, 2-5 zone updates, 1 metrics update (with multiple metric changes), and 1 complete chunk
+- Each event chunk MUST include a single "metrics" object that combines both zone-level and city-wide metrics
+- Use the neighborhood_properties data provided to generate accurate zone-level metrics (population, housingUnits, etc.) based on the actual neighborhood characteristics
+- Zone-level metrics (population, housingUnits, trafficFlow, economicIndex) should be based on the neighborhood_properties for that specific zone
+- City-wide metrics (averageIncome, trafficCongestionIndex, housingAffordabilityIndex, airQualityIndex, livabilityIndex) should show cumulative city-wide aggregate changes
+- When generating event chunks, ensure metrics updates at least 2-3 key city-wide metrics that are prominently displayed (population, averageIncome, trafficCongestionIndex, housingAffordabilityIndex, or airQualityIndex)
+- Consider how metrics affect the Urban Profile radar chart (Income, Education, Diversity, Density, Affordability)
+- Generate 3-6 events (each with a combined metrics object), and 1 complete chunk
 - Return ONLY the JSON array, nothing else"#,
         city_metrics_json, neighborhoods_summary
     );
@@ -356,7 +377,7 @@ Policy: {}
 
 Selected Zones: {}
 
-Generate a complete simulation with events, zone updates, and metrics changes. Return the results as a JSON array of simulation chunks."#,
+Generate a complete simulation with events (each containing a combined metrics object). Use the neighborhood_properties data to generate accurate zone-level metrics. Return the results as a JSON array of simulation chunks."#,
         request.prompt, selected_zones_str
     );
 
@@ -463,9 +484,7 @@ Generate a complete simulation with events, zone updates, and metrics changes. R
 
     // Parse the cleaned JSON response into our SimulationChunk structures
     // The AI should return an array of chunks matching our enum variants:
-    // - Event chunks with traffic, housing, economic, etc. events
-    // - ZoneUpdate chunks with neighborhood-level changes
-    // - MetricsUpdate chunk with city-wide changes
+    // - Event chunks with traffic, housing, economic, etc. events (each with a combined metrics object)
     // - Complete chunk with final summary
     eprintln!("🔍 Parsing AI response...");
 

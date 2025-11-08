@@ -1,9 +1,7 @@
-import type { EventNotification, ZoneData, CityMetrics, Comment, NeighborhoodProperties } from '../stores/simulationStore'
+import type { EventNotification, EventMetrics, Comment, NeighborhoodProperties } from '../stores/simulationStore'
 
 export type SimulationChunk =
   | { type: 'event'; data: EventNotification }
-  | { type: 'zoneUpdate'; data: ZoneData }
-  | { type: 'metricsUpdate'; data: Partial<CityMetrics> }
   | { type: 'complete'; data: { summary: string } }
 
 const BACKEND_URL = 'http://localhost:8080/api/simulate'
@@ -21,8 +19,25 @@ const fakeUsers = [
   { name: 'Robert Martinez', initials: 'RM' },
 ]
 
-const commentTemplates = {
+const commentTemplates: Record<string, { positive: string[]; negative: string[]; neutral: string[] }> = {
   traffic: {
+    positive: [
+      'This is great! Traffic has been so much better lately.',
+      'Finally some relief from the congestion. Thank you!',
+      'Love seeing improvements to our transportation system.',
+    ],
+    negative: [
+      'This made traffic worse, not better. What were they thinking?',
+      'The construction is a nightmare. When will it end?',
+      'This is going to cause more problems than it solves.',
+    ],
+    neutral: [
+      'Interesting approach. Will be watching how this develops.',
+      'Curious to see the long-term impact of this change.',
+      'Hope they considered all the side effects.',
+    ],
+  },
+  transportation: {
     positive: [
       'This is great! Traffic has been so much better lately.',
       'Finally some relief from the congestion. Thank you!',
@@ -109,8 +124,27 @@ const commentTemplates = {
   },
 }
 
-function generateComments(eventType: EventNotification['type'], positivity: number): Comment[] {
-  const templates = commentTemplates[eventType]
+const getDefaultCommentTemplates = () => ({
+  positive: [
+    'This looks promising!',
+    'Great to see progress on this.',
+    'Hope this works out well for everyone.',
+  ],
+  negative: [
+    'Not sure about this approach.',
+    'This could cause problems.',
+    'Need to see more details.',
+  ],
+  neutral: [
+    'Interesting development.',
+    'Time will tell how this works out.',
+    'Hope they considered all the impacts.',
+  ],
+})
+
+function generateComments(eventType: string, positivity: number): Comment[] {
+  const normalizedType = eventType.toLowerCase()
+  const templates = commentTemplates[normalizedType] || getDefaultCommentTemplates()
   const commentCount = Math.floor(Math.random() * 3) + 3
 
   const comments: Comment[] = []
@@ -210,7 +244,7 @@ export function buildNeighborhoodProperties(
 
 export async function* simulatePolicy(
   prompt: string,
-  cityMetrics: CityMetrics,
+  cityMetrics: EventMetrics,
   selectedZones: string[],
   neighborhoodsData: GeoJSON.FeatureCollection
 ): AsyncGenerator<SimulationChunk> {
@@ -223,13 +257,22 @@ export async function* simulatePolicy(
   const payload = {
     prompt,
     cityMetrics: {
+      zoneId: cityMetrics.zoneId || 'city',
+      zoneName: cityMetrics.zoneName || 'Atlanta',
       population: cityMetrics.population,
+      populationChange: cityMetrics.populationChange,
       averageIncome: cityMetrics.averageIncome,
+      averageIncomeChange: cityMetrics.averageIncomeChange,
       unemploymentRate: cityMetrics.unemploymentRate,
+      unemploymentRateChange: cityMetrics.unemploymentRateChange,
       housingAffordabilityIndex: cityMetrics.housingAffordabilityIndex,
+      housingAffordabilityIndexChange: cityMetrics.housingAffordabilityIndexChange,
       trafficCongestionIndex: cityMetrics.trafficCongestionIndex,
+      trafficCongestionIndexChange: cityMetrics.trafficCongestionIndexChange,
       airQualityIndex: cityMetrics.airQualityIndex,
+      airQualityIndexChange: cityMetrics.airQualityIndexChange,
       livabilityIndex: cityMetrics.livabilityIndex,
+      livabilityIndexChange: cityMetrics.livabilityIndexChange,
     },
     selectedZones: zonesToSend,
     neighborhoodProperties,
@@ -291,7 +334,7 @@ export async function* simulatePolicy(
                   comments,
                 },
               }
-            } else {
+            } else if (chunk.type === 'complete') {
               yield chunk
             }
           } catch (e) {
