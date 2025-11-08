@@ -1,0 +1,45 @@
+import json
+import pandas as pd
+
+# Load the GeoJSON file
+file_path = '/mnt/data/Tax_Parcels_2025.geojson'
+with open(file_path, 'r') as f:
+    data = json.load(f)
+
+# Extract features and convert to DataFrame
+features = data.get('features', [])
+rows = []
+
+for feature in features:
+    props = feature.get('properties', {})
+    zip_code = props.get('ZIP', None)  # Assuming ZIP field name is 'ZIP'
+    rows.append({
+        'ZIP': zip_code,
+        **props
+    })
+
+df = pd.DataFrame(rows)
+
+# Sort by ZIP code
+df_sorted = df.sort_values(by='ZIP')
+
+# Update the features in the original GeoJSON with the sorted order
+sorted_features = []
+for idx, row in df_sorted.iterrows():
+    # Find the matching feature for this row.
+    # The match is based on all property values being equal.
+    for feature in features:
+        if all(feature['properties'].get(col) == row[col] for col in df.columns):
+            sorted_features.append(feature)
+            # Remove the feature from features to prevent duplicate matches.
+            features.remove(feature)
+            break
+
+data['features'] = sorted_features
+
+# Save the sorted data to a new GeoJSON file
+sorted_file_path = '/mnt/data/Tax_Parcels_2025_sorted.geojson'
+with open(sorted_file_path, 'w') as f:
+    json.dump(data, f)
+
+sorted_file_path
