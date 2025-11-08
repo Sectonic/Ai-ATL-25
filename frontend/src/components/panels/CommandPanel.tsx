@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSimulationStore } from '../../stores/simulationStore'
 import { simulatePolicy } from '../../services/simulationApi'
 import { useNeighborhoods } from '../../services/geojsonApi'
 import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
-import { Loader2, Play, ChevronUp, Layers } from 'lucide-react'
+import { Loader2, Play, ChevronUp } from 'lucide-react'
 
 function TypewriterText({ text }: { text: string }) {
   const [displayedText, setDisplayedText] = useState('')
@@ -101,6 +101,7 @@ export function CommandPanel() {
     simulationStatus,
     simulationSummary,
     selectedZones,
+    zoneData,
     cityMetrics,
     setSimulationStatus,
     setPromptText,
@@ -115,7 +116,18 @@ export function CommandPanel() {
 
   const [localPrompt, setLocalPrompt] = useState('')
   const [isPreviousSimulationsOpen, setIsPreviousSimulationsOpen] = useState(false)
+  const [hoveredMore, setHoveredMore] = useState(false)
   const { data: neighborhoodsData } = useNeighborhoods()
+  
+  const zoneNames = useMemo(() => {
+    return selectedZones.map((zoneId) => {
+      const zone = zoneData[zoneId]
+      return zone?.zoneName || `Zone ${zoneId}`
+    })
+  }, [selectedZones, zoneData])
+  
+  const displayedZones = zoneNames.slice(0, 3)
+  const remainingCount = zoneNames.length - 3
 
   const handleStartSimulation = async () => {
     if (!localPrompt.trim() || !neighborhoodsData) return
@@ -179,7 +191,12 @@ export function CommandPanel() {
             <motion.div
               layout
               initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-              animate={{ opacity: 1, height: 'auto', marginBottom: 8 }}
+              animate={{ 
+                opacity: 1, 
+                height: 'auto', 
+                marginBottom: 8,
+                y: hoveredMore && remainingCount > 0 ? -60 : 0
+              }}
               exit={{ opacity: 0, height: 0, marginBottom: 0 }}
               transition={{ 
                 duration: 0.3, 
@@ -219,6 +236,23 @@ export function CommandPanel() {
             >
               <div className="relative rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
                 <AnimatePresence>
+                  {hoveredMore && remainingCount > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 5 }}
+                      transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                      className="absolute bottom-full left-0 mb-2 z-50"
+                    >
+                      <div className="px-3 py-2 rounded-lg bg-slate-900/95 backdrop-blur-sm border border-white/20 shadow-lg">
+                        <div className="text-xs text-white/90 font-medium break-words">
+                          {zoneNames.join(', ')}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <AnimatePresence>
                   {selectedZones.length > 0 && (
                     <motion.div
                       initial={{ opacity: 0, y: -5 }}
@@ -228,9 +262,20 @@ export function CommandPanel() {
                       className="absolute top-2.5 left-2.5 z-10"
                     >
                       <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
-                        <Layers className="w-3 h-3 text-white/70" />
                         <span className="text-xs text-white/90 font-medium">
-                          {selectedZones.length} {selectedZones.length === 1 ? 'zone' : 'zones'} in context
+                          {displayedZones.join(', ')}
+                          {remainingCount > 0 && (
+                            <>
+                              <span className="text-white/70">, </span>
+                              <span
+                                className="text-white/70 underline decoration-dotted cursor-help"
+                                onMouseEnter={() => setHoveredMore(true)}
+                                onMouseLeave={() => setHoveredMore(false)}
+                              >
+                                & {remainingCount} more
+                              </span>
+                            </>
+                          )}
                         </span>
                       </div>
                     </motion.div>
@@ -239,7 +284,11 @@ export function CommandPanel() {
                 <motion.div
                   layout
                   animate={{ paddingTop: selectedZones.length > 0 ? 36 : 0 }}
-                  transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                  transition={{ 
+                    duration: 0.4, 
+                    ease: [0.4, 0, 0.2, 1],
+                    layout: { duration: 0.4, ease: [0.4, 0, 0.2, 1] }
+                  }}
                   className="relative"
                 >
                   <Textarea
