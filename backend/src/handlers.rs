@@ -9,30 +9,31 @@ use actix_web::{HttpResponse, Result, web};
 
 /// Simulates the impact of a city policy proposal
 ///
-/// This endpoint receives a policy proposal along with current city metrics and
-/// neighborhood data, then uses AI to generate realistic simulation results.
+/// This endpoint receives a policy proposal along with neighborhood data,
+/// then uses Azure AI to generate realistic simulation results showing
+/// how the policy would affect different neighborhoods.
 ///
 /// ## Request
 ///
 /// The request includes:
 /// - `prompt`: The policy proposal text (e.g., "Build a new light rail line")
-/// - `cityMetrics`: Current city-wide metrics (population, income, unemployment, etc.)
-/// - `selectedZones`: Optional list of specific zones to focus on
-/// - `neighborhoodProperties`: Optional neighborhood demographic data
+/// - `selectedZones`: Optional list of specific neighborhood names to focus on
+/// - `neighborhoodProperties`: Optional neighborhood demographic and geographic data
 ///
 /// ## Response
 ///
 /// Returns a Server-Sent Events (SSE) stream of simulation chunks:
-/// - `event`: Individual events that occur (traffic, housing, economic, etc.)
-///   Each event includes a combined metrics object with both zone-level and city-wide metrics
-/// - `complete`: Final summary of the simulation
+/// - `event`: Individual events that occur in affected neighborhoods (transportation,
+///   housing, economic, etc.). Each event includes optional partial metrics updates
+///   showing how the neighborhood changes as a result of the event.
+/// - `complete`: Final summary of the simulation results
 ///
 /// ## Example
 ///
 /// ```bash
 /// curl -X POST http://localhost:8080/api/simulate \
 ///   -H "Content-Type: application/json" \
-///   -d '{"prompt": "Build light rail", "cityMetrics": {...}}'
+///   -d '{"prompt": "Build light rail connecting downtown to midtown", "selectedZones": ["Downtown", "Midtown"]}'
 /// ```
 pub async fn simulate_policy(body: web::Json<SimulationRequest>) -> Result<HttpResponse> {
     let request = body.into_inner();

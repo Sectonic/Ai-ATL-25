@@ -17,6 +17,7 @@
 mod azure;
 mod handlers;
 mod types;
+mod utils;
 
 use actix_cors::Cors;
 use actix_web::{App, HttpServer, web};
