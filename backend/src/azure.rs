@@ -339,13 +339,11 @@ Generate a complete simulation with events, zone updates, and metrics changes. R
         )));
     }
 
-    // Log the response for debugging (pretty printed if valid JSON)
-    if let Ok(pretty_json) = serde_json::from_str::<serde_json::Value>(&response_text)
-        .and_then(|v| serde_json::to_string_pretty(&v))
-    {
-        eprintln!("Azure API response (pretty):\n{}", pretty_json);
-    } else {
-        eprintln!("Azure API response (raw): {}", response_text);
+    // Log basic response info (without the full message content)
+    if let Ok(response_json) = serde_json::from_str::<serde_json::Value>(&response_text) {
+        if let Some(usage) = response_json.get("usage") {
+            eprintln!("Azure API response - Tokens: {}", usage);
+        }
     }
 
     let response_body: ChatCompletionResponse =
