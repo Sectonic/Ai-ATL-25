@@ -427,6 +427,9 @@ export async function* simulatePolicy(
     neighborhoodProperties,
   }
 
+  console.log('Sending request to backend:', BACKEND_URL)
+  console.log('Request payload:', payload)
+
   const response = await fetch(BACKEND_URL, {
     method: 'POST',
     headers: {
@@ -435,8 +438,12 @@ export async function* simulatePolicy(
     body: JSON.stringify(payload),
   })
 
+  console.log('Backend response status:', response.status, response.statusText)
+
   if (!response.ok) {
-    throw new Error(`Backend error: ${response.status} ${response.statusText}`)
+    const errorText = await response.text().catch(() => 'Could not read error message')
+    console.error('Backend error response:', errorText)
+    throw new Error(`Backend error: ${response.status} ${response.statusText}\n${errorText}`)
   }
 
   const reader = response.body?.getReader()
