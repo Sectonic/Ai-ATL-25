@@ -65,7 +65,7 @@ function SelectedEventView({ event, onClose }: { event: EventNotification, onClo
         </div>
 
         <div className="border-t border-white/10 pt-4 min-h-0 flex flex-col">
-          <div className="text-sm font-medium text-white/90 mb-3 shrink-0">Comments</div>
+          <div className="text-sm font-medium text-white/90 mb-3 shrink-0">Reactions</div>
           <div className="overflow-y-auto pr-2 -mr-2 space-y-3 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
             {event.comments.map((comment) => (
               <div key={comment.id} className="flex gap-3">

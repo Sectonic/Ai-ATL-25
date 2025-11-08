@@ -11,7 +11,7 @@ interface DragSelectionProps {
 
 export function DragSelection({ features }: DragSelectionProps) {
   const map = useMap()
-  const { selectedZones, addSelectedZone } = useSimulationStore()
+  const { selectedZones, addSelectedZone, selectedEventId, simulationStatus } = useSimulationStore()
   const [isDragging, setIsDragging] = useState(false)
   const [startPoint, setStartPoint] = useState<L.LatLng | null>(null)
   const [endPoint, setEndPoint] = useState<L.LatLng | null>(null)
@@ -19,7 +19,7 @@ export function DragSelection({ features }: DragSelectionProps) {
 
   useMapEvents({
     mousedown: (e: L.LeafletMouseEvent) => {
-      if (!e.originalEvent.shiftKey) {
+      if (!e.originalEvent.shiftKey || selectedEventId || simulationStatus === 'loading') {
         return
       }
 
