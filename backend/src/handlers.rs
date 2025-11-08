@@ -8,7 +8,7 @@ use crate::types::SimulationRequest;
 use actix_web::web::Bytes;
 use actix_web::{HttpResponse, Result, web};
 use futures_util::stream;
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 
 /// Simulates the impact of a city policy proposal
 ///
@@ -27,8 +27,7 @@ use tokio::time::{sleep, Duration};
 ///
 /// Returns a Server-Sent Events (SSE) stream of simulation chunks:
 /// - `event`: Individual events that occur (traffic, housing, economic, etc.)
-/// - `zoneUpdate`: Updates to specific neighborhood/zone metrics
-/// - `metricsUpdate`: City-wide metric changes
+///   Each event includes a combined metrics object with both zone-level and city-wide metrics
 /// - `complete`: Final summary of the simulation
 ///
 /// ## Example
@@ -44,7 +43,10 @@ pub async fn simulate_policy(body: web::Json<SimulationRequest>) -> Result<HttpR
     eprintln!("\n=== INCOMING SIMULATION REQUEST ===");
     eprintln!("Prompt: {}", request.prompt);
     eprintln!("Selected Zones: {:?}", request.selected_zones);
-    eprintln!("Neighborhood Properties Count: {}", request.neighborhood_properties.len());
+    eprintln!(
+        "Neighborhood Properties Count: {}",
+        request.neighborhood_properties.len()
+    );
     if let Ok(city_metrics_json) = serde_json::to_string_pretty(&request.city_metrics) {
         eprintln!("City Metrics:\n{}", city_metrics_json);
     }
@@ -72,13 +74,11 @@ pub async fn simulate_policy(body: web::Json<SimulationRequest>) -> Result<HttpR
                     return None;
                 }
 
-                // Add delay between chunks (300ms for events, 500ms for others)
+                // Add delay between chunks (400ms for events, 300ms for complete)
                 // Skip delay for first chunk
                 if index > 0 {
                     let delay_ms = match &chunks[index - 1] {
                         crate::types::SimulationChunk::Event { .. } => 400,
-                        crate::types::SimulationChunk::ZoneUpdate { .. } => 300,
-                        crate::types::SimulationChunk::MetricsUpdate { .. } => 500,
                         crate::types::SimulationChunk::Complete { .. } => 300,
                     };
                     sleep(Duration::from_millis(delay_ms)).await;

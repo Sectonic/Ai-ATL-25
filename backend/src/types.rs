@@ -98,61 +98,6 @@ pub struct NeighborhoodProperties {
     pub derived: Derived,
 }
 
-/// City-wide metrics representing the overall state of Atlanta
-///
-/// These metrics are used as baseline data when simulating policy impacts.
-/// The AI uses these values to calculate realistic changes from policy implementations.
-///
-/// All metrics have optional "Change" fields that represent deltas from the baseline.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct CityMetrics {
-    pub population: f64,
-    #[serde(rename = "populationChange", skip_serializing_if = "Option::is_none")]
-    pub population_change: Option<f64>,
-    #[serde(rename = "averageIncome")]
-    pub average_income: f64,
-    #[serde(
-        rename = "averageIncomeChange",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub average_income_change: Option<f64>,
-    #[serde(rename = "unemploymentRate")]
-    pub unemployment_rate: f64,
-    #[serde(
-        rename = "unemploymentRateChange",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub unemployment_rate_change: Option<f64>,
-    #[serde(rename = "housingAffordabilityIndex")]
-    pub housing_affordability_index: f64,
-    #[serde(
-        rename = "housingAffordabilityIndexChange",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub housing_affordability_index_change: Option<f64>,
-    #[serde(rename = "trafficCongestionIndex")]
-    pub traffic_congestion_index: f64,
-    #[serde(
-        rename = "trafficCongestionIndexChange",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub traffic_congestion_index_change: Option<f64>,
-    #[serde(rename = "airQualityIndex")]
-    pub air_quality_index: f64,
-    #[serde(
-        rename = "airQualityIndexChange",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub air_quality_index_change: Option<f64>,
-    #[serde(rename = "livabilityIndex")]
-    pub livability_index: f64,
-    #[serde(
-        rename = "livabilityIndexChange",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub livability_index_change: Option<f64>,
-}
-
 /// Types of events that can occur in a simulation
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -164,65 +109,139 @@ pub enum EventType {
     Environmental,
 }
 
-/// An event that occurs as a result of a policy implementation
+/// Combined metrics for an event, including both zone-level and city-wide metrics
 ///
-/// Events represent specific occurrences like construction starting, traffic changes,
-/// or new developments. They are displayed on the map and in event panels.
-///
-/// ## Severity and Positivity
-/// - `severity` (0.0 to 1.0): How impactful/significant the event is (affects visual prominence)
-/// - `positivity` (-1.0 to 1.0): How positive/negative the event is (affects color: red to yellow to green)
-#[derive(Debug, Deserialize, Serialize)]
-pub struct EventNotification {
-    pub id: String,
-    #[serde(rename = "zoneId")]
-    pub zone_id: String,
-    #[serde(rename = "zoneName")]
-    pub zone_name: String,
-    #[serde(rename = "type")]
-    pub event_type: EventType,
-    pub description: String,
-    pub severity: f64,
-    pub positivity: f64,
-    pub timestamp: i64,
-    pub coordinates: Vec<f64>,
-}
-
-/// Zone-level metrics for a specific neighborhood, district, or area
-///
-/// Zones can represent neighborhoods, districts, counties, or buildings.
-/// This data shows how policy impacts vary across different areas of the city.
-#[derive(Debug, Deserialize, Serialize)]
+/// This combines zone and city metrics into a single object to avoid duplication.
+/// The AI should use neighborhood_properties to generate accurate zone-level data.
+/// This is the single metrics type used throughout the system.
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
-pub struct ZoneData {
+pub struct EventMetrics {
     #[serde(rename = "zoneId")]
     pub zone_id: String,
     #[serde(rename = "zoneName")]
     pub zone_name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub population: Option<f64>,
-    #[serde(rename = "populationChange", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "populationChange",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     pub population_change: Option<f64>,
-    #[serde(rename = "housingUnits", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "housingUnits",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     pub housing_units: Option<f64>,
-    #[serde(rename = "housingUnitsChange", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "housingUnitsChange",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     pub housing_units_change: Option<f64>,
-    #[serde(rename = "trafficFlow", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "trafficFlow",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     pub traffic_flow: Option<f64>,
-    #[serde(rename = "trafficFlowChange", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "trafficFlowChange",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     pub traffic_flow_change: Option<f64>,
-    #[serde(rename = "economicIndex", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "economicIndex",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     pub economic_index: Option<f64>,
     #[serde(
         rename = "economicIndexChange",
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        default
     )]
     pub economic_index_change: Option<f64>,
+    #[serde(
+        rename = "averageIncome",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub average_income: Option<f64>,
+    #[serde(
+        rename = "averageIncomeChange",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub average_income_change: Option<f64>,
+    #[serde(
+        rename = "unemploymentRate",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub unemployment_rate: Option<f64>,
+    #[serde(
+        rename = "unemploymentRateChange",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub unemployment_rate_change: Option<f64>,
+    #[serde(
+        rename = "housingAffordabilityIndex",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub housing_affordability_index: Option<f64>,
+    #[serde(
+        rename = "housingAffordabilityIndexChange",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub housing_affordability_index_change: Option<f64>,
+    #[serde(
+        rename = "trafficCongestionIndex",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub traffic_congestion_index: Option<f64>,
+    #[serde(
+        rename = "trafficCongestionIndexChange",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub traffic_congestion_index_change: Option<f64>,
+    #[serde(
+        rename = "airQualityIndex",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub air_quality_index: Option<f64>,
+    #[serde(
+        rename = "airQualityIndexChange",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub air_quality_index_change: Option<f64>,
+    #[serde(
+        rename = "livabilityIndex",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub livability_index: Option<f64>,
+    #[serde(
+        rename = "livabilityIndexChange",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub livability_index_change: Option<f64>,
 }
 
-impl Default for ZoneData {
+impl Default for EventMetrics {
     fn default() -> Self {
-        ZoneData {
+        EventMetrics {
             zone_id: String::new(),
             zone_name: String::new(),
             population: None,
@@ -233,77 +252,6 @@ impl Default for ZoneData {
             traffic_flow_change: None,
             economic_index: None,
             economic_index_change: None,
-        }
-    }
-}
-
-/// Partial city metrics update - only includes fields that have changed
-///
-/// Used in metricsUpdate chunks to send only the metrics that changed,
-/// allowing the frontend to merge with existing metrics. All fields are optional
-/// and default to None if not present in the JSON.
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(default)]
-pub struct PartialCityMetrics {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub population: Option<f64>,
-    #[serde(rename = "populationChange", skip_serializing_if = "Option::is_none")]
-    pub population_change: Option<f64>,
-    #[serde(rename = "averageIncome", skip_serializing_if = "Option::is_none")]
-    pub average_income: Option<f64>,
-    #[serde(
-        rename = "averageIncomeChange",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub average_income_change: Option<f64>,
-    #[serde(rename = "unemploymentRate", skip_serializing_if = "Option::is_none")]
-    pub unemployment_rate: Option<f64>,
-    #[serde(
-        rename = "unemploymentRateChange",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub unemployment_rate_change: Option<f64>,
-    #[serde(
-        rename = "housingAffordabilityIndex",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub housing_affordability_index: Option<f64>,
-    #[serde(
-        rename = "housingAffordabilityIndexChange",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub housing_affordability_index_change: Option<f64>,
-    #[serde(
-        rename = "trafficCongestionIndex",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub traffic_congestion_index: Option<f64>,
-    #[serde(
-        rename = "trafficCongestionIndexChange",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub traffic_congestion_index_change: Option<f64>,
-    #[serde(rename = "airQualityIndex", skip_serializing_if = "Option::is_none")]
-    pub air_quality_index: Option<f64>,
-    #[serde(
-        rename = "airQualityIndexChange",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub air_quality_index_change: Option<f64>,
-    #[serde(rename = "livabilityIndex", skip_serializing_if = "Option::is_none")]
-    pub livability_index: Option<f64>,
-    #[serde(
-        rename = "livabilityIndexChange",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub livability_index_change: Option<f64>,
-}
-
-impl Default for PartialCityMetrics {
-    fn default() -> Self {
-        PartialCityMetrics {
-            population: None,
-            population_change: None,
             average_income: None,
             average_income_change: None,
             unemployment_rate: None,
@@ -320,10 +268,59 @@ impl Default for PartialCityMetrics {
     }
 }
 
+/// An event that occurs as a result of a policy implementation
+///
+/// Events represent specific occurrences like construction starting, traffic changes,
+/// or new developments. They are displayed on the map and in event panels.
+///
+/// ## Severity and Positivity
+/// - `severity` (0.0 to 1.0): How impactful/significant the event is (affects visual prominence)
+/// - `positivity` (-1.0 to 1.0): How positive/negative the event is (affects color: red to yellow to green)
+///
+/// ## Metrics
+/// Each event includes a single combined metrics object that contains both zone-level and city-wide
+/// metrics, allowing the client to track event-specific state and aggregate data for charts.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
+pub struct EventNotification {
+    pub id: String,
+    #[serde(rename = "zoneId")]
+    pub zone_id: String,
+    #[serde(rename = "zoneName")]
+    pub zone_name: String,
+    #[serde(rename = "type")]
+    pub event_type: EventType,
+    pub description: String,
+    pub severity: f64,
+    pub positivity: f64,
+    pub timestamp: i64,
+    pub coordinates: Vec<f64>,
+    #[serde(rename = "metrics", skip_serializing_if = "Option::is_none")]
+    pub metrics: Option<EventMetrics>,
+}
+
+impl Default for EventNotification {
+    fn default() -> Self {
+        EventNotification {
+            id: String::new(),
+            zone_id: String::new(),
+            zone_name: String::new(),
+            event_type: EventType::Traffic,
+            description: String::new(),
+            severity: 0.0,
+            positivity: 0.0,
+            timestamp: 0,
+            coordinates: vec![],
+            metrics: None,
+        }
+    }
+}
+
 /// A single chunk in the simulation stream
 ///
-/// The simulation is streamed as a series of chunks. Each chunk represents
-/// a different type of update: events, zone updates, metrics changes, or completion.
+/// The simulation is streamed as a series of chunks. Each event chunk now contains
+/// both the event data and its associated zone and city metrics, allowing the client
+/// to track event-specific state and aggregate data for charts.
 ///
 /// The `#[serde(tag = "type")]` attribute means the JSON includes a "type" field
 /// that determines which variant to deserialize.
@@ -332,10 +329,6 @@ impl Default for PartialCityMetrics {
 pub enum SimulationChunk {
     #[serde(rename = "event")]
     Event { data: EventNotification },
-    #[serde(rename = "zoneUpdate")]
-    ZoneUpdate { data: ZoneData },
-    #[serde(rename = "metricsUpdate")]
-    MetricsUpdate { data: PartialCityMetrics },
     #[serde(rename = "complete")]
     Complete { data: SimulationComplete },
 }
@@ -350,13 +343,13 @@ pub struct SimulationComplete {
 ///
 /// Contains all the information needed to generate a simulation:
 /// - The policy proposal to simulate
-/// - Current city state (metrics)
+/// - Current city state (metrics) - using EventMetrics format for consistency
 /// - Optional zone and neighborhood data for more accurate results
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SimulationRequest {
     pub prompt: String,
     #[serde(rename = "cityMetrics")]
-    pub city_metrics: CityMetrics,
+    pub city_metrics: EventMetrics,
     #[serde(rename = "selectedZones", default)]
     pub selected_zones: Vec<String>,
     #[serde(rename = "neighborhoodProperties", default)]

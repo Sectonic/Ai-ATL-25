@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useSimulationStore } from '../../stores/simulationStore'
+import { useSimulationStore, type EventMetrics } from '../../stores/simulationStore'
 import { useNeighborhoods } from '../../services/geojsonApi'
 import { Users, Home, DollarSign, Car, Leaf, Scale, Star } from 'lucide-react'
 import { DoughnutChart } from '../charts/DoughnutChart'
@@ -44,7 +44,7 @@ interface AggregatedData {
 
 function aggregateNeighborhoodData(
   selectedZones: string[],
-  zoneData: Record<string, any>,
+  zoneMetrics: Record<string, EventMetrics>,
   neighborhoodsData: GeoJSON.FeatureCollection | undefined
 ): AggregatedData | null {
   if (!neighborhoodsData) return null
@@ -61,43 +61,42 @@ function aggregateNeighborhoodData(
       if (!feature || !feature.properties) return null
 
       const baseProperties = feature.properties
-      const zone = zoneData[name]
+      const zoneMetric = zoneMetrics[name]
 
-      if (!zone) {
+      if (!zoneMetric) {
         return baseProperties
       }
 
-      const baseProps = zone.properties || baseProperties
-      const updatedProperties = { ...baseProps }
+      const updatedProperties = { ...baseProperties }
 
-      if (zone.population !== undefined && zone.population !== baseProps.population_total) {
-        const populationRatio = baseProps.population_total > 0
-          ? zone.population / baseProps.population_total
+      if (zoneMetric.population !== undefined && zoneMetric.population !== baseProperties.population_total) {
+        const populationRatio = baseProperties.population_total > 0
+          ? zoneMetric.population / baseProperties.population_total
           : 1
-        updatedProperties.population_total = zone.population
-        updatedProperties.households = Math.round((baseProps.households || 0) * populationRatio)
+        updatedProperties.population_total = zoneMetric.population
+        updatedProperties.households = Math.round((baseProperties.households || 0) * populationRatio)
       }
 
-      if (zone.housingUnits !== undefined && zone.housingUnits !== baseProps.housing_units) {
-        updatedProperties.housing_units = zone.housingUnits
-        const vacancyRate = baseProps.housing_units > 0
-          ? ((baseProps.vacant_units || 0) / baseProps.housing_units) * 100
+      if (zoneMetric.housingUnits !== undefined && zoneMetric.housingUnits !== baseProperties.housing_units) {
+        updatedProperties.housing_units = zoneMetric.housingUnits
+        const vacancyRate = baseProperties.housing_units > 0
+          ? ((baseProperties.vacant_units || 0) / baseProperties.housing_units) * 100
           : 0
-        updatedProperties.vacant_units = Math.round((zone.housingUnits * vacancyRate) / 100)
+        updatedProperties.vacant_units = Math.round((zoneMetric.housingUnits * vacancyRate) / 100)
         updatedProperties.vacancy_rate = vacancyRate
       }
 
-      if (zone.trafficFlow !== undefined) {
+      if (zoneMetric.trafficFlow !== undefined) {
         const densityIndex = updatedProperties.derived?.density_index || 0
-        const carDependence = Math.max(0, Math.min(100, zone.trafficFlow - (densityIndex * 100)))
+        const carDependence = Math.max(0, Math.min(100, zoneMetric.trafficFlow - (densityIndex * 100)))
         updatedProperties.commute = {
           ...updatedProperties.commute,
           car_dependence: carDependence,
         }
       }
 
-      if (zone.economicIndex !== undefined) {
-        const normalizedIndex = Math.min(1, Math.max(0, zone.economicIndex / 100))
+      if (zoneMetric.economicIndex !== undefined) {
+        const normalizedIndex = Math.min(1, Math.max(0, zoneMetric.economicIndex / 100))
         const homeValueEstimate = normalizedIndex * 1000000
         const incomeEstimate = normalizedIndex * 200000
         updatedProperties.median_home_value = Math.round(homeValueEstimate)
@@ -190,16 +189,35 @@ function aggregateNeighborhoodData(
 }
 
 export function DataPanel() {
-  const { selectedZones, zoneData, cityMetrics } = useSimulationStore()
+  const { selectedZones, zoneMetrics, cityMetrics, selectedEventId, eventNotifications } = useSimulationStore()
   const { data: neighborhoodsData } = useNeighborhoods()
   const containerRef = useRef<HTMLDivElement>(null)
   const [showGradient, setShowGradient] = useState(false)
 
+  const selectedEvent = selectedEventId ? eventNotifications.find(e => e.id === selectedEventId) : null
+
   const aggregated = useMemo(() => {
-    const aggregatedData = aggregateNeighborhoodData(selectedZones, zoneData, neighborhoodsData)
+    let zonesToUse = selectedZones
+    let zoneMetricsToUse = zoneMetrics
+    let cityMetricsToUse = cityMetrics
+
+    if (selectedEvent?.metrics) {
+      const metrics = selectedEvent.metrics
+      zonesToUse = [selectedEvent.zoneId]
+      zoneMetricsToUse = {
+        ...zoneMetrics,
+        [selectedEvent.zoneId]: metrics,
+      }
+      cityMetricsToUse = {
+        ...cityMetrics,
+        ...metrics,
+      }
+    }
+
+    const aggregatedData = aggregateNeighborhoodData(zonesToUse, zoneMetricsToUse, neighborhoodsData)
     if (!aggregatedData) return null
 
-    const hasSimulationUpdates = cityMetrics.populationChange !== undefined
+    const hasSimulationUpdates = cityMetricsToUse.populationChange !== undefined
 
     if (!hasSimulationUpdates) {
       return aggregatedData
@@ -207,20 +225,20 @@ export function DataPanel() {
 
     return {
       ...aggregatedData,
-      population: cityMetrics.population > 0 ? cityMetrics.population : aggregatedData.population,
-      medianIncome: cityMetrics.averageIncome > 0 ? cityMetrics.averageIncome : aggregatedData.medianIncome,
-      housingAffordability: cityMetrics.housingAffordabilityIndex > 0
-        ? cityMetrics.housingAffordabilityIndex
+      population: cityMetricsToUse.population && cityMetricsToUse.population > 0 ? cityMetricsToUse.population : aggregatedData.population,
+      medianIncome: cityMetricsToUse.averageIncome && cityMetricsToUse.averageIncome > 0 ? cityMetricsToUse.averageIncome : aggregatedData.medianIncome,
+      housingAffordability: cityMetricsToUse.housingAffordabilityIndex && cityMetricsToUse.housingAffordabilityIndex > 0
+        ? cityMetricsToUse.housingAffordabilityIndex
         : aggregatedData.housingAffordability,
-      livabilityScore: cityMetrics.livabilityIndex > 0 ? cityMetrics.livabilityIndex : aggregatedData.livabilityScore,
-      trafficCongestion: cityMetrics.trafficCongestionIndex > 0
-        ? cityMetrics.trafficCongestionIndex
+      livabilityScore: cityMetricsToUse.livabilityIndex && cityMetricsToUse.livabilityIndex > 0 ? cityMetricsToUse.livabilityIndex : aggregatedData.livabilityScore,
+      trafficCongestion: cityMetricsToUse.trafficCongestionIndex && cityMetricsToUse.trafficCongestionIndex > 0
+        ? cityMetricsToUse.trafficCongestionIndex
         : aggregatedData.trafficCongestion,
-      environmentalScore: cityMetrics.airQualityIndex > 0
-        ? cityMetrics.airQualityIndex
+      environmentalScore: cityMetricsToUse.airQualityIndex && cityMetricsToUse.airQualityIndex > 0
+        ? cityMetricsToUse.airQualityIndex
         : aggregatedData.environmentalScore,
     }
-  }, [selectedZones, zoneData, neighborhoodsData, cityMetrics])
+  }, [selectedZones, zoneMetrics, neighborhoodsData, cityMetrics, selectedEvent])
 
   useEffect(() => {
     const checkOverflow = () => {
@@ -303,7 +321,11 @@ export function DataPanel() {
               transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
               className="px-1 mb-2 pointer-events-auto"
             >
-              {selectedZones.length === 0 ? (
+              {selectedEvent ? (
+                <h2 className="text-lg font-semibold text-white/70 leading-relaxed">
+                  {selectedEvent.zoneName}
+                </h2>
+              ) : selectedZones.length === 0 ? (
                 <h2 className="text-lg font-semibold text-white/70 leading-relaxed">
                   ALL ZONES
                 </h2>
