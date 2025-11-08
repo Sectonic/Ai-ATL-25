@@ -27,12 +27,21 @@ const cities = [
   'Denver, CO',
 ]
 
-const eventIcons = {
+const eventIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   traffic: TrendingUp,
   housing: Home,
   population: Users,
   environmental: Leaf,
   economic: DollarSign,
+  transportation: TrendingUp,
+  infrastructure: TrendingUp,
+  education: Users,
+  healthcare: Users,
+  'public-safety': Users,
+}
+
+const getEventIcon = (eventType: string) => {
+  return eventIcons[eventType.toLowerCase()] || eventIcons[eventType] || TrendingUp
 }
 
 function PulsatingDot({ severity, positivity }: { severity: number; positivity: number }) {
@@ -54,7 +63,7 @@ function PulsatingDot({ severity, positivity }: { severity: number; positivity: 
 }
 
 function SelectedEventView({ event, onClose, containerRef }: { event: EventNotification, onClose: () => void, containerRef: React.RefObject<HTMLDivElement | null> }) {
-  const Icon = eventIcons[event.type]
+  const Icon = getEventIcon(event.type)
   const [showGradient, setShowGradient] = useState(false)
 
   useEffect(() => {
@@ -101,7 +110,7 @@ function SelectedEventView({ event, onClose, containerRef }: { event: EventNotif
         <div className="flex items-start justify-between mb-3 shrink-0">
           <div className="flex items-center gap-2">
             <Icon className="w-5 h-5 shrink-0 text-white/90" />
-            <div className="font-semibold text-base text-white">{event.zoneName}</div>
+            <div className="font-semibold text-base text-white">{event.title}</div>
           </div>
           <button
             onClick={onClose}
@@ -112,14 +121,15 @@ function SelectedEventView({ event, onClose, containerRef }: { event: EventNotif
           </button>
         </div>
         
+        <div className="text-xs text-white/60 mb-2 shrink-0">
+          {event.zoneName}
+        </div>
+        
         <p className="text-sm text-white/90 mb-3 leading-relaxed shrink-0">{event.description}</p>
         
         <div className="flex items-center gap-2 mb-4 shrink-0">
           <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/70">
             {event.type}
-          </span>
-          <span className="text-xs text-white/60">
-            {new Date(event.timestamp).toLocaleTimeString()}
           </span>
         </div>
 
@@ -276,7 +286,7 @@ function SelectedEventView({ event, onClose, containerRef }: { event: EventNotif
 }
 
 function EventCard({ event, onClick }: { event: EventNotification, onClick: () => void }) {
-  const Icon = eventIcons[event.type]
+  const Icon = getEventIcon(event.type)
 
   return (
     <motion.div
@@ -296,17 +306,17 @@ function EventCard({ event, onClick }: { event: EventNotification, onClick: () =
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-medium text-sm text-white leading-tight">
+            {event.title}
+          </div>
+          <div className="text-xs text-white/60 mt-0.5">
             {event.zoneName}
           </div>
-          <p className="text-xs text-white/80 mt-1 leading-tight">
+          <p className="text-xs text-white/80 mt-1 leading-tight line-clamp-2">
             {event.description}
           </p>
           <div className="flex items-center gap-2 mt-1.5">
             <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/10 text-white/70">
               {event.type}
-            </span>
-            <span className="text-xs text-white/60">
-              {new Date(event.timestamp).toLocaleTimeString()}
             </span>
           </div>
         </div>

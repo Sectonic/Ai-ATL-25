@@ -273,14 +273,14 @@ The response must be a JSON array of simulation chunks. Each chunk must be one o
 
 1. Event chunks (each event must include a single combined metrics object):
    {{"type": "event", "data": {{
-     "id": "event-<timestamp>-<index>",
+     "id": "event-<index>",
      "zoneId": "<neighborhood-name>",
      "zoneName": "<neighborhood-name>",
-     "type": "traffic" | "housing" | "population" | "economic" | "environmental",
+     "type": "<dynamic-event-type>",
+     "title": "<concise-event-title>",
      "description": "<detailed description of the event>",
      "severity": <number 0.0-1.0>,
      "positivity": <number -1.0 to 1.0>,
-     "timestamp": <unix-timestamp-in-milliseconds>,
      "coordinates": [<latitude>, <longitude>],
      "metrics": {{
        "zoneId": "<neighborhood-name>",
@@ -316,14 +316,14 @@ The response must be a JSON array of simulation chunks. Each chunk must be one o
 Example valid response format:
 [
   {{"type": "event", "data": {{
-    "id": "event-1234567890-1",
+    "id": "event-1",
     "zoneId": "Ridgewood Heights",
     "zoneName": "Ridgewood Heights",
-    "type": "traffic",
+    "type": "transportation",
+    "title": "Light Rail Construction Begins",
     "description": "New light rail construction begins...",
     "severity": 0.7,
     "positivity": -0.3,
-    "timestamp": 1234567890000,
     "coordinates": [33.826, -84.443],
     "metrics": {{
       "zoneId": "Ridgewood Heights",
@@ -344,6 +344,8 @@ Example valid response format:
 
 Important Guidelines:
 - Use neighborhood names from the provided neighborhood data for zoneId and zoneName
+- The event "type" field should be a descriptive string that best categorizes the event based on the policy being simulated (e.g., "transportation", "housing", "economic", "environmental", "infrastructure", "education", "healthcare", "public-safety", etc.). Choose the most appropriate type based on the policy's primary impact.
+- Each event MUST include a "title" field with a concise, descriptive title (3-8 words) that summarizes the event
 - Make changes realistic and proportional to the policy's scope
 - Consider both positive and negative impacts
 - Use Atlanta-specific context (neighborhoods, demographics, geography)

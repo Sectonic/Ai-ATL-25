@@ -39,11 +39,11 @@ export interface EventNotification {
   id: string
   zoneId: string
   zoneName: string
-  type: 'traffic' | 'housing' | 'population' | 'economic' | 'environmental'
+  type: string
+  title: string
   description: string
   severity: number
   positivity: number
-  timestamp: number
   coordinates: [number, number]
   comments: Comment[]
   metrics?: EventMetrics

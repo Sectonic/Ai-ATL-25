@@ -98,17 +98,6 @@ pub struct NeighborhoodProperties {
     pub derived: Derived,
 }
 
-/// Types of events that can occur in a simulation
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum EventType {
-    Traffic,
-    Housing,
-    Population,
-    Economic,
-    Environmental,
-}
-
 /// Combined metrics for an event, including both zone-level and city-wide metrics
 ///
 /// This combines zone and city metrics into a single object to avoid duplication.
@@ -289,11 +278,11 @@ pub struct EventNotification {
     #[serde(rename = "zoneName")]
     pub zone_name: String,
     #[serde(rename = "type")]
-    pub event_type: EventType,
+    pub event_type: String,
+    pub title: String,
     pub description: String,
     pub severity: f64,
     pub positivity: f64,
-    pub timestamp: i64,
     pub coordinates: Vec<f64>,
     #[serde(rename = "metrics", skip_serializing_if = "Option::is_none")]
     pub metrics: Option<EventMetrics>,
@@ -305,11 +294,11 @@ impl Default for EventNotification {
             id: String::new(),
             zone_id: String::new(),
             zone_name: String::new(),
-            event_type: EventType::Traffic,
+            event_type: String::new(),
+            title: String::new(),
             description: String::new(),
             severity: 0.0,
             positivity: 0.0,
-            timestamp: 0,
             coordinates: vec![],
             metrics: None,
         }
