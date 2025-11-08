@@ -361,6 +361,30 @@ pub struct CityMetrics {
     pub crime_rate_change: Option<f64>,
 }
 
+/// Types of events that can occur in a simulation
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EventType {
+    Traffic,
+    Housing,
+    Population,
+    Economic,
+    Environmental,
+}
+
+/// Severity levels for events
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EventSeverity {
+    Low,
+    Medium,
+    High,
+}
+
+/// An event that occurs as a result of a policy implementation
+///
+/// Events represent specific occurrences like construction starting, traffic changes,
+/// or new developments. They are displayed on the map and in event panels.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct EventNotification {
     pub id: String,
@@ -369,9 +393,9 @@ pub struct EventNotification {
     #[serde(rename = "zoneName")]
     pub zone_name: String,
     #[serde(rename = "type")]
-    pub event_type: String,
+    pub event_type: EventType,
     pub description: String,
-    pub severity: String,
+    pub severity: EventSeverity,
     pub timestamp: i64,
     pub coordinates: Vec<f64>,
 }
