@@ -1,4 +1,4 @@
-import { Marker, Popup, useMap } from 'react-leaflet'
+import { Marker, useMap } from 'react-leaflet'
 import { useSimulationStore } from '../../stores/simulationStore'
 import L from 'leaflet'
 import { useEffect } from 'react'
@@ -26,7 +26,7 @@ const createEventIcon = (severity: 'low' | 'medium' | 'high') => {
 }
 
 export function EventMarkers() {
-  const { eventNotifications } = useSimulationStore()
+  const { eventNotifications, setSelectedEventId } = useSimulationStore()
   const map = useMap()
 
   useEffect(() => {
@@ -46,17 +46,12 @@ export function EventMarkers() {
           key={event.id}
           position={event.coordinates}
           icon={createEventIcon(event.severity)}
-        >
-          <Popup>
-            <div className="text-sm">
-              <div className="font-semibold text-slate-900">{event.zoneName}</div>
-              <div className="text-slate-600 mt-1">{event.description}</div>
-              <div className="text-xs text-slate-500 mt-1">
-                {new Date(event.timestamp).toLocaleTimeString()}
-              </div>
-            </div>
-          </Popup>
-        </Marker>
+          eventHandlers={{
+            click: () => {
+              setSelectedEventId(event.id)
+            },
+          }}
+        />
       ))}
     </>
   )

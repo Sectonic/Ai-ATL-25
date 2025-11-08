@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useSimulationStore } from '../../stores/simulationStore'
-import { Users, TrendingUp, Home, Wind, DollarSign, Shield, Building2, Car, Leaf } from 'lucide-react'
+import { Users, TrendingUp, Home, DollarSign, Shield, Building2, Car, Leaf } from 'lucide-react'
 
 interface MetricCardProps {
   icon: React.ReactNode
@@ -9,18 +9,20 @@ interface MetricCardProps {
   value: string | number
   change?: number
   unit?: string
+  index?: number
 }
 
-function MetricCard({ icon, label, value, change, unit = '' }: MetricCardProps) {
+function MetricCard({ icon, label, value, change, unit = '', index = 0 }: MetricCardProps) {
   const hasChange = change !== undefined && change !== 0
   const isPositive = change && change > 0
   
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.2 }}
-      className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg"
+      initial={{ opacity: 0, y: -20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -20, scale: 0.95 }}
+      transition={{ duration: 0.3, delay: index * 0.05 }}
+      className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-1.5 shrink-0">
@@ -71,91 +73,38 @@ export function DataPanel() {
     return null
   }
 
+  const cards = zoneMetrics ? [
+    { icon: <Users className="w-3.5 h-3.5 text-white/90" />, label: "Population", value: zoneMetrics.totalPopulation },
+    { icon: <Home className="w-3.5 h-3.5 text-white/90" />, label: "Housing Units", value: zoneMetrics.totalHousing },
+    { icon: <Car className="w-3.5 h-3.5 text-white/90" />, label: "Traffic Flow", value: zoneMetrics.avgTraffic },
+    { icon: <DollarSign className="w-3.5 h-3.5 text-white/90" />, label: "Economic Index", value: zoneMetrics.avgEconomic },
+  ] : [
+    { icon: <Users className="w-3.5 h-3.5 text-white/90" />, label: "Population", value: cityMetrics.population, change: cityMetrics.populationChange },
+    { icon: <DollarSign className="w-3.5 h-3.5 text-white/90" />, label: "Avg Income", value: `$${(cityMetrics.averageIncome / 1000).toFixed(0)}k`, change: cityMetrics.averageIncomeChange ? Math.round(cityMetrics.averageIncomeChange / 1000) : undefined },
+    { icon: <TrendingUp className="w-3.5 h-3.5 text-white/90" />, label: "Unemployment", value: cityMetrics.unemploymentRate, unit: "%", change: cityMetrics.unemploymentRateChange },
+    { icon: <Home className="w-3.5 h-3.5 text-white/90" />, label: "Housing Affordability", value: cityMetrics.housingAffordabilityIndex, change: cityMetrics.housingAffordabilityIndexChange },
+    { icon: <Car className="w-3.5 h-3.5 text-white/90" />, label: "Traffic Congestion", value: cityMetrics.trafficCongestionIndex, change: cityMetrics.trafficCongestionIndexChange },
+    { icon: <Shield className="w-3.5 h-3.5 text-white/90" />, label: "Crime Rate", value: cityMetrics.crimeRate, unit: "/1000", change: cityMetrics.crimeRateChange },
+    { icon: <Building2 className="w-3.5 h-3.5 text-white/90" />, label: "Housing Density", value: Math.round((cityMetrics.population / 500000) * 100), unit: "%" },
+    { icon: <Leaf className="w-3.5 h-3.5 text-white/90" />, label: "Environmental Score", value: Math.round(100 - cityMetrics.trafficCongestionIndex) },
+  ]
+
   return (
     <div className="fixed right-3 top-3 w-1/4 z-10 pointer-events-none overflow-visible">
-      <div className="space-y-2">
-        {zoneMetrics ? (
-          <>
+      <div className="grid grid-cols-2 gap-2">
+        <AnimatePresence mode="popLayout">
+          {cards.map((card, index) => (
             <MetricCard
-              icon={<Users className="w-3.5 h-3.5 text-white/90" />}
-              label="Population"
-              value={zoneMetrics.totalPopulation}
+              key={`${zoneMetrics ? 'zone' : 'city'}-${index}-${card.label}`}
+              icon={card.icon}
+              label={card.label}
+              value={card.value}
+              change={card.change}
+              unit={card.unit}
+              index={index}
             />
-            <MetricCard
-              icon={<Home className="w-3.5 h-3.5 text-white/90" />}
-              label="Housing Units"
-              value={zoneMetrics.totalHousing}
-            />
-            <MetricCard
-              icon={<Car className="w-3.5 h-3.5 text-white/90" />}
-              label="Traffic Flow"
-              value={zoneMetrics.avgTraffic}
-            />
-            <MetricCard
-              icon={<DollarSign className="w-3.5 h-3.5 text-white/90" />}
-              label="Economic Index"
-              value={zoneMetrics.avgEconomic}
-            />
-          </>
-        ) : (
-          <>
-            <MetricCard
-              icon={<Users className="w-3.5 h-3.5 text-white/90" />}
-              label="Population"
-              value={cityMetrics.population}
-              change={cityMetrics.populationChange}
-            />
-            <MetricCard
-              icon={<DollarSign className="w-3.5 h-3.5 text-white/90" />}
-              label="Avg Income"
-              value={`$${(cityMetrics.averageIncome / 1000).toFixed(0)}k`}
-              change={cityMetrics.averageIncomeChange ? Math.round(cityMetrics.averageIncomeChange / 1000) : undefined}
-            />
-            <MetricCard
-              icon={<TrendingUp className="w-3.5 h-3.5 text-white/90" />}
-              label="Unemployment"
-              value={cityMetrics.unemploymentRate}
-              unit="%"
-              change={cityMetrics.unemploymentRateChange}
-            />
-            <MetricCard
-              icon={<Home className="w-3.5 h-3.5 text-white/90" />}
-              label="Housing Affordability"
-              value={cityMetrics.housingAffordabilityIndex}
-              change={cityMetrics.housingAffordabilityIndexChange}
-            />
-            <MetricCard
-              icon={<Car className="w-3.5 h-3.5 text-white/90" />}
-              label="Traffic Congestion"
-              value={cityMetrics.trafficCongestionIndex}
-              change={cityMetrics.trafficCongestionIndexChange}
-            />
-            <MetricCard
-              icon={<Wind className="w-3.5 h-3.5 text-white/90" />}
-              label="Air Quality"
-              value={cityMetrics.airQualityIndex}
-              change={cityMetrics.airQualityIndexChange}
-            />
-            <MetricCard
-              icon={<Shield className="w-3.5 h-3.5 text-white/90" />}
-              label="Crime Rate"
-              value={cityMetrics.crimeRate}
-              unit="/1000"
-              change={cityMetrics.crimeRateChange}
-            />
-            <MetricCard
-              icon={<Building2 className="w-3.5 h-3.5 text-white/90" />}
-              label="Housing Density"
-              value={Math.round((cityMetrics.population / 500000) * 100)}
-              unit="%"
-            />
-            <MetricCard
-              icon={<Leaf className="w-3.5 h-3.5 text-white/90" />}
-              label="Environmental Score"
-              value={Math.round((cityMetrics.airQualityIndex * 0.7 + (100 - cityMetrics.trafficCongestionIndex) * 0.3))}
-            />
-          </>
-        )}
+          ))}
+        </AnimatePresence>
       </div>
     </div>
   )

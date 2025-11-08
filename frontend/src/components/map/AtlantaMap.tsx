@@ -2,7 +2,10 @@ import { MapContainer, TileLayer } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { LatLngBoundsExpression } from 'leaflet'
 import { GeoJsonLayers } from './GeoJsonLayers'
+import { NeighborhoodMask } from './NeighborhoodMask'
 import { EventMarkers } from './EventMarkers'
+import { EventBlinkAnimation } from './EventBlinkAnimation'
+import { useSimulationStore } from '../../stores/simulationStore'
 
 const ATLANTA_CENTER: [number, number] = [33.7490, -84.3880]
 const DEFAULT_ZOOM = 13
@@ -15,6 +18,9 @@ const ATLANTA_BOUNDS: LatLngBoundsExpression = [
 ]
 
 export function AtlantaMap() {
+  const { eventNotifications, selectedEventId } = useSimulationStore()
+  const selectedEvent = eventNotifications.find((e) => e.id === selectedEventId) || null
+
   return (
     <div className="absolute inset-0 z-0">
       <MapContainer
@@ -31,11 +37,12 @@ export function AtlantaMap() {
         boxZoom={false}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
+        <NeighborhoodMask />
         <GeoJsonLayers />
         <EventMarkers />
+        <EventBlinkAnimation event={selectedEvent} />
       </MapContainer>
     </div>
   )

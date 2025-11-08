@@ -1,4 +1,4 @@
-import type { EventNotification, ZoneData, CityMetrics } from '../stores/simulationStore'
+import type { EventNotification, ZoneData, CityMetrics, Comment } from '../stores/simulationStore'
 
 export type SimulationChunk = 
   | { type: 'event'; data: EventNotification }
@@ -10,11 +10,13 @@ const atlantaNeighborhoods = [
   { id: 'midtown', name: 'Midtown', coords: [33.7838, -84.3830] as [number, number] },
   { id: 'buckhead', name: 'Buckhead', coords: [33.8482, -84.3691] as [number, number] },
   { id: 'downtown', name: 'Downtown', coords: [33.7570, -84.3900] as [number, number] },
-  { id: 'decatur', name: 'Decatur', coords: [33.7748, -84.2963] as [number, number] },
   { id: 'west-end', name: 'West End', coords: [33.7356, -84.4143] as [number, number] },
   { id: 'virginia-highland', name: 'Virginia Highland', coords: [33.7853, -84.3505] as [number, number] },
   { id: 'old-fourth-ward', name: 'Old Fourth Ward', coords: [33.7632, -84.3692] as [number, number] },
   { id: 'grant-park', name: 'Grant Park', coords: [33.7394, -84.3705] as [number, number] },
+  { id: 'candler-park', name: 'Candler Park', coords: [33.7650, -84.3400] as [number, number] },
+  { id: 'inman-park', name: 'Inman Park', coords: [33.7575, -84.3520] as [number, number] },
+  { id: 'east-atlanta', name: 'East Atlanta', coords: [33.7400, -84.3480] as [number, number] },
 ]
 
 const eventTemplates = {
@@ -93,6 +95,143 @@ const eventTemplates = {
   ],
 }
 
+const fakeUsers = [
+  { name: 'Sarah Chen', initials: 'SC' },
+  { name: 'Marcus Johnson', initials: 'MJ' },
+  { name: 'Emily Rodriguez', initials: 'ER' },
+  { name: 'David Kim', initials: 'DK' },
+  { name: 'Jessica Williams', initials: 'JW' },
+  { name: 'Michael Brown', initials: 'MB' },
+  { name: 'Amanda Taylor', initials: 'AT' },
+  { name: 'James Wilson', initials: 'JW' },
+  { name: 'Lisa Anderson', initials: 'LA' },
+  { name: 'Robert Martinez', initials: 'RM' },
+]
+
+const commentTemplates = {
+  traffic: {
+    positive: [
+      'This is great! Traffic has been so much better lately.',
+      'Finally some relief from the congestion. Thank you!',
+      'Love seeing improvements to our transportation system.',
+    ],
+    negative: [
+      'This made traffic worse, not better. What were they thinking?',
+      'The construction is a nightmare. When will it end?',
+      'This is going to cause more problems than it solves.',
+    ],
+    neutral: [
+      'Interesting approach. Will be watching how this develops.',
+      'Curious to see the long-term impact of this change.',
+      'Hope they considered all the side effects.',
+    ],
+  },
+  housing: {
+    positive: [
+      'More housing is exactly what we need!',
+      'This will help with affordability. Great move!',
+      'Finally addressing the housing crisis. About time!',
+    ],
+    negative: [
+      'This is going to destroy the character of our neighborhood.',
+      'Too many units, not enough infrastructure.',
+      'Gentrification at its finest. Disappointing.',
+    ],
+    neutral: [
+      'Need to see more details before forming an opinion.',
+      'Housing is complex. Hope they got this right.',
+      'Mixed feelings about this one.',
+    ],
+  },
+  population: {
+    positive: [
+      'Growth is good for the city!',
+      'More people means more opportunities.',
+      'Excited to see our community grow.',
+    ],
+    negative: [
+      'Too many people moving in. Infrastructure can\'t handle it.',
+      'This is going to change everything. Not sure if that\'s good.',
+      'Population growth without planning is dangerous.',
+    ],
+    neutral: [
+      'Population changes are inevitable. Hope it\'s managed well.',
+      'Interesting demographic shift happening.',
+      'Time will tell if this is sustainable.',
+    ],
+  },
+  economic: {
+    positive: [
+      'Economic growth benefits everyone!',
+      'This is exactly what our area needed.',
+      'Great to see investment in our community.',
+    ],
+    negative: [
+      'Who benefits from this? Not the average person.',
+      'Economic growth for whom? The rich get richer.',
+      'This will drive up costs for everyone else.',
+    ],
+    neutral: [
+      'Economic impacts are complex. Need more data.',
+      'Hope the benefits are distributed fairly.',
+      'Interesting economic development strategy.',
+    ],
+  },
+  environmental: {
+    positive: [
+      'Finally prioritizing the environment!',
+      'This is a step in the right direction.',
+      'Love seeing green initiatives in our city.',
+    ],
+    negative: [
+      'Not enough. We need more aggressive action.',
+      'This is greenwashing. Real change needed.',
+      'Too little too late.',
+    ],
+    neutral: [
+      'Environmental issues are complex. Every bit helps.',
+      'Hope this has meaningful impact.',
+      'Good start, but more work needed.',
+    ],
+  },
+}
+
+function generateComments(eventType: EventNotification['type'], severity: EventNotification['severity']): Comment[] {
+  const templates = commentTemplates[eventType]
+  const commentCount = Math.floor(Math.random() * 3) + 3
+  
+  const comments: Comment[] = []
+  const usedUsers = new Set<number>()
+  
+  for (let i = 0; i < commentCount; i++) {
+    let userIndex
+    do {
+      userIndex = Math.floor(Math.random() * fakeUsers.length)
+    } while (usedUsers.has(userIndex) && usedUsers.size < fakeUsers.length)
+    usedUsers.add(userIndex)
+    
+    const user = fakeUsers[userIndex]
+    const sentiment = severity === 'high' 
+      ? (Math.random() > 0.3 ? 'negative' : 'neutral')
+      : severity === 'low'
+      ? (Math.random() > 0.3 ? 'positive' : 'neutral')
+      : (Math.random() > 0.5 ? 'positive' : Math.random() > 0.5 ? 'negative' : 'neutral')
+    
+    const templatePool = templates[sentiment as keyof typeof templates]
+    const commentText = templatePool[Math.floor(Math.random() * templatePool.length)]
+    
+    comments.push({
+      id: `comment-${Date.now()}-${i}`,
+      userName: user.name,
+      userInitials: user.initials,
+      comment: commentText,
+      timestamp: Date.now() - Math.floor(Math.random() * 3600000),
+    })
+  }
+  
+  return comments.sort((a, b) => a.timestamp - b.timestamp)
+}
+
 function detectPolicyType(prompt: string): keyof typeof eventTemplates {
   const lowerPrompt = prompt.toLowerCase()
   if (lowerPrompt.includes('highway') || lowerPrompt.includes('road') || lowerPrompt.includes('lane')) {
@@ -115,6 +254,8 @@ function generateRandomEvents(policyType: keyof typeof eventTemplates, count: nu
     const template = templates[Math.floor(Math.random() * templates.length)]
     const neighborhood = atlantaNeighborhoods[Math.floor(Math.random() * atlantaNeighborhoods.length)]
     
+    const comments = generateComments(template.type, template.severity)
+    
     events.push({
       id: `event-${Date.now()}-${i}`,
       zoneId: neighborhood.id,
@@ -124,6 +265,7 @@ function generateRandomEvents(policyType: keyof typeof eventTemplates, count: nu
       severity: template.severity,
       timestamp: Date.now() + i * 500,
       coordinates: neighborhood.coords,
+      comments,
     })
   }
   
