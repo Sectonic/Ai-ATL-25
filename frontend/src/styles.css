@@ -138,3 +138,16 @@ code {
     @apply bg-background text-foreground;
   }
 }
+
+/* Remove outlines from Leaflet elements */
+.leaflet-container *,
+.leaflet-container *:focus,
+.leaflet-container *:active {
+  outline: none !important;
+}
+
+.leaflet-tooltip,
+.leaflet-popup {
+  outline: none !important;
+  box-shadow: none !important;
+}

@@ -33,7 +33,7 @@ export function BarChart({ title, labels, datasets }: BarChartProps) {
     labels,
     datasets: datasets.map(dataset => ({
       ...dataset,
-      backgroundColor: dataset.backgroundColor || '#3b82f6',
+      backgroundColor: dataset.backgroundColor || '#64748b',
     })),
   }
 

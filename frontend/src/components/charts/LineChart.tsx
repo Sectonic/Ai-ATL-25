@@ -38,8 +38,8 @@ export function LineChart({ title, labels, datasets }: LineChartProps) {
     labels,
     datasets: datasets.map(dataset => ({
       ...dataset,
-      borderColor: dataset.borderColor || '#3b82f6',
-      backgroundColor: dataset.backgroundColor || 'rgba(59, 130, 246, 0.1)',
+      borderColor: dataset.borderColor || '#475569',
+      backgroundColor: dataset.backgroundColor || 'rgba(71, 85, 105, 0.05)',
       tension: 0.4,
       fill: true,
     })),

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useSimulationStore } from '../../stores/simulationStore'
 import { simulatePolicy } from '../../services/mockSimulationApi'
-import { Card } from '../ui/card'
 import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { Loader2, Play, RotateCcw } from 'lucide-react'
@@ -10,7 +9,6 @@ import { Loader2, Play, RotateCcw } from 'lucide-react'
 export function CommandPanel() {
   const {
     simulationStatus,
-    promptText,
     processedPrompt,
     setSimulationStatus,
     setPromptText,
@@ -34,7 +32,6 @@ export function CommandPanel() {
 
     try {
       await new Promise(resolve => setTimeout(resolve, 1000))
-      setSimulationStatus('running')
 
       for await (const chunk of simulatePolicy(localPrompt)) {
         if (chunk.type === 'event') {
@@ -58,83 +55,73 @@ export function CommandPanel() {
     setLocalPrompt('')
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      if (localPrompt.trim()) {
+        handleStartSimulation()
+      }
+    }
+  }
+
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[600px] z-10">
+    <div className="fixed bottom-4 left-[49.2%] -translate-x-1/2 w-[calc(50%-50px)] z-10 pointer-events-none">
       <motion.div
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.3 }}
+        className="pointer-events-auto w-full mx-auto"
       >
-        <Card className="bg-slate-900/80 backdrop-blur-md border-slate-800 shadow-2xl">
-          <div className="p-4">
-            <h2 className="text-base font-semibold text-slate-100 mb-3">
-              Simulation Command
-            </h2>
-
-            {simulationStatus === 'idle' && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="space-y-3"
-              >
-                <Textarea
-                  value={localPrompt}
-                  onChange={(e) => setLocalPrompt(e.target.value)}
-                  placeholder="Enter a policy or scenario to simulate... (e.g., 'increase highway lanes', 'add new transit line', 'upzone midtown')"
-                  className="min-h-[80px] bg-slate-950 border-slate-700 text-slate-100 placeholder:text-slate-500 resize-none"
-                />
-                <Button
-                  onClick={handleStartSimulation}
-                  disabled={!localPrompt.trim()}
-                  className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
-                >
-                  <Play className="w-4 h-4 mr-2" />
-                  Start Simulation
-                </Button>
-              </motion.div>
-            )}
-
-            {simulationStatus === 'loading' && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex items-center justify-center py-8"
-              >
-                <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-                <span className="ml-3 text-slate-300">
-                  Initializing simulation...
-                </span>
-              </motion.div>
-            )}
-
-            {(simulationStatus === 'running' || simulationStatus === 'complete') && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="space-y-3"
-              >
-                <div className="p-3 bg-slate-950 border border-slate-700 rounded-md">
-                  <div className="text-xs text-slate-400 mb-1">
-                    {simulationStatus === 'running' ? 'Running simulation for:' : 'Simulation complete for:'}
-                  </div>
-                  <div className="text-sm text-slate-200">
-                    {processedPrompt}
-                  </div>
-                </div>
-                {simulationStatus === 'complete' && (
-                  <Button
-                    onClick={handleReset}
-                    variant="outline"
-                    className="w-full border-slate-700 text-slate-300 hover:bg-slate-800"
-                  >
-                    <RotateCcw className="w-4 h-4 mr-2" />
-                    Reset & New Simulation
-                  </Button>
-                )}
-              </motion.div>
-            )}
+        {simulationStatus === 'idle' && (
+          <div className="relative rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
+            <Textarea
+              value={localPrompt}
+              onChange={(e) => setLocalPrompt(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="type in some city policy"
+              className="min-h-[60px] pr-20 pb-12 bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+            <Button
+              onClick={handleStartSimulation}
+              disabled={!localPrompt.trim()}
+              className="absolute bottom-2 right-2 h-8 px-3 bg-white/20 hover:bg-white/30 text-white border-0 disabled:opacity-50"
+            >
+              <Play className="w-4 h-4" />
+            </Button>
           </div>
-        </Card>
+        )}
+
+        {simulationStatus === 'loading' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg p-4 flex items-center justify-center"
+          >
+            <Loader2 className="w-5 h-5 animate-spin text-white/90" />
+            <span className="ml-2 text-sm text-white/80">
+              Initializing simulation...
+            </span>
+          </motion.div>
+        )}
+
+        {simulationStatus === 'complete' && (
+          <div className="relative rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
+            <div className="p-3 pr-20 pb-12">
+              <div className="text-xs text-white/60 mb-1">
+                Complete:
+              </div>
+              <div className="text-sm text-white/90 leading-tight">
+                {processedPrompt}
+              </div>
+            </div>
+            <Button
+              onClick={handleReset}
+              className="absolute bottom-2 right-2 h-8 px-3 bg-white/20 hover:bg-white/30 text-white border-0"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
       </motion.div>
     </div>
   )

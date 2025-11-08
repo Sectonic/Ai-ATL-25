@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type SimulationStatus = 'idle' | 'loading' | 'running' | 'complete'
+export type SimulationStatus = 'idle' | 'loading' | 'complete'
 
 export interface EventNotification {
   id: string
