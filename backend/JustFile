@@ -65,6 +65,28 @@ test:
   echo ""
   echo ""
   
+  echo "2. Testing POST /api/chat/completions (non-streaming)"
+  echo "-----------------------------------"
+  curl -X POST "${BASE_URL}/api/chat/completions" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hello, how are you?"
+        }
+      ],
+      "stream": false,
+      "max_tokens": 100,
+      "temperature": 0.8,
+      "top_p": 0.1,
+      "model": "DeepSeek-V3.1"
+    }' \
+    -w "\nHTTP Status: %{http_code}\n" \
+    -s
+  echo ""
+  echo ""
+  
   echo "All endpoint tests completed!"
 
 clean:

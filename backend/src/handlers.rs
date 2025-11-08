@@ -1,13 +1,102 @@
+use actix_web::http::StatusCode;
 use actix_web::{HttpResponse, Result, web};
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
+use std::env;
 
-// Request body for POST /parcels endpoint
 #[derive(Debug, Deserialize, Serialize)]
-pub struct CreateProcessRequest {
-    pub data: String,
+pub enum MessageRole {
+    System,
+    User,
 }
 
-// POST /procress
-pub async fn process_geo_data(body: web::Json<CreateProcessRequest>) -> Result<HttpResponse> {
-    Ok(HttpResponse::Ok().json(&body.data))
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Message {
+    pub role: MessageRole,
+    pub content: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AzureChatRequest {
+    pub messages: Vec<Message>,
+    #[serde(default = "default_true")]
+    pub stream: bool,
+    #[serde(default = "default_max_tokens")]
+    pub max_tokens: u32,
+    #[serde(default = "default_temperature")]
+    pub temperature: f32,
+    #[serde(default = "default_top_p")]
+    pub top_p: f32,
+    #[serde(default)]
+    pub presence_penalty: f32,
+    #[serde(default)]
+    pub frequency_penalty: f32,
+    #[serde(default = "default_model")]
+    pub model: String,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_max_tokens() -> u32 {
+    2048
+}
+
+fn default_temperature() -> f32 {
+    0.8
+}
+
+fn default_top_p() -> f32 {
+    0.1
+}
+
+fn default_model() -> String {
+    "DeepSeek-V3.1".to_string()
+}
+
+pub async fn chat_completions(body: web::Json<AzureChatRequest>) -> Result<HttpResponse> {
+    let api_key = env::var("AZURE_API_KEY")
+        .map_err(|_| actix_web::error::ErrorInternalServerError("AZURE_API_KEY not set"))?;
+
+    let url = "https://aiatlai.services.ai.azure.com/models/chat/completions?api-version=2024-05-01-preview";
+
+    let client = reqwest::Client::new();
+
+    let response = client
+        .post(url)
+        .header("Content-Type", "application/json")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .json(&*body)
+        .send()
+        .await
+        .map_err(|e| {
+            actix_web::error::ErrorInternalServerError(format!("Request failed: {}", e))
+        })?;
+
+    if body.stream {
+        let reqwest_status = response.status();
+        let status = StatusCode::from_u16(reqwest_status.as_u16())
+            .map_err(|_| actix_web::error::ErrorInternalServerError("Invalid status code"))?;
+        let stream = response.bytes_stream().map(|result| {
+            result.map_err(|e| {
+                actix_web::error::ErrorInternalServerError(format!("Stream error: {}", e))
+            })
+        });
+
+        Ok(HttpResponse::build(status)
+            .content_type("text/event-stream")
+            .streaming(stream))
+    } else {
+        let reqwest_status = response.status();
+        let status = StatusCode::from_u16(reqwest_status.as_u16())
+            .map_err(|_| actix_web::error::ErrorInternalServerError("Invalid status code"))?;
+        let response_body = response.text().await.map_err(|e| {
+            actix_web::error::ErrorInternalServerError(format!("Failed to read response: {}", e))
+        })?;
+
+        Ok(HttpResponse::build(status)
+            .content_type("application/json")
+            .body(response_body))
+    }
 }
