@@ -29,9 +29,16 @@ function MetricCard({ icon, label, value, change, unit = '', index = 0, inverted
   
   return (
     <motion.div
-      initial={{ opacity: 0, y: -20, scale: 0.95 }}
+      layout
+      initial={{ opacity: 0, y: -10, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.3, delay: index * 0.05 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ 
+        duration: 0.4, 
+        delay: index * 0.05,
+        ease: [0.4, 0, 0.2, 1],
+        layout: { duration: 0.4, ease: [0.4, 0, 0.2, 1] }
+      }}
       className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto"
     >
       <div className="flex items-start justify-between gap-2">
@@ -112,11 +119,9 @@ export function DataPanel() {
     { icon: <Leaf className="w-3.5 h-3.5 text-white/90" />, label: "Environmental Score", value: Math.round(100 - cityMetrics.trafficCongestionIndex), change: cityMetrics.trafficCongestionIndexChange ? Math.round(-cityMetrics.trafficCongestionIndexChange) : undefined },
   ]
 
-  const allCards = [...zoneCards, ...cityCards]
-
   return (
     <div className="fixed right-3 top-[60px] w-1/4 z-10 pointer-events-none overflow-visible">
-      <motion.div layout transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}>
+      <motion.div layout transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}>
         <AnimatePresence>
           {selectedZones.length > 0 && (
             <motion.div
@@ -125,23 +130,37 @@ export function DataPanel() {
               animate={{ opacity: 1, height: 'auto', marginBottom: 12 }}
               exit={{ opacity: 0, height: 0, marginBottom: 0 }}
               transition={{ 
-                duration: 0.3, 
+                duration: 0.4, 
                 ease: [0.4, 0, 0.2, 1],
-                layout: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
+                layout: { duration: 0.4, ease: [0.4, 0, 0.2, 1] }
               }}
               className="pointer-events-auto overflow-hidden"
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 mb-3">
                 <Loader2 className="w-6 h-6 animate-spin text-white/90" />
                 <div className="text-lg font-semibold text-white">
                   {selectedZones.length} {selectedZones.length === 1 ? 'zone' : 'zones'} selected
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                {zoneCards.map((card, index) => (
+                  <MetricCard
+                    key={card.label}
+                    icon={card.icon}
+                    label={card.label}
+                    value={card.value}
+                    change={card.change}
+                    unit={card.unit}
+                    index={index}
+                    inverted={card.inverted}
+                  />
+                ))}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
         <div className="grid grid-cols-2 gap-2">
-          {allCards.map((card, index) => (
+          {cityCards.map((card, index) => (
             <MetricCard
               key={card.label}
               icon={card.icon}
@@ -149,7 +168,7 @@ export function DataPanel() {
               value={card.value}
               change={card.change}
               unit={card.unit}
-              index={index}
+              index={zoneCards.length + index}
               inverted={card.inverted}
             />
           ))}
