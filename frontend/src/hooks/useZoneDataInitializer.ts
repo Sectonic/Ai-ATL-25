@@ -43,6 +43,8 @@ export function useZoneDataInitializer() {
   useEffect(() => {
     if (isLoading || !neighborhoodsData) return
 
+    const currentZoneData = useSimulationStore.getState().zoneData
+
     neighborhoodsData.features.forEach((feature) => {
       if (!feature.properties) return
 
@@ -53,6 +55,8 @@ export function useZoneDataInitializer() {
       if (!zoneId) return
 
       if (initializedZonesRef.current.has(zoneId)) return
+      
+      if (zoneId in currentZoneData) return
 
       const props = feature.properties
       const population = props.populati_1 || props.population || 0
