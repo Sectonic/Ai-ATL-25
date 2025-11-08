@@ -98,7 +98,7 @@ export function LoadingAnimation() {
     })
 
     const animate = () => {
-      timeRef.current += 0.075
+      timeRef.current += 0.015
 
       neighborhoodsRef.current.forEach((neighborhood) => {
         const pulse = (Math.sin(timeRef.current - neighborhood.phase) + 1) / 2
