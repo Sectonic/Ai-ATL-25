@@ -168,12 +168,13 @@ const computeCityMetrics = (zoneData: Record<string, ZoneData>): CityMetrics => 
   const trafficCongestion = Math.min(100, avgCarDependence + (avgDensityIndex * 100))
   const environmentalScore = Math.max(0, 100 - trafficCongestion)
   const airQuality = environmentalScore
+  const affordabilityScore = Math.min(100, Math.max(0, 100 - (avgAffordability * 10)))
 
   return {
     population: totalPopulation,
     averageIncome: Math.round(avgIncome),
     unemploymentRate: 0,
-    housingAffordabilityIndex: Math.round(avgAffordability * 10),
+    housingAffordabilityIndex: Math.round(affordabilityScore),
     trafficCongestionIndex: Math.round(trafficCongestion),
     airQualityIndex: Math.round(airQuality),
     livabilityIndex: Math.round(avgLivability),

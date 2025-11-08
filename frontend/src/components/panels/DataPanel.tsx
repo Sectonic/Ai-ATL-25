@@ -133,11 +133,11 @@ function aggregateNeighborhoodData(
   const environmentalScore = Math.max(0, 100 - trafficCongestion)
 
   const raceDistribution = {
-    white: selectedZoneData.reduce((sum, z) => sum + ((z.race_distribution?.white || 0) * (z.population_total || 0)), 0) / totalPopulation,
-    black: selectedZoneData.reduce((sum, z) => sum + ((z.race_distribution?.black || 0) * (z.population_total || 0)), 0) / totalPopulation,
-    asian: selectedZoneData.reduce((sum, z) => sum + ((z.race_distribution?.asian || 0) * (z.population_total || 0)), 0) / totalPopulation,
-    mixed: selectedZoneData.reduce((sum, z) => sum + ((z.race_distribution?.mixed || 0) * (z.population_total || 0)), 0) / totalPopulation,
-    hispanic: selectedZoneData.reduce((sum, z) => sum + ((z.race_distribution?.hispanic || 0) * (z.population_total || 0)), 0) / totalPopulation,
+    white: selectedZoneData.reduce((sum, z) => sum + ((z.race_distribution?.white || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation,
+    black: selectedZoneData.reduce((sum, z) => sum + ((z.race_distribution?.black || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation,
+    asian: selectedZoneData.reduce((sum, z) => sum + ((z.race_distribution?.asian || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation,
+    mixed: selectedZoneData.reduce((sum, z) => sum + ((z.race_distribution?.mixed || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation,
+    hispanic: selectedZoneData.reduce((sum, z) => sum + ((z.race_distribution?.hispanic || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation,
   }
 
   const educationDistribution = {
@@ -162,10 +162,12 @@ function aggregateNeighborhoodData(
 
   const avgLivabilityScore = selectedZoneData.reduce((sum, z) => sum + (z.livability_index || 0), 0) / selectedZoneData.length;
 
+  const affordabilityScore = Math.min(100, Math.max(0, 100 - (avgAffordability * 10)))
+
   return {
     population: totalPopulation,
     medianIncome: avgIncome,
-    housingAffordability: Math.round(avgAffordability * 10),
+    housingAffordability: Math.round(affordabilityScore),
     environmentalScore: Math.round(environmentalScore),
     livabilityScore: Math.round(avgLivabilityScore),
     trafficCongestion: Math.round(trafficCongestion),
@@ -196,6 +198,12 @@ export function DataPanel() {
   const aggregated = useMemo(() => {
     const aggregatedData = aggregateNeighborhoodData(selectedZones, zoneData, neighborhoodsData)
     if (!aggregatedData) return null
+
+    const hasSimulationUpdates = cityMetrics.populationChange !== undefined
+
+    if (!hasSimulationUpdates) {
+      return aggregatedData
+    }
 
     return {
       ...aggregatedData,
@@ -277,11 +285,11 @@ export function DataPanel() {
   ]
 
   const radarData = [
-    Math.min(100, (aggregated.medianIncome / 200000) * 100),
-    aggregated.higherEdPercent,
-    aggregated.diversityIndex * 100,
-    aggregated.densityIndex * 100,
-    aggregated.affordabilityIndex * 10,
+    Math.round(aggregated.higherEdPercent),
+    Math.round(aggregated.diversityIndex * 100),
+    Math.round(Math.min(100, Math.max(0, 100 - (aggregated.affordabilityIndex * 10)))),
+    Math.round(aggregated.densityIndex * 100),
+    Math.round(Math.min(100, (aggregated.medianIncome / 200000) * 100)),
   ]
 
   return (
@@ -558,7 +566,7 @@ export function DataPanel() {
               </h3>
               <div className="h-48">
                 <RadarChart
-                  labels={['Income', 'Education', 'Diversity', 'Density', 'Affordability']}
+                  labels={['Education', 'Diversity', 'Affordability', 'Density', 'Income']}
                   data={radarData}
                   fillColor="rgba(163, 163, 163, 0.2)"
                   borderColor="rgba(163, 163, 163, 0.8)"

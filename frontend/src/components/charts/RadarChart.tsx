@@ -66,8 +66,13 @@ export function RadarChart({
         pointLabels: {
           color: 'rgba(255, 255, 255, 0.7)',
           font: {
-            size: 11,
+            size: 10,
             family: "'Space Grotesk', sans-serif",
+          },
+          padding: 2,
+          callback: (label: string, index: number) => {
+            const value = Math.round(data[index])
+            return `${label} (${value}%)`
           },
         },
       },
@@ -77,15 +82,7 @@ export function RadarChart({
         display: false,
       },
       tooltip: {
-        backgroundColor: 'rgba(20, 20, 20, 0.95)',
-        titleColor: '#fff',
-        bodyColor: 'rgba(255, 255, 255, 0.8)',
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        borderWidth: 1,
-        padding: 12,
-        font: {
-          family: "'Space Grotesk', sans-serif",
-        },
+        enabled: false,
       },
     },
   }
