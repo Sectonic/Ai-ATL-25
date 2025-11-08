@@ -132,7 +132,7 @@ export function DataPanel() {
 
   const metrics = zoneMetrics || cityMetrics
 
-  if (!metrics) {
+  if (!cityMetrics || !metrics) {
     return null
   }
 
