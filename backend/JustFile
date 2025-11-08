@@ -55,8 +55,10 @@ test:
   echo "Testing backend endpoints..."
   echo ""
   
-  echo "Testing POST /api/simulate"
+  echo "Testing POST /api/simulate (streaming)"
   echo "-----------------------------------"
+  echo "Note: Chunks should appear one at a time as they're generated"
+  echo ""
   curl -X POST "${BASE_URL}/api/simulate" \
     -H "Content-Type: application/json" \
     -d '{
@@ -73,8 +75,10 @@ test:
       "selectedZones": ["midtown", "downtown"],
       "neighborhoodProperties": []
     }' \
-    -w "\nHTTP Status: %{http_code}\n" \
-    -s | head -50
+    -N \
+    --no-buffer \
+    -w "\n\nHTTP Status: %{http_code}\n" \
+    -s
   echo ""
   echo ""
   

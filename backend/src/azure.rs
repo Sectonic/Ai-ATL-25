@@ -319,12 +319,20 @@ Generate a complete simulation with events, zone updates, and metrics changes. R
 
     let chunks: Vec<SimulationChunk> = serde_json::from_str(cleaned_response).map_err(|e| {
         eprintln!("Failed to parse AI response. Error: {}", e);
-        eprintln!("Cleaned response: {}", cleaned_response);
+        eprintln!("Full cleaned response: {}", cleaned_response);
         eprintln!("Original response: {}", ai_response);
+
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(cleaned_response) {
+            eprintln!(
+                "Parsed as JSON value: {}",
+                serde_json::to_string_pretty(&parsed).unwrap_or_default()
+            );
+        }
+
         actix_web::error::ErrorInternalServerError(format!(
-            "Failed to parse simulation chunks: {}. First 500 chars of response: {}",
+            "Failed to parse simulation chunks: {}. Full response length: {} chars",
             e,
-            ai_response.chars().take(500).collect::<String>()
+            cleaned_response.len()
         ))
     })?;
 

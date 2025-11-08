@@ -378,6 +378,7 @@ pub struct ZoneData {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
 pub struct PartialCityMetrics {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub population: Option<f64>,
@@ -428,6 +429,27 @@ pub struct PartialCityMetrics {
     pub crime_rate: Option<f64>,
     #[serde(rename = "crimeRateChange", skip_serializing_if = "Option::is_none")]
     pub crime_rate_change: Option<f64>,
+}
+
+impl Default for PartialCityMetrics {
+    fn default() -> Self {
+        PartialCityMetrics {
+            population: None,
+            population_change: None,
+            average_income: None,
+            average_income_change: None,
+            unemployment_rate: None,
+            unemployment_rate_change: None,
+            housing_affordability_index: None,
+            housing_affordability_index_change: None,
+            traffic_congestion_index: None,
+            traffic_congestion_index_change: None,
+            air_quality_index: None,
+            air_quality_index_change: None,
+            crime_rate: None,
+            crime_rate_change: None,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
