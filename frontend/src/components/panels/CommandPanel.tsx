@@ -94,31 +94,31 @@ export function CommandPanel() {
     <div className="fixed bottom-4 left-[49.2%] -translate-x-1/2 w-[calc(50%-50px)] z-10 pointer-events-none">
       <AnimatePresence mode="wait">
         {simulationStatus === 'idle' && (
-          <motion.div
+      <motion.div
             key="idle"
             layout
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            className="pointer-events-auto w-full mx-auto"
-          >
-            <div className="relative rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
-              <Textarea
-                value={localPrompt}
-                onChange={(e) => setLocalPrompt(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="type in some city policy"
-                className="min-h-[60px] pr-20 pb-12 bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
-              />
-              <Button
-                onClick={handleStartSimulation}
-                disabled={!localPrompt.trim()}
-                className="absolute bottom-2 right-2 h-8 px-3 bg-white/20 hover:bg-white/30 text-white border-0 disabled:opacity-50"
-              >
-                <Play className="w-4 h-4" />
-              </Button>
-            </div>
+        className="pointer-events-auto w-full mx-auto"
+      >
+          <div className="relative rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
+            <Textarea
+              value={localPrompt}
+              onChange={(e) => setLocalPrompt(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="type in some city policy"
+              className="min-h-[60px] pr-20 pb-12 bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+            <Button
+              onClick={handleStartSimulation}
+              disabled={!localPrompt.trim()}
+              className="absolute bottom-2 right-2 h-8 px-3 bg-white/20 hover:bg-white/30 text-white border-0 disabled:opacity-50"
+            >
+              <Play className="w-4 h-4" />
+            </Button>
+          </div>
           </motion.div>
         )}
 
@@ -133,10 +133,10 @@ export function CommandPanel() {
             className="pointer-events-auto"
           >
             <div className="rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg p-4 flex items-center justify-center">
-              <Loader2 className="w-5 h-5 animate-spin text-white/90" />
-              <span className="ml-2 text-sm text-white/80">
-                Initializing simulation...
-              </span>
+            <Loader2 className="w-5 h-5 animate-spin text-white/90" />
+            <span className="ml-2 text-sm text-white/80">
+              Initializing simulation...
+            </span>
             </div>
           </motion.div>
         )}
@@ -151,22 +151,22 @@ export function CommandPanel() {
             transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
             className="pointer-events-auto"
           >
-            <div className="relative rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
-              <div className="p-3 pr-20 pb-12">
-                <div className="text-xs text-white/60 mb-1">
+          <div className="relative rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
+            <div className="p-3 pr-20 pb-12">
+              <div className="text-xs text-white/60 mb-1">
                   Summary:
-                </div>
+              </div>
                 <div className="text-sm text-white/90 leading-relaxed">
                   <TypewriterText text={simulationSummary} />
-                </div>
               </div>
-              <Button
-                onClick={handleReset}
-                className="absolute bottom-2 right-2 h-8 px-3 bg-white/20 hover:bg-white/30 text-white border-0"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </Button>
             </div>
+            <Button
+              onClick={handleReset}
+              className="absolute bottom-2 right-2 h-8 px-3 bg-white/20 hover:bg-white/30 text-white border-0"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </Button>
+          </div>
           </motion.div>
         )}
       </AnimatePresence>

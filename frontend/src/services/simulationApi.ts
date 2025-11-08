@@ -435,8 +435,6 @@ export async function* simulatePolicy(
     body: JSON.stringify(payload),
   })
 
-  console.log('Response:', response)
-
   if (!response.ok) {
     throw new Error(`Backend error: ${response.status} ${response.statusText}`)
   }

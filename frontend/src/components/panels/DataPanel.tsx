@@ -39,11 +39,11 @@ function MetricCard({ icon, label, value, change, unit = '', index = 0 }: Metric
               transition={{ duration: 0.2 }}
               className="text-lg font-semibold text-white leading-tight"
             >
-              {typeof value === 'number' ? value.toLocaleString() : value}{unit}
+            {typeof value === 'number' ? value.toLocaleString() : value}{unit}
             </motion.div>
           </AnimatePresence>
           <AnimatePresence mode="wait">
-            {hasChange && (
+          {hasChange && (
               <motion.div
                 key={`change-${change}${unit}`}
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -52,9 +52,9 @@ function MetricCard({ icon, label, value, change, unit = '', index = 0 }: Metric
                 transition={{ duration: 0.2 }}
                 className={`text-xs mt-0.5 leading-tight ${isPositive ? 'text-green-400' : 'text-red-400'}`}
               >
-                {isPositive ? '+' : ''}{change.toLocaleString()}{unit}
+              {isPositive ? '+' : ''}{change.toLocaleString()}{unit}
               </motion.div>
-            )}
+          )}
           </AnimatePresence>
         </div>
       </div>

@@ -60,8 +60,8 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(cors)
             .service(
-                web::scope("/api").route("/simulate", web::post().to(handlers::simulate_policy)),
-            )
+            web::scope("/api").route("/simulate", web::post().to(handlers::simulate_policy)),
+        )
     })
     .bind(("127.0.0.1", 8080))?
     .run()
