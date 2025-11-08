@@ -2,12 +2,16 @@
 //!
 //! This module defines all the data structures used throughout the simulation system:
 //! - Neighborhood demographic and geographic data
-//! - City-wide metrics and their changes
+//! - Partial neighborhood metrics for event updates
 //! - Simulation events and zone updates
 //! - Request/response structures for the API
 
 use serde::{Deserialize, Serialize};
 
+/// Distribution of education levels in a neighborhood
+///
+/// All values are percentages that should sum to approximately 100%.
+/// Each field represents the percentage of the population with that education level.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EducationDistribution {
     #[serde(rename = "high_school_or_less")]
@@ -18,6 +22,10 @@ pub struct EducationDistribution {
     pub graduate: f64,
 }
 
+/// Distribution of racial/ethnic groups in a neighborhood
+///
+/// All values are percentages that should sum to approximately 100%.
+/// Each field represents the percentage of the population identifying with that group.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RaceDistribution {
     pub white: f64,
@@ -27,6 +35,10 @@ pub struct RaceDistribution {
     pub hispanic: f64,
 }
 
+/// Commute pattern statistics for a neighborhood
+///
+/// Describes how residents typically travel to work, including average
+/// commute time and transportation mode preferences.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Commute {
     #[serde(rename = "avg_minutes")]
@@ -37,6 +49,11 @@ pub struct Commute {
     pub transit_usage: f64,
 }
 
+/// Derived metrics calculated from other neighborhood data
+///
+/// These values are computed automatically from other fields:
+/// - `higher_ed_percent`: Sum of bachelors and graduate percentages
+/// - `density_index`: Population density (population_total / area_acres)
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Derived {
     #[serde(rename = "higher_ed_percent")]
@@ -245,12 +262,12 @@ impl Default for EventNotification {
 
 /// A single chunk in the simulation stream
 ///
-/// The simulation is streamed as a series of chunks. Each event chunk now contains
-/// both the event data and its associated zone and city metrics, allowing the client
-/// to track event-specific state and aggregate data for charts.
+/// The simulation is streamed as a series of chunks. Each event chunk contains
+/// the event data and optional partial neighborhood metrics updates, allowing
+/// the client to track how neighborhoods change incrementally as events occur.
 ///
 /// The `#[serde(tag = "type")]` attribute means the JSON includes a "type" field
-/// that determines which variant to deserialize.
+/// that determines which variant to deserialize ("event" or "complete").
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum SimulationChunk {
@@ -260,9 +277,13 @@ pub enum SimulationChunk {
     Complete { data: SimulationComplete },
 }
 
-/// Completion message sent at the end of a simulation
+/// Completion message sent at the end of a simulation stream
+///
+/// This chunk is always the last one in a simulation stream and provides
+/// a high-level summary of all the events and impacts that were generated.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SimulationComplete {
+    /// Human-readable summary of the simulation results
     pub summary: String,
 }
 
@@ -270,12 +291,18 @@ pub struct SimulationComplete {
 ///
 /// Contains all the information needed to generate a simulation:
 /// - The policy proposal to simulate
-/// - Optional zone and neighborhood data for more accurate results
+/// - Optional list of specific neighborhoods to focus on
+/// - Optional neighborhood demographic and geographic data for context
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SimulationRequest {
+    /// The policy proposal text describing what to simulate
     pub prompt: String,
+    /// Optional list of neighborhood names to focus the simulation on
+    /// If empty, the AI will analyze which neighborhoods would be affected
     #[serde(rename = "selectedZones", default)]
     pub selected_zones: Vec<String>,
+    /// Optional neighborhood properties providing demographic and geographic context
+    /// Used by the AI to generate more accurate, neighborhood-specific results
     #[serde(rename = "neighborhoodProperties", default)]
     pub neighborhood_properties: Vec<NeighborhoodProperties>,
 }

@@ -9,134 +9,120 @@
 //! - `generate_simulation()`: Main function that orchestrates the AI simulation
 //! - Azure API types: Structures for communicating with Azure's chat completion API
 
-use crate::types::{
-    NeighborhoodMetrics, NeighborhoodProperties, SimulationChunk, SimulationRequest,
+use crate::types::{SimulationChunk, SimulationRequest};
+use crate::utils::{
+    JsonArrayChunkParser, build_neighborhoods_context, complete_interdependent_metrics,
 };
 use actix_web::web::Bytes;
 use futures_util::{Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::env;
 
+/// Role of a message in the Azure AI chat completion API
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum MessageRole {
+    /// System message that sets the AI's behavior and instructions
     System,
+    /// User message containing the policy proposal or query
     User,
+    /// Assistant message (typically in responses, not used in requests)
     Assistant,
 }
 
+/// A single message in the chat completion request
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Message {
+    /// The role of the message sender
     pub role: MessageRole,
+    /// The text content of the message
     pub content: String,
 }
 
+/// Incremental content delta from a streaming response
 #[derive(Debug, Deserialize)]
 pub struct Delta {
+    /// The text content added in this delta
     #[serde(default)]
     pub content: String,
-    #[serde(default)]
-    pub role: Option<String>,
 }
 
+/// A choice in the streaming response containing delta updates
 #[derive(Debug, Deserialize)]
 pub struct StreamChoice {
-    pub index: u32,
+    /// The incremental content update
     pub delta: Delta,
-    pub finish_reason: Option<String>,
 }
 
+/// Response structure for streaming chat completions from Azure AI
 #[derive(Debug, Deserialize)]
 pub struct StreamResponse {
-    pub id: String,
-    pub model: String,
+    /// Array of choices, typically containing one delta update
     pub choices: Vec<StreamChoice>,
-    pub created: u64,
 }
 
+/// Request payload for Azure AI chat completion API
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ChatCompletionRequest {
+    /// Conversation messages (system prompt + user prompt)
     pub messages: Vec<Message>,
+    /// Whether to stream the response (always true for this application)
     #[serde(skip_serializing_if = "is_false")]
     pub stream: bool,
+    /// Maximum number of tokens to generate (default: 16000)
     #[serde(
         rename = "max_completion_tokens",
         skip_serializing_if = "Option::is_none"
     )]
     pub max_completion_tokens: Option<u32>,
+    /// Sampling temperature (0.0 to 2.0, default: 1.0)
     #[serde(default = "default_temperature")]
     pub temperature: f32,
+    /// Nucleus sampling parameter (0.0 to 1.0, default: 1.0)
     #[serde(default = "default_top_p")]
     pub top_p: f32,
+    /// Model identifier (default: "grok-4-fast-reasoning")
     #[serde(default = "default_model")]
     pub model: String,
 }
 
+/// Helper function for serde to skip serializing false values
 fn is_false(b: &bool) -> bool {
     !b
 }
 
+/// Default temperature value for chat completion requests
 fn default_temperature() -> f32 {
     1.0
 }
 
+/// Default top_p value for chat completion requests
 fn default_top_p() -> f32 {
     1.0
 }
 
+/// Default model identifier for chat completion requests
 fn default_model() -> String {
     "grok-4-fast-reasoning".to_string()
 }
 
-fn complete_interdependent_metrics(
-    metrics: &mut NeighborhoodMetrics,
-    original_neighborhood: &NeighborhoodProperties,
-) {
-    use crate::types::Derived;
-
-    if let Some(ref edu_dist) = metrics.education_distribution {
-        let higher_ed_percent = edu_dist.bachelors + edu_dist.graduate;
-        match &mut metrics.derived {
-            Some(derived) => derived.higher_ed_percent = higher_ed_percent,
-            None => {
-                metrics.derived = Some(Derived {
-                    higher_ed_percent,
-                    density_index: original_neighborhood.derived.density_index,
-                })
-            }
-        }
-    }
-
-    if let Some(ref race_dist) = metrics.race_distribution {
-        let diversity_index = 1.0
-            - [
-                race_dist.white,
-                race_dist.black,
-                race_dist.asian,
-                race_dist.mixed,
-                race_dist.hispanic,
-            ]
-            .iter()
-            .map(|&p| (p / 100.0).powi(2))
-            .sum::<f64>();
-
-        metrics.diversity_index = Some(diversity_index);
-    }
-
-    if let Some(population_total) = metrics.population_total {
-        let density_index = population_total as f64 / original_neighborhood.area_acres;
-        match &mut metrics.derived {
-            Some(derived) => derived.density_index = density_index,
-            None => {
-                metrics.derived = Some(Derived {
-                    higher_ed_percent: original_neighborhood.derived.higher_ed_percent,
-                    density_index,
-                })
-            }
-        }
-    }
-}
-
+/// Builds the system prompt for the Azure AI chat completion
+///
+/// The system prompt instructs the AI on how to generate simulation results.
+/// It includes:
+/// - Role definition (urban planning expert for Atlanta)
+/// - Output format requirements (JSON array, no markdown)
+/// - Event chunk structure specifications
+/// - Interdependency rules for metrics
+/// - Guidelines for realistic event generation
+///
+/// # Arguments
+///
+/// * `neighborhoods_context` - Formatted string containing all neighborhood data
+///
+/// # Returns
+///
+/// A complete system prompt string ready to send to the AI
 fn build_system_prompt(neighborhoods_context: &str) -> String {
     format!(
         r#"You are an expert urban planning simulation AI for the city of Atlanta, Georgia. Your role is to analyze policy decisions and predict their realistic impacts on specific neighborhoods.
@@ -205,45 +191,35 @@ Important Guidelines:
     )
 }
 
-fn build_neighborhoods_context(properties: &[NeighborhoodProperties]) -> String {
-    if properties.is_empty() {
-        return "No specific neighborhood data provided. Use general Atlanta neighborhood characteristics.".to_string();
-    }
-
-    properties
-        .iter()
-        .map(|n| {
-            let area_sq_miles = n.area_acres / 640.0;
-            let neighbors = n.neighboring_neighborhoods.as_ref()
-                .map(|v| v.join(", "))
-                .unwrap_or_else(|| "None specified".to_string());
-            let current_events = n.current_events.as_ref()
-                .map(|v| v.join("; "))
-                .unwrap_or_else(|| "None specified".to_string());
-            let baseline = n.baseline_description.as_ref()
-                .map(|s| s.as_str())
-                .unwrap_or("No baseline description available");
-
-            format!(
-                "Neighborhood: {}\nArea: {:.2} sq miles\nPopulation: {}\nMedian Income: ${}\n\
-                 Median Home Value: ${}\nHousing Units: {}\nVacancy Rate: {:.1}%\n\
-                 Owner Occupancy: {:.1}%\nDiversity Index: {:.2}\nLivability Index: {:.1}\n\
-                 Average Commute: {:.1} minutes\nCar Dependence: {:.1}%\nTransit Usage: {:.1}%\n\
-                 Education: {:.1}% Bachelor's+, {:.1}% Graduate\n\
-                 Race Distribution: White {:.1}%, Black {:.1}%, Asian {:.1}%, Mixed {:.1}%, Hispanic {:.1}%\n\
-                 Baseline Description: {}\nCurrent Events: {}\nNeighboring Neighborhoods: {}",
-                n.name, area_sq_miles, n.population_total, n.median_income, n.median_home_value,
-                n.housing_units, n.vacancy_rate, n.owner_occupancy, n.diversity_index,
-                n.livability_index, n.commute.avg_minutes, n.commute.car_dependence,
-                n.commute.transit_usage, n.derived.higher_ed_percent, n.education_distribution.graduate,
-                n.race_distribution.white, n.race_distribution.black, n.race_distribution.asian,
-                n.race_distribution.mixed, n.race_distribution.hispanic, baseline, current_events, neighbors
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n\n---\n\n")
-}
-
+/// Generates a simulation stream using Azure AI
+///
+/// This is the main function that orchestrates the AI simulation process:
+/// 1. Validates the Azure API key
+/// 2. Builds the system and user prompts from the request
+/// 3. Sends a streaming request to Azure AI
+/// 4. Parses the streaming SSE response character-by-character
+/// 5. Extracts complete JSON chunks as they arrive
+/// 6. Completes interdependent metrics for each event
+/// 7. Streams processed chunks back to the client as SSE events
+///
+/// The function uses a custom JSON parser that tracks bracket depth to extract
+/// complete event objects from the streaming response, allowing incremental
+/// delivery of events to the frontend.
+///
+/// # Arguments
+///
+/// * `request` - The simulation request containing policy prompt and neighborhood data
+///
+/// # Returns
+///
+/// A stream of SSE-formatted bytes containing simulation chunks, or an error
+/// if the API key is missing or the request fails
+///
+/// # Errors
+///
+/// Returns an `actix_web::Error` if:
+/// - `AZURE_API_KEY` environment variable is not set
+/// - The HTTP request to Azure AI fails
 pub async fn generate_simulation(
     request: SimulationRequest,
 ) -> Result<impl Stream<Item = Result<Bytes, std::io::Error>>, actix_web::Error> {
@@ -313,14 +289,9 @@ pub async fn generate_simulation(
     let neighborhood_props = request.neighborhood_properties.clone();
 
     let output_stream = async_stream::stream! {
-        let mut chunk_buffer = String::new();
+        let mut json_parser = JsonArrayChunkParser::new();
         let mut sse_buffer = String::new();
         let mut chunk_count = 0;
-        let mut depth = 0;
-        let mut json_started = false;
-        let mut in_string = false;
-        let mut escape_next = false;
-        let mut collecting_chunk = false;
         let mut event_count = 0;
         let mut parse_errors = 0u32;
 
@@ -352,78 +323,7 @@ pub async fn generate_simulation(
                                     let content = &choice.delta.content;
                                     if !content.is_empty() {
                                         for ch in content.chars() {
-                                            if !json_started {
-                                                if ch == '[' {
-                                                    json_started = true;
-                                                    depth = 1;
-                                                }
-                                                continue;
-                                            }
-
-                                            let mut should_push = collecting_chunk;
-                                            let mut finalize_chunk = false;
-
-                                            if escape_next {
-                                                if should_push {
-                                                    chunk_buffer.push(ch);
-                                                }
-                                                escape_next = false;
-                                                continue;
-                                            }
-
-                                            if ch == '\\' && in_string {
-                                                if should_push {
-                                                    chunk_buffer.push(ch);
-                                                }
-                                                escape_next = true;
-                                                continue;
-                                            }
-
-                                            if ch == '"' {
-                                                if should_push {
-                                                    chunk_buffer.push(ch);
-                                                }
-                                                in_string = !in_string;
-                                                continue;
-                                            }
-
-                                            if !in_string {
-                                                match ch {
-                                                    '[' => depth += 1,
-                                                    '{' => {
-                                                        depth += 1;
-                                                        if depth == 2 {
-                                                            collecting_chunk = true;
-                                                            should_push = true;
-                                                            chunk_buffer.clear();
-                                                        }
-                                                    }
-                                                    ']' => {
-                                                        if depth > 0 {
-                                                            depth -= 1;
-                                                        }
-                                                    }
-                                                    '}' => {
-                                                        if depth > 0 {
-                                                            depth -= 1;
-                                                        }
-                                                        if depth == 1 && collecting_chunk {
-                                                            finalize_chunk = true;
-                                                        }
-                                                    }
-                                                    _ => {}
-                                                }
-                                            }
-
-                                            if should_push {
-                                                chunk_buffer.push(ch);
-                                            }
-
-                                            if finalize_chunk {
-                                                let chunk_json = chunk_buffer.clone();
-                                                chunk_buffer.clear();
-                                                collecting_chunk = false;
-
+                                            if let Some(chunk_json) = json_parser.process_char(ch) {
                                                 match serde_json::from_str::<SimulationChunk>(&chunk_json) {
                                                     Ok(chunk) => {
                                                         let processed_chunk = match chunk {
