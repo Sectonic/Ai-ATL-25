@@ -28,7 +28,7 @@ export function LoadingAnimation() {
 
     const featuresWithCenters = neighborhoodsData.features.map((feature) => {
       const allCoords: Array<[number, number]> = []
-      
+
       if (feature.geometry && feature.geometry.type === 'Polygon') {
         feature.geometry.coordinates.forEach((ring: Array<Array<number>>) => {
           ring.forEach((coord: Array<number>) => {
@@ -48,11 +48,11 @@ export function LoadingAnimation() {
           })
         })
       }
-      
-      const centerLng = allCoords.length > 0 
+
+      const centerLng = allCoords.length > 0
         ? allCoords.reduce((sum, coord) => sum + coord[1], 0) / allCoords.length
         : 0
-      
+
       return {
         feature,
         centerLng,

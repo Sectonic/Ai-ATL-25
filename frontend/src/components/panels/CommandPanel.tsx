@@ -9,11 +9,11 @@ import { Loader2, Play, ChevronUp, X, Layers } from 'lucide-react'
 
 function TypewriterText({ text }: { text: string }) {
   const [displayedText, setDisplayedText] = useState('')
-  
+
   useEffect(() => {
     let currentIndex = 0
     setDisplayedText('')
-    
+
     const interval = setInterval(() => {
       if (currentIndex < text.length) {
         setDisplayedText(text.slice(0, currentIndex + 1))
@@ -22,20 +22,37 @@ function TypewriterText({ text }: { text: string }) {
         clearInterval(interval)
       }
     }, 30)
-    
+
     return () => clearInterval(interval)
   }, [text])
-  
+
   return <span>{displayedText}</span>
 }
 
-const previousSimulations = [
-  'Implement congestion pricing in downtown corridor',
-  'Expand affordable housing in East Atlanta neighborhoods',
-  'Create green infrastructure along BeltLine trail',
+const examplePrompts = [
+  {
+    title: 'Transportation Infrastructure',
+    prompt: 'Build a new light rail line connecting downtown Atlanta to the airport, with stops in Midtown, Buckhead, and the BeltLine. Include dedicated bike lanes and pedestrian walkways along the route. This will require rezoning areas around stations for mixed-use development.',
+  },
+  {
+    title: 'Affordable Housing Initiative',
+    prompt: 'Implement a comprehensive affordable housing program that includes: (1) Upzoning single-family neighborhoods to allow duplexes and triplexes, (2) Providing tax incentives for developers who set aside 30% of units as affordable housing, (3) Creating a community land trust in underserved neighborhoods, and (4) Expanding public transit access to new housing developments.',
+  },
+  {
+    title: 'Green Infrastructure & Climate',
+    prompt: 'Launch a city-wide green infrastructure initiative that includes: (1) Installing green roofs on all new commercial buildings over 10,000 sq ft, (2) Converting 20% of parking lots to green spaces with native plants, (3) Expanding the BeltLine trail network with additional parks and community gardens, (4) Implementing a carbon tax on large commercial buildings, and (5) Creating a network of electric vehicle charging stations throughout the city.',
+  },
 ]
 
-function PreviousSimulationsTab({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
+function PreviousSimulationsTab({
+  isOpen,
+  onToggle,
+  onSelectPrompt
+}: {
+  isOpen: boolean
+  onToggle: () => void
+  onSelectPrompt: (prompt: string) => void
+}) {
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -56,6 +73,11 @@ function PreviousSimulationsTab({ isOpen, onToggle }: { isOpen: boolean; onToggl
     }
   }, [isOpen, onToggle])
 
+  const handlePromptClick = (prompt: string) => {
+    onSelectPrompt(prompt)
+    onToggle()
+  }
+
   return (
     <div className="relative z-20" ref={dropdownRef}>
       <button
@@ -73,19 +95,23 @@ function PreviousSimulationsTab({ isOpen, onToggle }: { isOpen: boolean; onToggl
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-            className="absolute bottom-full left-0 mb-2 w-80 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg overflow-hidden z-30"
+            className="absolute bottom-full left-0 mb-2 w-96 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg overflow-hidden z-30"
           >
             <div>
-              {previousSimulations.map((simulation, index) => (
+              {examplePrompts.map((example, index) => (
                 <button
                   key={index}
-                  className={`w-full px-4 py-2.5 text-left text-sm text-white/90 hover:bg-white/10 transition-colors cursor-pointer ${
-                    index === 0 ? 'rounded-t-xl' : ''
-                  } ${
-                    index === previousSimulations.length - 1 ? 'rounded-b-xl' : ''
-                  }`}
+                  onClick={() => handlePromptClick(example.prompt)}
+                  className={`w-full px-4 py-3 text-left hover:bg-white/10 transition-colors cursor-pointer border-b border-white/5 last:border-b-0 ${index === 0 ? 'rounded-t-xl' : ''
+                    } ${index === examplePrompts.length - 1 ? 'rounded-b-xl' : ''
+                    }`}
                 >
-                  {simulation}
+                  <div className="text-xs font-semibold text-white/70 mb-1">
+                    {example.title}
+                  </div>
+                  <div className="text-sm text-white/90 line-clamp-2">
+                    {example.prompt}
+                  </div>
                 </button>
               ))}
             </div>
@@ -131,7 +157,7 @@ export function CommandPanel() {
       for await (const chunk of simulatePolicy(localPrompt, cityMetrics, selectedZones, neighborhoodsData)) {
         chunkCount++
         console.log('Received chunk:', chunk.type, chunk)
-        
+
         if (chunk.type === 'event') {
           addEventNotification(chunk.data)
         } else if (chunk.type === 'zoneUpdate') {
@@ -144,7 +170,7 @@ export function CommandPanel() {
           clearSelectedZones()
         }
       }
-      
+
       if (chunkCount === 0) {
         console.warn('No chunks received from backend')
         setSimulationStatus('idle')
@@ -179,14 +205,14 @@ export function CommandPanel() {
             <motion.div
               layout
               initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-              animate={{ 
-                opacity: 1, 
-                height: 'auto', 
+              animate={{
+                opacity: 1,
+                height: 'auto',
                 marginBottom: 8
               }}
               exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-              transition={{ 
-                duration: 0.3, 
+              transition={{
+                duration: 0.3,
                 ease: [0.4, 0, 0.2, 1],
                 layout: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
               }}
@@ -196,6 +222,10 @@ export function CommandPanel() {
               <PreviousSimulationsTab
                 isOpen={isPreviousSimulationsOpen}
                 onToggle={() => setIsPreviousSimulationsOpen(!isPreviousSimulationsOpen)}
+                onSelectPrompt={(prompt) => {
+                  setLocalPrompt(prompt)
+                  setPromptText(prompt)
+                }}
               />
               <button
                 onClick={handleReset}
@@ -214,8 +244,8 @@ export function CommandPanel() {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ opacity: 0, y: -20, scale: 0.98 }}
-              transition={{ 
-                duration: 0.3, 
+              transition={{
+                duration: 0.3,
                 ease: [0.4, 0, 0.2, 1],
                 layout: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
               }}
@@ -250,8 +280,8 @@ export function CommandPanel() {
                 <motion.div
                   layout
                   animate={{ paddingTop: selectedZones.length > 0 ? 36 : 0 }}
-                  transition={{ 
-                    duration: 0.4, 
+                  transition={{
+                    duration: 0.4,
                     ease: [0.4, 0, 0.2, 1],
                     layout: { duration: 0.4, ease: [0.4, 0, 0.2, 1] }
                   }}
@@ -276,56 +306,56 @@ export function CommandPanel() {
             </motion.div>
           )}
 
-        {simulationStatus === 'loading' && (
-          <motion.div
-            key="loading"
-            layout
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ 
-              duration: 0.25, 
-              ease: [0.4, 0, 0.2, 1],
-              layout: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
-            }}
-            className="pointer-events-auto"
-          >
-            <div className="rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg p-4 flex items-center justify-center">
-            <Loader2 className="w-5 h-5 animate-spin text-white/90" />
-            <span className="ml-2 text-sm text-white/80">
-              Initializing simulation...
-            </span>
-            </div>
-          </motion.div>
-        )}
+          {simulationStatus === 'loading' && (
+            <motion.div
+              key="loading"
+              layout
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{
+                duration: 0.25,
+                ease: [0.4, 0, 0.2, 1],
+                layout: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
+              }}
+              className="pointer-events-auto"
+            >
+              <div className="rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg p-4 flex items-center justify-center">
+                <Loader2 className="w-5 h-5 animate-spin text-white/90" />
+                <span className="ml-2 text-sm text-white/80">
+                  Initializing simulation...
+                </span>
+              </div>
+            </motion.div>
+          )}
 
-        {simulationStatus === 'complete' && (
-          <motion.div
-            key="complete"
-            layout
-            initial={{ opacity: 0, y: 20, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.98 }}
-            transition={{ 
-              duration: 0.3, 
-              ease: [0.4, 0, 0.2, 1],
-              layout: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
-            }}
-            className="pointer-events-auto w-full mx-auto"
-          >
-            <div className="relative rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
-              <div className="p-4">
-                <div className="text-xs text-white/60 mb-2">
-                  Summary:
-                </div>
-                <div className="text-sm text-white/90 leading-relaxed opacity-90 cursor-default select-none">
-                  <TypewriterText text={simulationSummary} />
+          {simulationStatus === 'complete' && (
+            <motion.div
+              key="complete"
+              layout
+              initial={{ opacity: 0, y: 20, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.98 }}
+              transition={{
+                duration: 0.3,
+                ease: [0.4, 0, 0.2, 1],
+                layout: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
+              }}
+              className="pointer-events-auto w-full mx-auto"
+            >
+              <div className="relative rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
+                <div className="p-4">
+                  <div className="text-xs text-white/60 mb-2">
+                    Summary:
+                  </div>
+                  <div className="text-sm text-white/90 leading-relaxed opacity-90 cursor-default select-none">
+                    <TypewriterText text={simulationSummary} />
+                  </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </div>
   )

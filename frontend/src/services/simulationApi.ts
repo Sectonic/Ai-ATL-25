@@ -1,6 +1,6 @@
-import type { EventNotification, ZoneData, CityMetrics, Comment } from '../stores/simulationStore'
+import type { EventNotification, ZoneData, CityMetrics, Comment, NeighborhoodProperties } from '../stores/simulationStore'
 
-export type SimulationChunk = 
+export type SimulationChunk =
   | { type: 'event'; data: EventNotification }
   | { type: 'zoneUpdate'; data: ZoneData }
   | { type: 'metricsUpdate'; data: Partial<CityMetrics> }
@@ -112,27 +112,27 @@ const commentTemplates = {
 function generateComments(eventType: EventNotification['type'], positivity: number): Comment[] {
   const templates = commentTemplates[eventType]
   const commentCount = Math.floor(Math.random() * 3) + 3
-  
+
   const comments: Comment[] = []
   const usedUsers = new Set<number>()
-  
+
   for (let i = 0; i < commentCount; i++) {
     let userIndex
     do {
       userIndex = Math.floor(Math.random() * fakeUsers.length)
     } while (usedUsers.has(userIndex) && usedUsers.size < fakeUsers.length)
     usedUsers.add(userIndex)
-    
+
     const user = fakeUsers[userIndex]
     const sentiment = positivity < -0.3
       ? (Math.random() > 0.3 ? 'negative' : 'neutral')
       : positivity > 0.3
-      ? (Math.random() > 0.3 ? 'positive' : 'neutral')
-      : (Math.random() > 0.5 ? 'positive' : Math.random() > 0.5 ? 'negative' : 'neutral')
-    
+        ? (Math.random() > 0.3 ? 'positive' : 'neutral')
+        : (Math.random() > 0.5 ? 'positive' : Math.random() > 0.5 ? 'negative' : 'neutral')
+
     const templatePool = templates[sentiment as keyof typeof templates]
     const commentText = templatePool[Math.floor(Math.random() * templatePool.length)]
-    
+
     comments.push({
       id: `comment-${Date.now()}-${i}`,
       userName: user.name,
@@ -141,156 +141,14 @@ function generateComments(eventType: EventNotification['type'], positivity: numb
       timestamp: Date.now() - Math.floor(Math.random() * 3600000),
     })
   }
-  
-  return comments.sort((a, b) => a.timestamp - b.timestamp)
-}
 
-interface BackendNeighborhoodProperties {
-  OBJECTID_1: number
-  LOCALID: string
-  NAME: string
-  GEOTYPE: string
-  FULLFIPS: string
-  LEGALAREA: number
-  SRCREF: string
-  ACRES: number
-  SQMILES: number
-  OLDNAME: string
-  NPU: string
-  CREATED_US: string
-  LAST_EDITE: string
-  LAST_EDI_1: string
-  GLOBALID: string
-  Shape_Leng: number
-  Shape__Area: number
-  Shape__Length: number
-  aggregatio: string
-  HasData: number
-  ORIGINAL_O: number
-  sourceCoun: string
-  apportionm: number
-  population: number
-  populati_1: number
-  gender_MED: number
-  gender_MAL: number
-  gender_M_1: number
-  gender_M_2: number
-  gender_M_3: number
-  gender_M_4: number
-  gender_M_5: number
-  gender_M_6: number
-  gender_M_7: number
-  gender_M_8: number
-  gender_M_9: number
-  gender__10: number
-  gender__11: number
-  gender__12: number
-  gender__13: number
-  gender__14: number
-  gender__15: number
-  gender__16: number
-  gender__17: number
-  gender__18: number
-  gender__19: number
-  gender__20: number
-  gender__21: number
-  gender__22: number
-  gender__23: number
-  gender__24: number
-  gender__25: number
-  gender__26: number
-  gender__27: number
-  gender_FEM: number
-  gender_F_1: number
-  gender_F_2: number
-  gender_F_3: number
-  gender_F_4: number
-  gender_F_5: number
-  gender_F_6: number
-  gender_F_7: number
-  gender_F_8: number
-  gender_F_9: number
-  gender__28: number
-  gender__29: number
-  gender__30: number
-  gender__31: number
-  gender__32: number
-  gender__33: number
-  gender__34: number
-  gender__35: number
-  gender__36: number
-  gender__37: number
-  gender__38: number
-  gender__39: number
-  gender__40: number
-  gender__41: number
-  gender__42: number
-  gender__43: number
-  gender__44: number
-  gender__45: number
-  householdt: number
-  OwnerRente: number
-  OwnerRen_1: number
-  OwnerRen_2: number
-  OwnerRen_3: number
-  housinguni: number
-  vacant_VAC: number
-  vacant_V_1: number
-  raceandhis: number
-  raceandh_1: number
-  raceandh_2: number
-  raceandh_3: number
-  raceandh_4: number
-  raceandh_5: number
-  raceandh_6: number
-  raceandh_7: number
-  raceandh_8: number
-  raceandh_9: number
-  raceand_10: number
-  raceand_11: number
-  hispanicor: number
-  hispanic_1: number
-  educationa: number
-  educatio_1: number
-  educatio_2: number
-  educatio_3: number
-  educatio_4: number
-  educatio_5: number
-  educatio_6: number
-  househol_1: number
-  households: number
-  householdi: number
-  homevalue_: number
-  F5yearincre: number
-  unitsinstr: number
-  unitsins_1: number
-  unitsins_2: number
-  unitsins_3: number
-  unitsins_4: number
-  unitsins_5: number
-  unitsins_6: number
-  unitsins_7: number
-  unitsins_8: number
-  unitsins_9: number
-  unitsin_10: number
-  unitsin_11: number
-  unitsin_12: number
-  unitsin_13: number
-  unitsin_14: number
-  unitsin_15: number
-  commute_AC: number
-  commute__1: number
-  commute__2: number
-  commute__3: number
-  commute__4: number
-  commute__5: number
-  commute__6: number
+  return comments.sort((a, b) => a.timestamp - b.timestamp)
 }
 
 export function buildNeighborhoodProperties(
   selectedZones: string[],
   neighborhoodsData: GeoJSON.FeatureCollection
-): BackendNeighborhoodProperties[] {
+): NeighborhoodProperties[] {
   const zonesToProcess = selectedZones.length === 0
     ? neighborhoodsData.features.map((f) => f.properties?.name).filter(Boolean) as string[]
     : selectedZones
@@ -300,155 +158,54 @@ export function buildNeighborhoodProperties(
       const feature = neighborhoodsData.features.find(
         (f) => f.properties?.name === neighborhoodName
       )
-      
+
       if (!feature || !feature.properties) return null
-      
+
       const props = feature.properties
-      const areaSqMiles = props.area_acres ? props.area_acres / 640 : 0
-      
+
       return {
-        OBJECTID_1: 0,
-        LOCALID: '',
-        NAME: props.name || '',
-        GEOTYPE: '',
-        FULLFIPS: '',
-        LEGALAREA: 0,
-        SRCREF: '',
-        ACRES: props.area_acres || 0,
-        SQMILES: areaSqMiles,
-        OLDNAME: '',
-        NPU: props.npu || '',
-        CREATED_US: '',
-        LAST_EDITE: '',
-        LAST_EDI_1: '',
-        GLOBALID: '',
-        Shape_Leng: 0,
-        Shape__Area: 0,
-        Shape__Length: 0,
-        aggregatio: '',
-        HasData: 1,
-        ORIGINAL_O: 0,
-        sourceCoun: '',
-        apportionm: 0,
-        population: props.population_total || 0,
-        populati_1: props.population_total || 0,
-        gender_MED: 0,
-        gender_MAL: 0,
-        gender_M_1: 0,
-        gender_M_2: 0,
-        gender_M_3: 0,
-        gender_M_4: 0,
-        gender_M_5: 0,
-        gender_M_6: 0,
-        gender_M_7: 0,
-        gender_M_8: 0,
-        gender_M_9: 0,
-        gender__10: 0,
-        gender__11: 0,
-        gender__12: 0,
-        gender__13: 0,
-        gender__14: 0,
-        gender__15: 0,
-        gender__16: 0,
-        gender__17: 0,
-        gender__18: 0,
-        gender__19: 0,
-        gender__20: 0,
-        gender__21: 0,
-        gender__22: 0,
-        gender__23: 0,
-        gender__24: 0,
-        gender__25: 0,
-        gender__26: 0,
-        gender__27: 0,
-        gender_FEM: 0,
-        gender_F_1: 0,
-        gender_F_2: 0,
-        gender_F_3: 0,
-        gender_F_4: 0,
-        gender_F_5: 0,
-        gender_F_6: 0,
-        gender_F_7: 0,
-        gender_F_8: 0,
-        gender_F_9: 0,
-        gender__28: 0,
-        gender__29: 0,
-        gender__30: 0,
-        gender__31: 0,
-        gender__32: 0,
-        gender__33: 0,
-        gender__34: 0,
-        gender__35: 0,
-        gender__36: 0,
-        gender__37: 0,
-        gender__38: 0,
-        gender__39: 0,
-        gender__40: 0,
-        gender__41: 0,
-        gender__42: 0,
-        gender__43: 0,
-        gender__44: 0,
-        gender__45: 0,
-        householdt: props.households || 0,
-        OwnerRente: props.owner_occupancy ? Math.round((props.owner_occupancy / 100) * (props.households || 0)) : 0,
-        OwnerRen_1: 0,
-        OwnerRen_2: 0,
-        OwnerRen_3: 0,
-        housinguni: props.housing_units || 0,
-        vacant_VAC: props.vacant_units || 0,
-        vacant_V_1: 0,
-        raceandhis: 0,
-        raceandh_1: props.race_distribution?.white ? Math.round((props.race_distribution.white / 100) * (props.population_total || 0)) : 0,
-        raceandh_2: props.race_distribution?.black ? Math.round((props.race_distribution.black / 100) * (props.population_total || 0)) : 0,
-        raceandh_3: props.race_distribution?.asian ? Math.round((props.race_distribution.asian / 100) * (props.population_total || 0)) : 0,
-        raceandh_4: props.race_distribution?.mixed ? Math.round((props.race_distribution.mixed / 100) * (props.population_total || 0)) : 0,
-        raceandh_5: props.race_distribution?.hispanic ? Math.round((props.race_distribution.hispanic / 100) * (props.population_total || 0)) : 0,
-        raceandh_6: 0,
-        raceandh_7: 0,
-        raceandh_8: 0,
-        raceandh_9: 0,
-        raceand_10: 0,
-        raceand_11: 0,
-        hispanicor: props.race_distribution?.hispanic ? Math.round((props.race_distribution.hispanic / 100) * (props.population_total || 0)) : 0,
-        hispanic_1: 0,
-        educationa: 0,
-        educatio_1: props.education_distribution?.high_school_or_less ? Math.round((props.education_distribution.high_school_or_less / 100) * (props.population_total || 0)) : 0,
-        educatio_2: props.education_distribution?.some_college ? Math.round((props.education_distribution.some_college / 100) * (props.population_total || 0)) : 0,
-        educatio_3: props.education_distribution?.bachelors ? Math.round((props.education_distribution.bachelors / 100) * (props.population_total || 0)) : 0,
-        educatio_4: props.education_distribution?.graduate ? Math.round((props.education_distribution.graduate / 100) * (props.population_total || 0)) : 0,
-        educatio_5: 0,
-        educatio_6: 0,
-        househol_1: 0,
+        name: props.name || '',
+        npu: props.npu || '',
+        area_acres: props.area_acres || 0,
+        population_total: props.population_total || 0,
+        median_age: props.median_age || 0,
+        population_density: props.population_density || 0,
+        median_income: props.median_income || 0,
+        median_home_value: props.median_home_value || 0,
+        affordability_index: props.affordability_index || 0,
+        housing_units: props.housing_units || 0,
         households: props.households || 0,
-        householdi: props.median_income || 0,
-        homevalue_: props.median_home_value || 0,
-        F5yearincre: 0,
-        unitsinstr: 0,
-        unitsins_1: 0,
-        unitsins_2: 0,
-        unitsins_3: 0,
-        unitsins_4: 0,
-        unitsins_5: 0,
-        unitsins_6: 0,
-        unitsins_7: 0,
-        unitsins_8: 0,
-        unitsins_9: 0,
-        unitsin_10: 0,
-        unitsin_11: 0,
-        unitsin_12: 0,
-        unitsin_13: 0,
-        unitsin_14: 0,
-        unitsin_15: 0,
-        commute_AC: props.commute?.car_dependence ? Math.round((props.commute.car_dependence / 100) * (props.households || 0)) : 0,
-        commute__1: 0,
-        commute__2: 0,
-        commute__3: props.commute?.transit_usage ? Math.round((props.commute.transit_usage / 100) * (props.households || 0)) : 0,
-        commute__4: 0,
-        commute__5: 0,
-        commute__6: 0,
+        vacant_units: props.vacant_units || 0,
+        vacancy_rate: props.vacancy_rate || 0,
+        owner_occupancy: props.owner_occupancy || 0,
+        housing_density: props.housing_density || 0,
+        education_distribution: {
+          high_school_or_less: props.education_distribution?.high_school_or_less || 0,
+          some_college: props.education_distribution?.some_college || 0,
+          bachelors: props.education_distribution?.bachelors || 0,
+          graduate: props.education_distribution?.graduate || 0,
+        },
+        race_distribution: {
+          white: props.race_distribution?.white || 0,
+          black: props.race_distribution?.black || 0,
+          asian: props.race_distribution?.asian || 0,
+          mixed: props.race_distribution?.mixed || 0,
+          hispanic: props.race_distribution?.hispanic || 0,
+        },
+        diversity_index: props.diversity_index || 0,
+        livability_index: props.livability_index || 0,
+        commute: {
+          avg_minutes: props.commute?.avg_minutes || 0,
+          car_dependence: props.commute?.car_dependence || 0,
+          transit_usage: props.commute?.transit_usage || 0,
+        },
+        derived: {
+          higher_ed_percent: props.derived?.higher_ed_percent || 0,
+          density_index: props.derived?.density_index || 0,
+        },
       }
     })
-    .filter((props): props is BackendNeighborhoodProperties => props !== null)
+    .filter((props): props is NeighborhoodProperties => props !== null)
 }
 
 export async function* simulatePolicy(
@@ -458,11 +215,11 @@ export async function* simulatePolicy(
   neighborhoodsData: GeoJSON.FeatureCollection
 ): AsyncGenerator<SimulationChunk> {
   const neighborhoodProperties = buildNeighborhoodProperties(selectedZones, neighborhoodsData)
-  
+
   const zonesToSend = selectedZones.length === 0
-    ? neighborhoodProperties.map((props) => props.NAME)
+    ? neighborhoodProperties.map((props) => props.name)
     : selectedZones
-  
+
   const payload = {
     prompt,
     cityMetrics: {
@@ -472,7 +229,7 @@ export async function* simulatePolicy(
       housingAffordabilityIndex: cityMetrics.housingAffordabilityIndex,
       trafficCongestionIndex: cityMetrics.trafficCongestionIndex,
       airQualityIndex: cityMetrics.airQualityIndex,
-      crimeRate: cityMetrics.crimeRate,
+      livabilityIndex: cityMetrics.livabilityIndex,
     },
     selectedZones: zonesToSend,
     neighborhoodProperties,
@@ -508,23 +265,23 @@ export async function* simulatePolicy(
   try {
     while (true) {
       const { done, value } = await reader.read()
-      
+
       if (done) break
-      
+
       buffer += decoder.decode(value, { stream: true })
-      
+
       const lines = buffer.split('\n\n')
       buffer = lines.pop() || ''
-      
+
       for (const line of lines) {
         if (line.trim() === '') continue
-        
+
         if (line.startsWith('data: ')) {
           const jsonStr = line.slice(6)
-          
+
           try {
             const chunk = JSON.parse(jsonStr) as SimulationChunk
-            
+
             if (chunk.type === 'event') {
               const comments = generateComments(chunk.data.type, chunk.data.positivity)
               yield {

@@ -155,7 +155,7 @@ pub async fn generate_simulation(
     request: SimulationRequest,
 ) -> Result<Vec<SimulationChunk>, actix_web::Error> {
     eprintln!("\n=== STARTING AI SIMULATION ===");
-    
+
     let api_key = env::var("AZURE_API_KEY")
         .map_err(|_| actix_web::error::ErrorInternalServerError("AZURE_API_KEY not set"))?;
 
@@ -166,7 +166,7 @@ pub async fn generate_simulation(
         eprintln!("✗ Failed to serialize city metrics: {}", e);
         actix_web::error::ErrorInternalServerError(format!("Serialization error: {}", e))
     })?;
-    
+
     eprintln!("✓ City metrics serialized");
 
     // Build a summary of neighborhood properties for the AI prompt
@@ -179,13 +179,14 @@ pub async fn generate_simulation(
             .iter()
             .take(5)
             .map(|n| {
+                let area_sq_miles = n.area_acres / 640.0;
                 format!(
-                    "Neighborhood: {} (Population: {:.0}, Area: {:.2} sq miles, Income: ${:.0}, Housing Units: {})",
+                    "Neighborhood: {} (Population: {}, Area: {:.2} sq miles, Income: ${}, Housing Units: {})",
                     n.name,
-                    n.population,
-                    n.sqmiles,
-                    n.householdi as f64 / n.households.max(1.0),
-                    n.housinguni
+                    n.population_total,
+                    area_sq_miles,
+                    n.median_income,
+                    n.housing_units
                 )
             })
             .collect();
@@ -209,25 +210,79 @@ Current City Metrics:
 Relevant Neighborhood Data:
 {}
 
-Output Format Requirements:
-You must return a JSON array of simulation chunks. Each chunk must be one of these types:
+CLIENT-SIDE METRICS AND CHARTS:
+The frontend displays the following metrics and visualizations that you should consider when generating updates:
+
+1. Overview Section (City-wide metrics):
+   - Population (displayed in thousands)
+   - Average Income / Median Income (displayed in thousands of dollars)
+   - Housing Affordability Index (0-100 scale)
+   - Environmental Score / Air Quality Index (0-100 scale)
+   - Livability Index (0-100 scale, measures overall quality of life)
+   - Traffic Congestion Index (0-100 scale, displayed as percentage)
+
+2. Demographics Section:
+   - Race Distribution (Doughnut Chart): White, Black, Asian, Mixed, Hispanic percentages
+   - Diversity Index (0-1 scale, displayed as decimal)
+
+3. Education Section:
+   - Education Distribution (Doughnut Chart): High School or Less, Some College, Bachelor's, Graduate percentages
+   - Higher Education Percent (percentage with Bachelor's or higher)
+
+4. Cost of Living Section:
+   - Median Income (displayed in thousands)
+   - Median Home Value (displayed in thousands)
+   - Affordability Index (ratio of income to home value)
+
+5. Commute Section:
+   - Average Commute Minutes
+   - Commute Mode Distribution (Segmented Bar): Car dependence %, Transit usage %, Other %
+
+6. Housing Stability Section:
+   - Vacancy Rate (percentage)
+   - Owner Occupancy Rate (percentage)
+
+7. Urban Profile Section (Radar Chart):
+   - Income (normalized 0-100)
+   - Education (higher ed percent)
+   - Diversity (diversity index * 100)
+   - Density (density index * 100)
+   - Affordability (affordability index * 10)
+
+IMPORTANT: When generating metricsUpdate chunks, prioritize updating metrics that are prominently displayed:
+- Always update population, averageIncome, and trafficCongestionIndex if the policy affects them
+- Update housingAffordabilityIndex for housing-related policies
+- Update airQualityIndex for environmental policies
+- Update livabilityIndex for policies that affect overall quality of life (combines factors like safety, amenities, walkability, etc.)
+- Consider how changes affect the Urban Profile radar chart metrics
+
+CRITICAL OUTPUT FORMAT REQUIREMENTS:
+You MUST return a valid JSON array. The response must be:
+- A JSON array starting with [ and ending with ]
+- Each element is a JSON object with a "type" field and a "data" field
+- NO markdown code blocks (no ```json or ```)
+- NO explanatory text before or after the JSON
+- NO comments or additional formatting
+- Valid JSON that can be parsed directly
+
+The response must be a JSON array of simulation chunks. Each chunk must be one of these types:
 
 1. Event chunks:
    {{"type": "event", "data": {{
      "id": "event-<timestamp>-<index>",
-     "zoneId": "<neighborhood-id>",
+     "zoneId": "<neighborhood-name>",
      "zoneName": "<neighborhood-name>",
      "type": "traffic" | "housing" | "population" | "economic" | "environmental",
      "description": "<detailed description of the event>",
-     "severity": <number 0.0-1.0> (how impactful/significant: 0=minor, 1=major),
-     "positivity": <number -1.0 to 1.0> (how positive/negative: -1=very negative, 0=neutral, 1=very positive),
-     "timestamp": <unix-timestamp>,
+     "severity": <number 0.0-1.0>,
+     "positivity": <number -1.0 to 1.0>,
+     "timestamp": <unix-timestamp-in-milliseconds>,
      "coordinates": [<latitude>, <longitude>]
    }}}}
 
 2. Zone Update chunks:
    {{"type": "zoneUpdate", "data": {{
-     "zoneId": "<neighborhood-id>",
+     "zoneId": "<neighborhood-name>",
      "zoneName": "<neighborhood-name>",
      "population": <number>,
      "populationChange": <number> (optional),
@@ -242,37 +297,47 @@ You must return a JSON array of simulation chunks. Each chunk must be one of the
 3. Metrics Update chunk:
    {{"type": "metricsUpdate", "data": {{
      "population": <number> (optional, only include if changed),
-     "populationChange": <number> (optional, change from baseline),
+     "populationChange": <number> (optional),
      "averageIncome": <number> (optional, only include if changed),
-     "averageIncomeChange": <number> (optional, change from baseline),
+     "averageIncomeChange": <number> (optional),
      "unemploymentRate": <number> (optional, only include if changed),
-     "unemploymentRateChange": <number> (optional, change from baseline),
+     "unemploymentRateChange": <number> (optional),
      "housingAffordabilityIndex": <number 0-100> (optional, only include if changed),
-     "housingAffordabilityIndexChange": <number> (optional, change from baseline),
+     "housingAffordabilityIndexChange": <number> (optional),
      "trafficCongestionIndex": <number 0-100> (optional, only include if changed),
-     "trafficCongestionIndexChange": <number> (optional, change from baseline),
+     "trafficCongestionIndexChange": <number> (optional),
      "airQualityIndex": <number 0-100> (optional, only include if changed),
-     "airQualityIndexChange": <number> (optional, change from baseline),
-     "crimeRate": <number> (optional, only include if changed),
-     "crimeRateChange": <number> (optional, change from baseline)
+     "airQualityIndexChange": <number> (optional),
+     "livabilityIndex": <number 0-100> (optional, only include if changed),
+     "livabilityIndexChange": <number> (optional)
    }}}}
-   
-   Note: Only include fields that have changed. The frontend will merge these with existing metrics.
 
 4. Complete chunk (exactly one, at the end):
    {{"type": "complete", "data": {{
      "summary": "<brief summary of the simulation results>"
    }}}}
 
+Example valid response format:
+[
+  {{"type": "event", "data": {{"id": "event-1234567890-1", "zoneId": "Ridgewood Heights", "zoneName": "Ridgewood Heights", "type": "traffic", "description": "...", "severity": 0.7, "positivity": -0.3, "timestamp": 1234567890000, "coordinates": [33.826, -84.443]}}}},
+  {{"type": "zoneUpdate", "data": {{"zoneId": "Ridgewood Heights", "zoneName": "Ridgewood Heights", "population": 500, "populationChange": 4, "housingUnits": 170, "trafficFlow": 65, "economicIndex": 72}}}},
+  {{"type": "metricsUpdate", "data": {{"population": 500000, "populationChange": 5000, "trafficCongestionIndex": 68, "trafficCongestionIndexChange": 3}}}},
+  {{"type": "complete", "data": {{"summary": "The policy implementation shows..."}}}}
+]
+
 Important Guidelines:
+- Use neighborhood names from the provided neighborhood data for zoneId and zoneName
 - Make changes realistic and proportional to the policy's scope
 - Consider both positive and negative impacts
 - Use Atlanta-specific context (neighborhoods, demographics, geography)
 - Ensure all numeric values are realistic
 - Events should be specific and actionable
 - Zone updates should reflect differential impacts across neighborhoods
-- Metrics updates should show city-wide aggregate changes
-- Return ONLY valid JSON, no markdown formatting or code blocks"#,
+- Metrics updates should show city-wide aggregate changes and include updates for metrics displayed in the Overview section
+- When generating metricsUpdate chunks, ensure you update at least 2-3 key metrics that are prominently displayed (population, averageIncome, trafficCongestionIndex, housingAffordabilityIndex, or airQualityIndex)
+- Consider how zone updates affect the Urban Profile radar chart (Income, Education, Diversity, Density, Affordability)
+- Generate 3-6 events, 2-5 zone updates, 1 metrics update (with multiple metric changes), and 1 complete chunk
+- Return ONLY the JSON array, nothing else"#,
         city_metrics_json, neighborhoods_summary
     );
 
@@ -336,7 +401,7 @@ Generate a complete simulation with events, zone updates, and metrics changes. R
             eprintln!("✗ Azure API request failed: {}", e);
             actix_web::error::ErrorInternalServerError(format!("Request failed: {}", e))
         })?;
-    
+
     eprintln!("📥 Received response from Azure AI");
 
     let status = response.status();
@@ -403,7 +468,7 @@ Generate a complete simulation with events, zone updates, and metrics changes. R
     // - MetricsUpdate chunk with city-wide changes
     // - Complete chunk with final summary
     eprintln!("🔍 Parsing AI response...");
-    
+
     let chunks: Vec<SimulationChunk> = serde_json::from_str(cleaned_response).map_err(|e| {
         eprintln!("✗ Failed to parse AI response. Error: {}", e);
 
