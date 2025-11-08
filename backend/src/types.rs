@@ -402,29 +402,48 @@ pub struct EventNotification {
 /// Zones can represent neighborhoods, districts, counties, or buildings.
 /// This data shows how policy impacts vary across different areas of the city.
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
 pub struct ZoneData {
     #[serde(rename = "zoneId")]
     pub zone_id: String,
     #[serde(rename = "zoneName")]
     pub zone_name: String,
-    pub population: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub population: Option<f64>,
     #[serde(rename = "populationChange", skip_serializing_if = "Option::is_none")]
     pub population_change: Option<f64>,
-    #[serde(rename = "housingUnits")]
-    pub housing_units: f64,
+    #[serde(rename = "housingUnits", skip_serializing_if = "Option::is_none")]
+    pub housing_units: Option<f64>,
     #[serde(rename = "housingUnitsChange", skip_serializing_if = "Option::is_none")]
     pub housing_units_change: Option<f64>,
-    #[serde(rename = "trafficFlow")]
-    pub traffic_flow: f64,
+    #[serde(rename = "trafficFlow", skip_serializing_if = "Option::is_none")]
+    pub traffic_flow: Option<f64>,
     #[serde(rename = "trafficFlowChange", skip_serializing_if = "Option::is_none")]
     pub traffic_flow_change: Option<f64>,
-    #[serde(rename = "economicIndex")]
-    pub economic_index: f64,
+    #[serde(rename = "economicIndex", skip_serializing_if = "Option::is_none")]
+    pub economic_index: Option<f64>,
     #[serde(
         rename = "economicIndexChange",
         skip_serializing_if = "Option::is_none"
     )]
     pub economic_index_change: Option<f64>,
+}
+
+impl Default for ZoneData {
+    fn default() -> Self {
+        ZoneData {
+            zone_id: String::new(),
+            zone_name: String::new(),
+            population: None,
+            population_change: None,
+            housing_units: None,
+            housing_units_change: None,
+            traffic_flow: None,
+            traffic_flow_change: None,
+            economic_index: None,
+            economic_index_change: None,
+        }
+    }
 }
 
 /// Partial city metrics update - only includes fields that have changed

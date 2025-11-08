@@ -2,7 +2,9 @@ import {
   HeadContent,
   Scripts,
   createRootRouteWithContext,
+  useNavigate,
 } from '@tanstack/react-router'
+import { useEffect } from 'react'
 
 import appCss from '../styles.css?url'
 
@@ -23,7 +25,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'TanStack Start Starter',
+        title: 'Atlanta City Simulation',
       },
     ],
     links: [
@@ -35,7 +37,22 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   }),
 
   shellComponent: RootDocument,
+  notFoundComponent: NotFound,
 })
+
+function NotFound() {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    navigate({ to: '/app', replace: true })
+  }, [navigate])
+
+  return (
+    <div className="h-screen w-screen flex items-center justify-center bg-slate-950">
+      <div className="text-white">Redirecting...</div>
+    </div>
+  )
+}
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (

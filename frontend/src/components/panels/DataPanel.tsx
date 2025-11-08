@@ -10,11 +10,22 @@ interface MetricCardProps {
   change?: number
   unit?: string
   index?: number
+  inverted?: boolean
 }
 
-function MetricCard({ icon, label, value, change, unit = '', index = 0 }: MetricCardProps) {
+interface CardData {
+  icon: React.ReactNode
+  label: string
+  value: string | number
+  change?: number
+  unit?: string
+  inverted?: boolean
+}
+
+function MetricCard({ icon, label, value, change, unit = '', index = 0, inverted = false }: MetricCardProps) {
   const hasChange = change !== undefined && change !== 0
   const isPositive = change && change > 0
+  const shouldBeGreen = inverted ? !isPositive : isPositive
   
   return (
     <motion.div
@@ -50,7 +61,7 @@ function MetricCard({ icon, label, value, change, unit = '', index = 0 }: Metric
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ duration: 0.2 }}
-                className={`text-xs mt-0.5 leading-tight ${isPositive ? 'text-green-400' : 'text-red-400'}`}
+                className={`text-xs mt-0.5 leading-tight ${shouldBeGreen ? 'text-green-400' : 'text-red-400'}`}
               >
               {isPositive ? '+' : ''}{change.toLocaleString()}{unit}
               </motion.div>
@@ -91,7 +102,7 @@ export function DataPanel() {
     return null
   }
 
-  const cards = zoneMetrics ? [
+  const cards: CardData[] = zoneMetrics ? [
     { icon: <Users className="w-3.5 h-3.5 text-white/90" />, label: "Population", value: zoneMetrics.totalPopulation },
     { icon: <Home className="w-3.5 h-3.5 text-white/90" />, label: "Housing Units", value: zoneMetrics.totalHousing },
     { icon: <Car className="w-3.5 h-3.5 text-white/90" />, label: "Traffic Flow", value: zoneMetrics.avgTraffic },
@@ -99,12 +110,12 @@ export function DataPanel() {
   ] : [
     { icon: <Users className="w-3.5 h-3.5 text-white/90" />, label: "Population", value: cityMetrics.population, change: cityMetrics.populationChange },
     { icon: <DollarSign className="w-3.5 h-3.5 text-white/90" />, label: "Avg Income", value: `$${(cityMetrics.averageIncome / 1000).toFixed(0)}k`, change: cityMetrics.averageIncomeChange ? Math.round(cityMetrics.averageIncomeChange / 1000) : undefined },
-    { icon: <TrendingUp className="w-3.5 h-3.5 text-white/90" />, label: "Unemployment", value: cityMetrics.unemploymentRate, unit: "%", change: cityMetrics.unemploymentRateChange },
+    { icon: <TrendingUp className="w-3.5 h-3.5 text-white/90" />, label: "Unemployment", value: cityMetrics.unemploymentRate, unit: "%", change: cityMetrics.unemploymentRateChange, inverted: true },
     { icon: <Home className="w-3.5 h-3.5 text-white/90" />, label: "Housing Affordability", value: cityMetrics.housingAffordabilityIndex, change: cityMetrics.housingAffordabilityIndexChange },
-    { icon: <Car className="w-3.5 h-3.5 text-white/90" />, label: "Traffic Congestion", value: cityMetrics.trafficCongestionIndex, change: cityMetrics.trafficCongestionIndexChange },
-    { icon: <Shield className="w-3.5 h-3.5 text-white/90" />, label: "Crime Rate", value: cityMetrics.crimeRate, unit: "/1000", change: cityMetrics.crimeRateChange },
-    { icon: <Building2 className="w-3.5 h-3.5 text-white/90" />, label: "Housing Density", value: Math.round((cityMetrics.population / 500000) * 100), unit: "%" },
-    { icon: <Leaf className="w-3.5 h-3.5 text-white/90" />, label: "Environmental Score", value: Math.round(100 - cityMetrics.trafficCongestionIndex) },
+    { icon: <Car className="w-3.5 h-3.5 text-white/90" />, label: "Traffic Congestion", value: cityMetrics.trafficCongestionIndex, change: cityMetrics.trafficCongestionIndexChange, inverted: true },
+    { icon: <Shield className="w-3.5 h-3.5 text-white/90" />, label: "Crime Rate", value: cityMetrics.crimeRate, unit: "/1000", change: cityMetrics.crimeRateChange, inverted: true },
+    { icon: <Building2 className="w-3.5 h-3.5 text-white/90" />, label: "Housing Density", value: Math.round((cityMetrics.population / 500000) * 100), unit: "%", change: cityMetrics.populationChange ? Math.round((cityMetrics.populationChange / 500000) * 100) : undefined, inverted: true },
+    { icon: <Leaf className="w-3.5 h-3.5 text-white/90" />, label: "Environmental Score", value: Math.round(100 - cityMetrics.trafficCongestionIndex), change: cityMetrics.trafficCongestionIndexChange ? Math.round(-cityMetrics.trafficCongestionIndexChange) : undefined },
   ]
 
   return (
@@ -120,6 +131,7 @@ export function DataPanel() {
               change={card.change}
               unit={card.unit}
               index={index}
+              inverted={card.inverted}
             />
           ))}
         </AnimatePresence>
