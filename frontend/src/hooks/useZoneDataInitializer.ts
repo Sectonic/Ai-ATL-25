@@ -68,6 +68,7 @@ export function useZoneDataInitializer() {
           hispanic: 0,
         },
         diversity_index: props.diversity_index || 0,
+        livability_index: props.livability_index || 0,
         commute: props.commute || {
           avg_minutes: 0,
           car_dependence: 0,

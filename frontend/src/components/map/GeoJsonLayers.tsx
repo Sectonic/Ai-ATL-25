@@ -100,10 +100,10 @@ export function GeoJsonLayers() {
     
     return {
       fillColor: '#808080',
-      fillOpacity: isSelected ? 0.30 : 0.15,
+      fillOpacity: isSelected ? 0.30 : 0,
       color: isSelected ? '#FFFFFF' : '#606060',
       weight: isSelected ? 1.5 : 0.8,
-      opacity: isSelected ? 0.9 : 0.4,
+      opacity: isSelected ? 0.7 : 0.4,
     }
   }
 

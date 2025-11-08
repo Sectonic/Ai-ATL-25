@@ -23,7 +23,7 @@ export function AppHeader() {
             className="flex items-center gap-2"
           >
             <img src="/mimic_logo.png" alt="Mimic Logo" className="w-14 h-14" />
-            <h1 className="text-2xl font-light text-white">Mimic</h1>
+            <h1 className="text-2xl font-light text-white/85 uppercase">Mimic</h1>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: -10 }}

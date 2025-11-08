@@ -321,7 +321,7 @@ export function EventNotificationPanel() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.4 }}
-            className="ml-1 text-xs font-medium text-white/70 uppercase tracking-wider"
+            className="ml-1 text-lg font-medium text-white/70 uppercase tracking-wider"
           >
             {selectedEventId ? 'Selected Event' : 'Event Alerts'}
           </motion.div>

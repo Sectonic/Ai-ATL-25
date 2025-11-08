@@ -53,6 +53,7 @@ export interface NeighborhoodProperties {
     hispanic: number
   }
   diversity_index: number
+  livability_index: number
   commute: {
     avg_minutes: number
     car_dependence: number

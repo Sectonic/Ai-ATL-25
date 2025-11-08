@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSimulationStore } from '../../stores/simulationStore'
 import { useNeighborhoods } from '../../services/geojsonApi'
-import { Users, Home, DollarSign, Shield, Car, Leaf, Scale, Layers } from 'lucide-react'
+import { Users, Home, DollarSign, Car, Leaf, Scale, Star } from 'lucide-react'
 import { DoughnutChart } from '../charts/DoughnutChart'
 import { RadarChart } from '../charts/RadarChart'
 import { SegmentedBar } from '../charts/SegmentedBar'
@@ -12,7 +12,7 @@ interface AggregatedData {
   medianIncome: number
   housingAffordability: number
   environmentalScore: number
-  crimeRate: number
+  livabilityScore: number
   trafficCongestion: number
   raceDistribution: {
     white: number
@@ -111,12 +111,14 @@ function aggregateNeighborhoodData(
   const avgVacancyRate = selectedZoneData.reduce((sum, z) => sum + (z.vacancy_rate || 0), 0) / selectedZoneData.length
   const avgOwnerOccupancy = selectedZoneData.reduce((sum, z) => sum + (z.owner_occupancy || 0), 0) / selectedZoneData.length
 
+  const avgLivabilityScore = selectedZoneData.reduce((sum, z) => sum + (z.livability_index || 0), 0) / selectedZoneData.length;
+
   return {
     population: totalPopulation,
     medianIncome: avgIncome,
     housingAffordability: Math.round(avgAffordability * 10),
     environmentalScore: Math.round(environmentalScore),
-    crimeRate: 0,
+    livabilityScore: Math.round(avgLivabilityScore),
     trafficCongestion: Math.round(trafficCongestion),
     raceDistribution,
     educationDistribution,
@@ -234,7 +236,6 @@ export function DataPanel() {
                 </h2>
               ) : (
                 <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-white/70" />
                   <h2 className="text-lg font-semibold text-white/70 leading-relaxed">
                     {selectedZones.length} {selectedZones.length === 1 ? 'ZONE' : 'ZONES'} SELECTED
                   </h2>
@@ -302,13 +303,13 @@ export function DataPanel() {
 
                 <div className="p-2 rounded-lg bg-white/5">
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    <Shield className="w-3 h-3 text-white/60" />
+                    <Star className="w-3 h-3 text-white/60" />
                     <span className="text-[10px] text-white/50">
-                      Crime
+                      Livability
                     </span>
                   </div>
                   <div className="text-sm font-semibold text-white">
-                    N/A
+                    {aggregated.livabilityScore}/100
                   </div>
                 </div>
 
