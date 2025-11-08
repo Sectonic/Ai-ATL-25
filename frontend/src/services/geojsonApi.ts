@@ -22,3 +22,17 @@ export const useNeighborhoodsMask = () => {
   })
 }
 
+export const useMartaBusRoutes = () => {
+  return useQuery({
+    queryKey: ['geojson', 'martaBusRoutes'],
+    queryFn: () => fetchGeoJSON('/geojson/MARTA_Routes_bus_routes.geojson'),
+  })
+}
+
+export const useMartaTrainRoutes = () => {
+  return useQuery({
+    queryKey: ['geojson', 'martaTrainRoutes'],
+    queryFn: () => fetchGeoJSON('/geojson/MARTA_Routes_train_routes.geojson'),
+  })
+}
+
