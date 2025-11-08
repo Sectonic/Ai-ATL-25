@@ -12,18 +12,28 @@ export const Route = createFileRoute('/')({
 
 function RouteComponent() {
   const navigate = useNavigate()
+  const [isFadingOut, setIsFadingOut] = useState(false)
 
   const handleGetStarted = () => {
-    navigate({ to: '/app' })
+    setIsFadingOut(true)
+    setTimeout(() => {
+      navigate({ to: '/app' })
+    }, 500)
   }
 
   return (
-    <div className="min-h-screen text-white overflow-hidden relative" style={{
-      background: 'linear-gradient(to bottom, #000000 0%, #1a1a20 100%)'
-    }}>
+    <motion.div
+      initial={{ opacity: 1 }}
+      animate={{ opacity: isFadingOut ? 0 : 1 }}
+      transition={{ duration: 0.5, ease: 'easeInOut' }}
+      className="min-h-screen text-white overflow-hidden relative"
+      style={{
+        background: 'linear-gradient(to bottom, #000000 0%, #1a1a20 100%)'
+      }}
+    >
       <LandingNav />
       <HeroSection onGetStarted={handleGetStarted} />
-    </div>
+    </motion.div>
   )
 }
 
