@@ -5,6 +5,7 @@ import { NeighborhoodMask } from './NeighborhoodMask'
 import { EventMarkers } from './EventMarkers'
 import { EventBlinkAnimation } from './EventBlinkAnimation'
 import type { EventNotification } from '../../stores/simulationStore'
+import { LoadingAnimation } from './LoadingAnimation'
 
 const ATLANTA_CENTER: [number, number] = [33.7490, -84.3880]
 const DEFAULT_ZOOM = 13
@@ -21,7 +22,6 @@ interface MapContentProps {
 }
 
 export function MapContent({ selectedEvent }: MapContentProps) {
-
   return (
     <div className="absolute inset-0 z-0 transition-opacity duration-300">
       <MapContainer
@@ -42,6 +42,7 @@ export function MapContent({ selectedEvent }: MapContentProps) {
         />
         <NeighborhoodMask />
         <GeoJsonLayers />
+        <LoadingAnimation />
         <EventMarkers />
         <EventBlinkAnimation event={selectedEvent} />
       </MapContainer>

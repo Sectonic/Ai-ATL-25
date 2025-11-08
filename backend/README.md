@@ -9,17 +9,16 @@ This Rust backend provides endpoints for storing and querying GeoJSON parcel dat
 CREATE EXTENSION IF NOT EXISTS postgis;
 ```
 
-2. **Run the migration** to create the parcels table:
+2. **Set up Azure API Key**:
+Create a `.env` file in the `backend` directory:
 ```bash
-psql $DATABASE_URL -f migrations/001_create_parcels_table.sql
+cd backend
+echo "AZURE_API_KEY=your-azure-api-key-here" > .env
 ```
 
-3. **Set environment variable**:
-```bash
-export DATABASE_URL=postgresql://user:password@localhost/dbname
-```
+Replace `your-azure-api-key-here` with your actual Azure AI API key.
 
-4. **Run the server**:
+3. **Run the server**:
 ```bash
 cargo run
 ```

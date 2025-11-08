@@ -482,6 +482,9 @@ export async function* simulatePolicy(
     neighborhoodProperties,
   }
 
+  console.log('Sending request to backend:', BACKEND_URL)
+  console.log('Request payload:', payload)
+
   const response = await fetch(BACKEND_URL, {
     method: 'POST',
     headers: {
@@ -489,6 +492,8 @@ export async function* simulatePolicy(
     },
     body: JSON.stringify(payload),
   })
+
+  console.log('Backend response status:', response.status, response.statusText)
 
   if (!response.ok) {
     const errorText = await response.text()

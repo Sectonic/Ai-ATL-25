@@ -127,7 +127,11 @@ export function CommandPanel() {
     try {
       await new Promise(resolve => setTimeout(resolve, 1000))
 
+      let chunkCount = 0
       for await (const chunk of simulatePolicy(localPrompt, cityMetrics, selectedZones, neighborhoodsData)) {
+        chunkCount++
+        console.log('Received chunk:', chunk.type, chunk)
+        
         if (chunk.type === 'event') {
           addEventNotification(chunk.data)
         } else if (chunk.type === 'zoneUpdate') {
@@ -140,8 +144,15 @@ export function CommandPanel() {
           clearSelectedZones()
         }
       }
+      
+      if (chunkCount === 0) {
+        console.warn('No chunks received from backend')
+        setSimulationStatus('idle')
+      }
     } catch (error) {
       console.error('Simulation error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      alert(`Simulation failed: ${errorMessage}\n\nCheck the browser console and backend terminal for details.`)
       setSimulationStatus('idle')
     }
   }

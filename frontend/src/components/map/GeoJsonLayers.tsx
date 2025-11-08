@@ -2,8 +2,8 @@ import { useRef } from 'react'
 import { GeoJSON, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { useSimulationStore } from '../../stores/simulationStore'
-import { DragSelection } from './DragSelection'
 import { useNeighborhoods } from '../../services/geojsonApi'
+import { DragSelection } from './DragSelection'
 import type { PathOptions, Layer } from 'leaflet'
 import type { Feature } from 'geojson'
 
@@ -99,11 +99,11 @@ export function GeoJsonLayers() {
     const isSelected = featureId && selectedZones.includes(featureId.toString())
     
     return {
-      fillColor: '#a0a8b8',
-      fillOpacity: isSelected ? 0.25 : 0.1,
-      color: '#d4d8e0',
-      weight: isSelected ? 2 : 0.5,
-      opacity: isSelected ? 0.6 : 0.4,
+      fillColor: '#808080',
+      fillOpacity: isSelected ? 0.30 : 0.15,
+      color: isSelected ? '#FFFFFF' : '#606060',
+      weight: isSelected ? 1.5 : 0.8,
+      opacity: isSelected ? 0.9 : 0.4,
     }
   }
 
