@@ -17,7 +17,7 @@ export function AtlantaMap() {
   }
 
   return (
-    <Suspense fallback={<div className="absolute inset-0 z-0 bg-gray-900" />}>
+    <Suspense fallback={<div className="absolute inset-0 z-0 bg-[#020202]" />}>
       <MapContent selectedEvent={selectedEvent} />
     </Suspense>
   )

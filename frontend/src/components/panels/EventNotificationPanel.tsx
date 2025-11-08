@@ -30,18 +30,51 @@ function PulsatingDot({ severity, positivity }: { severity: number; positivity: 
   )
 }
 
-function SelectedEventView({ event, onClose }: { event: EventNotification, onClose: () => void }) {
+function SelectedEventView({ event, onClose, containerRef }: { event: EventNotification, onClose: () => void, containerRef: React.RefObject<HTMLDivElement | null> }) {
   const Icon = eventIcons[event.type]
+  const [showGradient, setShowGradient] = useState(false)
+
+  useEffect(() => {
+    const checkOverflow = () => {
+      if (containerRef.current) {
+        const { scrollHeight, clientHeight, scrollTop } = containerRef.current
+        const hasOverflow = scrollHeight > clientHeight
+        const isScrolledToBottom = scrollTop + clientHeight >= scrollHeight - 10
+        setShowGradient(hasOverflow && !isScrolledToBottom)
+      }
+    }
+
+    checkOverflow()
+    window.addEventListener('resize', checkOverflow)
+    
+    const container = containerRef.current
+    if (container) {
+      container.addEventListener('scroll', checkOverflow)
+      const observer = new MutationObserver(checkOverflow)
+      observer.observe(container, { childList: true, subtree: true })
+      
+      return () => {
+        window.removeEventListener('resize', checkOverflow)
+        container.removeEventListener('scroll', checkOverflow)
+        observer.disconnect()
+      }
+    }
+
+    return () => {
+      window.removeEventListener('resize', checkOverflow)
+    }
+  }, [containerRef])
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.3 }}
-      className="pointer-events-auto max-h-[calc(100vh-2rem)]"
-    >
-      <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg flex flex-col max-h-[calc(100vh-2rem)]">
+    <div className="relative">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.3 }}
+        className="pointer-events-auto max-h-[calc(100vh-2rem)]"
+      >
+        <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg flex flex-col max-h-[calc(100vh-2rem)]">
         <div className="flex items-start justify-between mb-3 shrink-0">
           <div className="flex items-center gap-2">
             <Icon className="w-5 h-5 shrink-0 text-white/90" />
@@ -91,7 +124,22 @@ function SelectedEventView({ event, onClose }: { event: EventNotification, onClo
           </div>
         </div>
       </div>
-    </motion.div>
+      </motion.div>
+      <AnimatePresence>
+        {showGradient && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none z-10"
+            style={{
+              background: 'linear-gradient(to top, rgba(2, 2, 2, 0.95) 0%, rgba(2, 2, 2, 0.7) 20%, rgba(2, 2, 2, 0.4) 40%, rgba(2, 2, 2, 0.1) 70%, transparent 100%)'
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
 
@@ -144,22 +192,31 @@ export function EventNotificationPanel() {
   useEffect(() => {
     const checkOverflow = () => {
       if (containerRef.current) {
-        const { scrollHeight, clientHeight } = containerRef.current
-        setShowGradient(scrollHeight > clientHeight)
+        const { scrollHeight, clientHeight, scrollTop } = containerRef.current
+        const hasOverflow = scrollHeight > clientHeight
+        const isScrolledToBottom = scrollTop + clientHeight >= scrollHeight - 10
+        setShowGradient(hasOverflow && !isScrolledToBottom)
       }
     }
 
     checkOverflow()
     window.addEventListener('resize', checkOverflow)
     
-    const observer = new MutationObserver(checkOverflow)
-    if (containerRef.current) {
-      observer.observe(containerRef.current, { childList: true, subtree: true })
+    const container = containerRef.current
+    if (container) {
+      container.addEventListener('scroll', checkOverflow)
+      const observer = new MutationObserver(checkOverflow)
+      observer.observe(container, { childList: true, subtree: true })
+      
+      return () => {
+        window.removeEventListener('resize', checkOverflow)
+        container.removeEventListener('scroll', checkOverflow)
+        observer.disconnect()
+      }
     }
 
     return () => {
       window.removeEventListener('resize', checkOverflow)
-      observer.disconnect()
     }
   }, [eventNotifications, selectedEvent])
 
@@ -168,39 +225,53 @@ export function EventNotificationPanel() {
   }
 
   return (
-    <div className="fixed left-3 top-3 w-1/4 max-h-[calc(100vh-1.5rem)] z-10 pointer-events-none">
-      <div ref={containerRef} className="h-full overflow-y-auto pr-2 scrollbar-hide relative">
-        <div className="space-y-2">
-          <AnimatePresence mode="wait">
-            {selectedEvent ? (
-              <SelectedEventView
-                key={`selected-${selectedEvent.id}`}
-                event={selectedEvent}
-                onClose={() => setSelectedEventId(null)}
-              />
-            ) : (
-              <motion.div
-                key="event-cards"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-2"
-              >
-                {eventNotifications.map((event) => (
-                  <EventCard
-                    key={event.id}
-                    event={event}
-                    onClick={() => setSelectedEventId(event.id)}
-                  />
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+    <div className="fixed left-3 top-[140px] bottom-0 w-1/4 z-10 pointer-events-none">
+      <div className="relative h-full">
+        <div ref={containerRef} className="h-full overflow-y-auto pr-2 pl-1 scrollbar-hide" style={{ overflowX: 'visible' }}>
+          <div className="space-y-2 py-1">
+            <AnimatePresence mode="wait">
+              {selectedEvent ? (
+                <SelectedEventView
+                  key={`selected-${selectedEvent.id}`}
+                  event={selectedEvent}
+                  onClose={() => setSelectedEventId(null)}
+                  containerRef={containerRef}
+                />
+              ) : (
+                <motion.div
+                  key="event-cards"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="space-y-2"
+                >
+                  {eventNotifications.map((event) => (
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      onClick={() => setSelectedEventId(event.id)}
+                    />
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
-        {showGradient && !selectedEvent && (
-          <div className="fixed bottom-0 left-3 w-1/4 h-16 bg-linear-to-t from-slate-900/80 to-transparent pointer-events-none" />
-        )}
+        <AnimatePresence>
+          {showGradient && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none z-10"
+            style={{
+              background: 'linear-gradient(to top, rgba(2, 2, 2, 0.95) 0%, rgba(2, 2, 2, 0.7) 20%, rgba(2, 2, 2, 0.4) 40%, rgba(2, 2, 2, 0.1) 70%, transparent 100%)'
+            }}
+            />
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )

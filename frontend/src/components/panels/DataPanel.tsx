@@ -119,7 +119,7 @@ export function DataPanel() {
   ]
 
   return (
-    <div className="fixed right-3 top-3 w-1/4 z-10 pointer-events-none overflow-visible">
+    <div className="fixed right-3 top-[60px] w-1/4 z-10 pointer-events-none overflow-visible">
       <div className="grid grid-cols-2 gap-2">
         <AnimatePresence mode="popLayout">
           {cards.map((card, index) => (

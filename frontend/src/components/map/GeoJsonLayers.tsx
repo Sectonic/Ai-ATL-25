@@ -99,10 +99,11 @@ export function GeoJsonLayers() {
     const isSelected = featureId && selectedZones.includes(featureId.toString())
     
     return {
-      fillColor: isSelected ? '#475569' : '#1e293b',
-      fillOpacity: isSelected ? 0.4 : 0.15,
-      color: isSelected ? '#64748b' : '#334155',
+      fillColor: '#a0a8b8',
+      fillOpacity: isSelected ? 0.25 : 0.1,
+      color: '#d4d8e0',
       weight: isSelected ? 2 : 0.5,
+      opacity: isSelected ? 0.6 : 0.4,
     }
   }
 

@@ -141,9 +141,9 @@ export function DragSelection({ features }: DragSelectionProps) {
     <Rectangle
       bounds={bounds}
       pathOptions={{
-        color: '#3b82f6',
-        fillColor: '#3b82f6',
-        fillOpacity: 0.2,
+        color: '#94a3b8',
+        fillColor: '#64748b',
+        fillOpacity: 0.3,
         weight: 2,
         dashArray: '5, 5',
       }}
