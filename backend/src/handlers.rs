@@ -45,6 +45,15 @@ pub async fn simulate_policy(body: web::Json<SimulationRequest>) -> Result<HttpR
 
     match chunks_result {
         Ok(chunks) => {
+            // Log all chunks in pretty format for debugging
+            eprintln!("\n=== SIMULATION CHUNKS ({} total) ===\n", chunks.len());
+            for (i, chunk) in chunks.iter().enumerate() {
+                if let Ok(pretty) = serde_json::to_string_pretty(chunk) {
+                    eprintln!("Chunk {}:\n{}\n", i + 1, pretty);
+                }
+            }
+            eprintln!("=== END SIMULATION CHUNKS ===\n");
+
             // Convert the vector of chunks into a streaming response
             // Each chunk is sent as a Server-Sent Event (SSE) with format: "data: {json}\n\n"
             let stream = stream::unfold((chunks, 0usize), move |(chunks, mut index)| async move {

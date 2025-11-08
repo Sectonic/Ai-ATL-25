@@ -339,12 +339,25 @@ Generate a complete simulation with events, zone updates, and metrics changes. R
         )));
     }
 
-    eprintln!("Azure API response: {}", response_text);
+    // Log the response for debugging (pretty printed if valid JSON)
+    if let Ok(pretty_json) = serde_json::from_str::<serde_json::Value>(&response_text)
+        .and_then(|v| serde_json::to_string_pretty(&v))
+    {
+        eprintln!("Azure API response (pretty):\n{}", pretty_json);
+    } else {
+        eprintln!("Azure API response (raw): {}", response_text);
+    }
 
     let response_body: ChatCompletionResponse =
         serde_json::from_str(&response_text).map_err(|e| {
             eprintln!("Failed to parse ChatCompletionResponse. Error: {}", e);
-            eprintln!("Response text: {}", response_text);
+            if let Ok(pretty_json) = serde_json::from_str::<serde_json::Value>(&response_text)
+                .and_then(|v| serde_json::to_string_pretty(&v))
+            {
+                eprintln!("Response text (pretty):\n{}", pretty_json);
+            } else {
+                eprintln!("Response text (raw): {}", response_text);
+            }
             actix_web::error::ErrorInternalServerError(format!(
                 "Failed to parse response: {}. Response: {}",
                 e,
@@ -377,14 +390,25 @@ Generate a complete simulation with events, zone updates, and metrics changes. R
     // - Complete chunk with final summary
     let chunks: Vec<SimulationChunk> = serde_json::from_str(cleaned_response).map_err(|e| {
         eprintln!("Failed to parse AI response. Error: {}", e);
-        eprintln!("Full cleaned response: {}", cleaned_response);
-        eprintln!("Original response: {}", ai_response);
 
-        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(cleaned_response) {
+        // Pretty print the cleaned response if it's valid JSON
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&cleaned_response) {
             eprintln!(
-                "Parsed as JSON value: {}",
+                "Full cleaned response (pretty):\n{}",
                 serde_json::to_string_pretty(&parsed).unwrap_or_default()
             );
+        } else {
+            eprintln!("Full cleaned response (raw): {}", cleaned_response);
+        }
+
+        // Try to pretty print original response if it contains JSON
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&ai_response) {
+            eprintln!(
+                "Original response (pretty):\n{}",
+                serde_json::to_string_pretty(&parsed).unwrap_or_default()
+            );
+        } else {
+            eprintln!("Original response (raw): {}", ai_response);
         }
 
         actix_web::error::ErrorInternalServerError(format!(
