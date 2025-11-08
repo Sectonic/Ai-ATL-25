@@ -1,22 +1,22 @@
-use actix_web::{App, HttpResponse, HttpServer, Responder, get, web};
+mod handlers;
 
-struct AppState {
-    app_name: String,
-}
-
-#[get("/")]
-async fn hello(data: web::Data<AppState>) -> impl Responder {
-    HttpResponse::Ok().body(format!("Welcome to {}!", data.app_name))
-}
+use actix_web::{App, HttpServer, web};
+use sqlx::PgPool;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     println!("Server is running on port http://localhost:8080");
 
-    HttpServer::new(|| {
-        App::new().service(hello).app_data(web::Data::new(AppState {
-            app_name: "Actix Web".to_string(),
-        }))
+    let db = PgPool::connect(&std::env::var("DATABASE_URL").expect("DATABASE_URL must be set"))
+        .await
+        .expect("Failed to connect to database");
+
+    HttpServer::new(move || {
+        App::new().app_data(web::Data::new(db.clone())).service(
+            web::scope("/api")
+                .route("/parcels", web::get().to(handlers::get_parcels))
+                .route("/parcels", web::post().to(handlers::create_parcel)),
+        )
     })
     .bind(("127.0.0.1", 8080))?
     .run()
