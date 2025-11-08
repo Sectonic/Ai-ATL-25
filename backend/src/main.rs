@@ -27,10 +27,10 @@ async fn main() -> std::io::Result<()> {
     println!("Server is running on port http://localhost:8080");
 
     HttpServer::new(move || {
-        App::new().service(web::scope("/api").route(
-            "/chat/completions",
-            web::post().to(handlers::chat_completions),
-        ))
+        App::new().service(
+            web::scope("/api")
+                .route("/simulate", web::post().to(handlers::simulate_policy)),
+        )
     })
     .bind(("127.0.0.1", 8080))?
     .run()

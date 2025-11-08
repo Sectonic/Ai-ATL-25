@@ -335,3 +335,126 @@ pub struct CityMetrics {
     #[serde(rename = "crimeRateChange", skip_serializing_if = "Option::is_none")]
     pub crime_rate_change: Option<f64>,
 }
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct EventNotification {
+    pub id: String,
+    #[serde(rename = "zoneId")]
+    pub zone_id: String,
+    #[serde(rename = "zoneName")]
+    pub zone_name: String,
+    #[serde(rename = "type")]
+    pub event_type: String,
+    pub description: String,
+    pub severity: String,
+    pub timestamp: i64,
+    pub coordinates: Vec<f64>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ZoneData {
+    #[serde(rename = "zoneId")]
+    pub zone_id: String,
+    #[serde(rename = "zoneName")]
+    pub zone_name: String,
+    pub population: f64,
+    #[serde(rename = "populationChange", skip_serializing_if = "Option::is_none")]
+    pub population_change: Option<f64>,
+    #[serde(rename = "housingUnits")]
+    pub housing_units: f64,
+    #[serde(rename = "housingUnitsChange", skip_serializing_if = "Option::is_none")]
+    pub housing_units_change: Option<f64>,
+    #[serde(rename = "trafficFlow")]
+    pub traffic_flow: f64,
+    #[serde(rename = "trafficFlowChange", skip_serializing_if = "Option::is_none")]
+    pub traffic_flow_change: Option<f64>,
+    #[serde(rename = "economicIndex")]
+    pub economic_index: f64,
+    #[serde(
+        rename = "economicIndexChange",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub economic_index_change: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PartialCityMetrics {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub population: Option<f64>,
+    #[serde(rename = "populationChange", skip_serializing_if = "Option::is_none")]
+    pub population_change: Option<f64>,
+    #[serde(rename = "averageIncome", skip_serializing_if = "Option::is_none")]
+    pub average_income: Option<f64>,
+    #[serde(
+        rename = "averageIncomeChange",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub average_income_change: Option<f64>,
+    #[serde(rename = "unemploymentRate", skip_serializing_if = "Option::is_none")]
+    pub unemployment_rate: Option<f64>,
+    #[serde(
+        rename = "unemploymentRateChange",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub unemployment_rate_change: Option<f64>,
+    #[serde(
+        rename = "housingAffordabilityIndex",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub housing_affordability_index: Option<f64>,
+    #[serde(
+        rename = "housingAffordabilityIndexChange",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub housing_affordability_index_change: Option<f64>,
+    #[serde(
+        rename = "trafficCongestionIndex",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub traffic_congestion_index: Option<f64>,
+    #[serde(
+        rename = "trafficCongestionIndexChange",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub traffic_congestion_index_change: Option<f64>,
+    #[serde(rename = "airQualityIndex", skip_serializing_if = "Option::is_none")]
+    pub air_quality_index: Option<f64>,
+    #[serde(
+        rename = "airQualityIndexChange",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub air_quality_index_change: Option<f64>,
+    #[serde(rename = "crimeRate", skip_serializing_if = "Option::is_none")]
+    pub crime_rate: Option<f64>,
+    #[serde(rename = "crimeRateChange", skip_serializing_if = "Option::is_none")]
+    pub crime_rate_change: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(tag = "type")]
+pub enum SimulationChunk {
+    #[serde(rename = "event")]
+    Event { data: EventNotification },
+    #[serde(rename = "zoneUpdate")]
+    ZoneUpdate { data: ZoneData },
+    #[serde(rename = "metricsUpdate")]
+    MetricsUpdate { data: PartialCityMetrics },
+    #[serde(rename = "complete")]
+    Complete { data: SimulationComplete },
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SimulationComplete {
+    pub summary: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SimulationRequest {
+    pub prompt: String,
+    #[serde(rename = "cityMetrics")]
+    pub city_metrics: CityMetrics,
+    #[serde(rename = "selectedZones", default)]
+    pub selected_zones: Vec<String>,
+    #[serde(rename = "neighborhoodProperties", default)]
+    pub neighborhood_properties: Vec<NeighborhoodProperties>,
+}

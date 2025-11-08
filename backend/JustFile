@@ -55,35 +55,26 @@ test:
   echo "Testing backend endpoints..."
   echo ""
   
-  echo "1. Testing POST /api/process-geo-data"
+  echo "Testing POST /api/simulate"
   echo "-----------------------------------"
-  curl -X POST "${BASE_URL}/api/process-geo-data" \
-    -H "Content-Type: application/json" \
-    -d '{"data": "test geo data"}' \
-    -w "\nHTTP Status: %{http_code}\n" \
-    -s
-  echo ""
-  echo ""
-  
-  echo "2. Testing POST /api/chat/completions (non-streaming)"
-  echo "-----------------------------------"
-  curl -X POST "${BASE_URL}/api/chat/completions" \
+  curl -X POST "${BASE_URL}/api/simulate" \
     -H "Content-Type: application/json" \
     -d '{
-      "messages": [
-        {
-          "role": "user",
-          "content": "Hello, how are you?"
-        }
-      ],
-      "stream": false,
-      "max_tokens": 100,
-      "temperature": 0.8,
-      "top_p": 0.1,
-      "model": "DeepSeek-V3.1"
+      "prompt": "Build a new light rail line connecting Midtown to the airport",
+      "cityMetrics": {
+        "population": 498715,
+        "averageIncome": 68500,
+        "unemploymentRate": 3.8,
+        "housingAffordabilityIndex": 72,
+        "trafficCongestionIndex": 68,
+        "airQualityIndex": 85,
+        "crimeRate": 4.2
+      },
+      "selectedZones": ["midtown", "downtown"],
+      "neighborhoodProperties": []
     }' \
     -w "\nHTTP Status: %{http_code}\n" \
-    -s
+    -s | head -50
   echo ""
   echo ""
   
