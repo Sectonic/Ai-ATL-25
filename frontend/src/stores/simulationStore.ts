@@ -76,14 +76,14 @@ interface SimulationState {
   selectedEventId: string | null
   previousMapView: MapView | null
   promptText: string
-  processedPrompt: string
+  simulationSummary: string
   zoneData: Record<string, ZoneData>
   cityMetrics: CityMetrics
   layerVisibility: LayerVisibility
   
   setSimulationStatus: (status: SimulationStatus) => void
   setPromptText: (text: string) => void
-  setProcessedPrompt: (text: string) => void
+  setSimulationSummary: (summary: string) => void
   addSelectedZone: (zoneId: string) => void
   removeSelectedZone: (zoneId: string) => void
   clearSelectedZones: () => void
@@ -115,7 +115,7 @@ export const useSimulationStore = create<SimulationState>((set) => ({
   selectedEventId: null,
   previousMapView: null,
   promptText: '',
-  processedPrompt: '',
+  simulationSummary: '',
   zoneData: {},
   cityMetrics: initialCityMetrics,
   layerVisibility: {
@@ -134,7 +134,7 @@ export const useSimulationStore = create<SimulationState>((set) => ({
   
   setPromptText: (text) => set({ promptText: text }),
   
-  setProcessedPrompt: (text) => set({ processedPrompt: text }),
+  setSimulationSummary: (summary) => set({ simulationSummary: summary }),
   
   addSelectedZone: (zoneId) =>
     set((state) => ({
@@ -198,7 +198,7 @@ export const useSimulationStore = create<SimulationState>((set) => ({
       simulationStatus: 'idle',
       selectedZones: [],
       promptText: '',
-      processedPrompt: '',
+      simulationSummary: '',
       eventNotifications: [],
       selectedEventId: null,
       previousMapView: null,

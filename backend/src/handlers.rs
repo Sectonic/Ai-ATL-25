@@ -8,6 +8,7 @@ use crate::types::SimulationRequest;
 use actix_web::web::Bytes;
 use actix_web::{HttpResponse, Result, web};
 use futures_util::stream;
+use tokio::time::{sleep, Duration};
 
 /// Simulates the impact of a city policy proposal
 ///
@@ -56,9 +57,22 @@ pub async fn simulate_policy(body: web::Json<SimulationRequest>) -> Result<HttpR
 
             // Convert the vector of chunks into a streaming response
             // Each chunk is sent as a Server-Sent Event (SSE) with format: "data: {json}\n\n"
+            // We add delays between chunks to simulate progressive streaming
             let stream = stream::unfold((chunks, 0usize), move |(chunks, mut index)| async move {
                 if index >= chunks.len() {
                     return None;
+                }
+
+                // Add delay between chunks (300ms for events, 500ms for others)
+                // Skip delay for first chunk
+                if index > 0 {
+                    let delay_ms = match &chunks[index - 1] {
+                        crate::types::SimulationChunk::Event { .. } => 400,
+                        crate::types::SimulationChunk::ZoneUpdate { .. } => 300,
+                        crate::types::SimulationChunk::MetricsUpdate { .. } => 500,
+                        crate::types::SimulationChunk::Complete { .. } => 300,
+                    };
+                    sleep(Duration::from_millis(delay_ms)).await;
                 }
 
                 let chunk = &chunks[index];

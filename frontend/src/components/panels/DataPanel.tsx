@@ -30,14 +30,32 @@ function MetricCard({ icon, label, value, change, unit = '', index = 0 }: Metric
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-xs text-white/70 mb-0.5 leading-tight">{label}</div>
-          <div className="text-lg font-semibold text-white leading-tight">
-            {typeof value === 'number' ? value.toLocaleString() : value}{unit}
-          </div>
-          {hasChange && (
-            <div className={`text-xs mt-0.5 leading-tight ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-              {isPositive ? '+' : ''}{change.toLocaleString()}{unit}
-            </div>
-          )}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`${value}${unit}`}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="text-lg font-semibold text-white leading-tight"
+            >
+              {typeof value === 'number' ? value.toLocaleString() : value}{unit}
+            </motion.div>
+          </AnimatePresence>
+          <AnimatePresence mode="wait">
+            {hasChange && (
+              <motion.div
+                key={`change-${change}${unit}`}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.2 }}
+                className={`text-xs mt-0.5 leading-tight ${isPositive ? 'text-green-400' : 'text-red-400'}`}
+              >
+                {isPositive ? '+' : ''}{change.toLocaleString()}{unit}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </motion.div>
@@ -109,4 +127,3 @@ export function DataPanel() {
     </div>
   )
 }
-

@@ -19,6 +19,7 @@ mod handlers;
 mod types;
 
 use actix_web::{App, HttpServer, web};
+use actix_cors::Cors;
 use std::path::PathBuf;
 
 /// Loads environment variables from .env files
@@ -54,9 +55,13 @@ async fn main() -> std::io::Result<()> {
     println!("Server is running on port http://localhost:8080");
 
     HttpServer::new(move || {
-        App::new().service(
-            web::scope("/api").route("/simulate", web::post().to(handlers::simulate_policy)),
-        )
+        let cors = Cors::permissive();
+        
+        App::new()
+            .wrap(cors)
+            .service(
+                web::scope("/api").route("/simulate", web::post().to(handlers::simulate_policy)),
+            )
     })
     .bind(("127.0.0.1", 8080))?
     .run()

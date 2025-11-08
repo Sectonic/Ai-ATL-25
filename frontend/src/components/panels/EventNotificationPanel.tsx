@@ -1,3 +1,4 @@
+import { useRef, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSimulationStore, type EventNotification } from '../../stores/simulationStore'
 import { TrendingUp, Home, Users, Leaf, DollarSign, X } from 'lucide-react'
@@ -66,7 +67,7 @@ function SelectedEventView({ event, onClose }: { event: EventNotification, onClo
 
         <div className="border-t border-white/10 pt-4 min-h-0 flex flex-col">
           <div className="text-sm font-medium text-white/90 mb-3 shrink-0">Reactions</div>
-          <div className="overflow-y-auto pr-2 -mr-2 space-y-3 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+          <div className="overflow-y-auto pr-2 -mr-2 space-y-3 scrollbar-hide">
             {event.comments.map((comment) => (
               <div key={comment.id} className="flex gap-3">
                 <img
@@ -135,6 +136,30 @@ function EventCard({ event, onClick }: { event: EventNotification, onClick: () =
 export function EventNotificationPanel() {
   const { eventNotifications, selectedEventId, setSelectedEventId } = useSimulationStore()
   const selectedEvent = eventNotifications.find((e) => e.id === selectedEventId)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [showGradient, setShowGradient] = useState(false)
+
+  useEffect(() => {
+    const checkOverflow = () => {
+      if (containerRef.current) {
+        const { scrollHeight, clientHeight } = containerRef.current
+        setShowGradient(scrollHeight > clientHeight)
+      }
+    }
+
+    checkOverflow()
+    window.addEventListener('resize', checkOverflow)
+    
+    const observer = new MutationObserver(checkOverflow)
+    if (containerRef.current) {
+      observer.observe(containerRef.current, { childList: true, subtree: true })
+    }
+
+    return () => {
+      window.removeEventListener('resize', checkOverflow)
+      observer.disconnect()
+    }
+  }, [eventNotifications, selectedEvent])
 
   if (eventNotifications.length === 0) {
     return null
@@ -142,7 +167,7 @@ export function EventNotificationPanel() {
 
   return (
     <div className="fixed left-3 top-3 w-1/4 max-h-[calc(100vh-1.5rem)] z-10 pointer-events-none">
-      <div className="h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+      <div ref={containerRef} className="h-full overflow-y-auto pr-2 scrollbar-hide relative">
         <div className="space-y-2">
           <AnimatePresence mode="wait">
             {selectedEvent ? (
@@ -171,6 +196,9 @@ export function EventNotificationPanel() {
             )}
           </AnimatePresence>
         </div>
+        {showGradient && !selectedEvent && (
+          <div className="fixed bottom-0 left-3 w-1/4 h-16 bg-linear-to-t from-slate-900/80 to-transparent pointer-events-none" />
+        )}
       </div>
     </div>
   )
