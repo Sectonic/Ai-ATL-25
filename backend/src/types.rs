@@ -1,5 +1,24 @@
+//! Data Types for City Simulation
+//!
+//! This module defines all the data structures used throughout the simulation system:
+//! - Neighborhood demographic and geographic data
+//! - City-wide metrics and their changes
+//! - Simulation events and zone updates
+//! - Request/response structures for the API
+
 use serde::{Deserialize, Serialize};
 
+/// Neighborhood demographic and geographic properties
+///
+/// Contains comprehensive data about Atlanta neighborhoods including:
+/// - Geographic information (area, coordinates, boundaries)
+/// - Demographic data (population, gender, race, education)
+/// - Housing data (units, ownership, vacancy)
+/// - Economic indicators (household income, home values)
+/// - Commute patterns
+///
+/// This data is used by the AI to generate realistic, neighborhood-specific
+/// simulation results based on actual Atlanta neighborhood characteristics.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NeighborhoodProperties {
     #[serde(rename = "OBJECTID_1")]
@@ -290,6 +309,12 @@ pub struct NeighborhoodProperties {
     pub shape_length: f64,
 }
 
+/// City-wide metrics representing the overall state of Atlanta
+///
+/// These metrics are used as baseline data when simulating policy impacts.
+/// The AI uses these values to calculate realistic changes from policy implementations.
+///
+/// All metrics have optional "Change" fields that represent deltas from the baseline.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CityMetrics {
     pub population: f64,
@@ -351,6 +376,10 @@ pub struct EventNotification {
     pub coordinates: Vec<f64>,
 }
 
+/// Zone-level metrics for a specific neighborhood, district, or area
+///
+/// Zones can represent neighborhoods, districts, counties, or buildings.
+/// This data shows how policy impacts vary across different areas of the city.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ZoneData {
     #[serde(rename = "zoneId")]
@@ -377,6 +406,11 @@ pub struct ZoneData {
     pub economic_index_change: Option<f64>,
 }
 
+/// Partial city metrics update - only includes fields that have changed
+///
+/// Used in metricsUpdate chunks to send only the metrics that changed,
+/// allowing the frontend to merge with existing metrics. All fields are optional
+/// and default to None if not present in the JSON.
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct PartialCityMetrics {
@@ -452,6 +486,13 @@ impl Default for PartialCityMetrics {
     }
 }
 
+/// A single chunk in the simulation stream
+///
+/// The simulation is streamed as a series of chunks. Each chunk represents
+/// a different type of update: events, zone updates, metrics changes, or completion.
+///
+/// The `#[serde(tag = "type")]` attribute means the JSON includes a "type" field
+/// that determines which variant to deserialize.
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum SimulationChunk {
@@ -465,11 +506,18 @@ pub enum SimulationChunk {
     Complete { data: SimulationComplete },
 }
 
+/// Completion message sent at the end of a simulation
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SimulationComplete {
     pub summary: String,
 }
 
+/// Request payload for the simulation endpoint
+///
+/// Contains all the information needed to generate a simulation:
+/// - The policy proposal to simulate
+/// - Current city state (metrics)
+/// - Optional zone and neighborhood data for more accurate results
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SimulationRequest {
     pub prompt: String,
