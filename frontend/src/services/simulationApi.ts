@@ -147,25 +147,23 @@ function generateComments(eventType: EventNotification['type'], positivity: numb
 
 interface NeighborhoodProperties {
   OBJECTID_1: number
-  OBJECTID?: number
   LOCALID: string
   NAME: string
   GEOTYPE: string
   FULLFIPS: string
   LEGALAREA: number
-  EFFECTDATE?: string
-  ENDDATE?: string
   SRCREF: string
   ACRES: number
   SQMILES: number
   OLDNAME: string
   NPU: string
   CREATED_US: string
-  CREATED_DA?: string
   LAST_EDITE: string
   LAST_EDI_1: string
   GLOBALID: string
   Shape_Leng: number
+  Shape__Area: number
+  Shape__Length: number
   aggregatio: string
   HasData: number
   ORIGINAL_O: number
@@ -287,22 +285,22 @@ interface NeighborhoodProperties {
   commute__4: number
   commute__5: number
   commute__6: number
-  Shape__Area: number
-  Shape__Length: number
 }
 
 export function buildNeighborhoodProperties(
   selectedZones: string[],
   neighborhoodsData: GeoJSON.FeatureCollection
 ): NeighborhoodProperties[] {
-  if (selectedZones.length === 0) {
-    return []
-  }
-  
-  return selectedZones
+  const zonesToProcess = selectedZones.length === 0
+    ? neighborhoodsData.features.map((f) => f.properties?.OBJECTID_1?.toString() || f.properties?.OBJECTID?.toString() || f.properties?.id?.toString()).filter(Boolean) as string[]
+    : selectedZones
+
+  return zonesToProcess
     .map((zoneId) => {
       const feature = neighborhoodsData.features.find(
-        (f) => f.properties?.OBJECTID_1?.toString() === zoneId
+        (f) => f.properties?.OBJECTID_1?.toString() === zoneId ||
+               f.properties?.OBJECTID?.toString() === zoneId ||
+               f.properties?.id?.toString() === zoneId
       )
       
       if (!feature || !feature.properties) return null
@@ -310,26 +308,24 @@ export function buildNeighborhoodProperties(
       const props = feature.properties
       
       return {
-        OBJECTID_1: props.OBJECTID_1 || 0,
-        OBJECTID: props.OBJECTID,
+        OBJECTID_1: props.OBJECTID_1 || props.OBJECTID || 0,
         LOCALID: props.LOCALID || '',
         NAME: props.NAME || '',
         GEOTYPE: props.GEOTYPE || '',
         FULLFIPS: props.FULLFIPS || '',
         LEGALAREA: props.LEGALAREA || 0,
-        EFFECTDATE: props.EFFECTDATE,
-        ENDDATE: props.ENDDATE,
         SRCREF: props.SRCREF || '',
         ACRES: props.ACRES || 0,
         SQMILES: props.SQMILES || 0,
         OLDNAME: props.OLDNAME || '',
         NPU: props.NPU || '',
         CREATED_US: props.CREATED_US || '',
-        CREATED_DA: props.CREATED_DA,
         LAST_EDITE: props.LAST_EDITE || '',
         LAST_EDI_1: props.LAST_EDI_1 || '',
         GLOBALID: props.GLOBALID || '',
         Shape_Leng: props.Shape_Leng || 0,
+        Shape__Area: props.Shape__Area || props.Shape_Area || 0,
+        Shape__Length: props.Shape__Length || props.Shape_Length || 0,
         aggregatio: props.aggregatio || '',
         HasData: props.HasData || 0,
         ORIGINAL_O: props.ORIGINAL_O || 0,
@@ -451,11 +447,9 @@ export function buildNeighborhoodProperties(
         commute__4: props.commute__4 || 0,
         commute__5: props.commute__5 || 0,
         commute__6: props.commute__6 || 0,
-        Shape__Area: props.Shape__Area || 0,
-        Shape__Length: props.Shape__Length || 0,
       }
     })
-    .filter((props) => props !== null) as NeighborhoodProperties[]
+    .filter((props): props is NeighborhoodProperties => props !== null)
 }
 
 export async function* simulatePolicy(
@@ -464,8 +458,11 @@ export async function* simulatePolicy(
   selectedZones: string[],
   neighborhoodsData: GeoJSON.FeatureCollection
 ): AsyncGenerator<SimulationChunk> {
-
   const neighborhoodProperties = buildNeighborhoodProperties(selectedZones, neighborhoodsData)
+  
+  const zonesToSend = selectedZones.length === 0
+    ? neighborhoodProperties.map((props) => props.OBJECTID_1.toString())
+    : selectedZones
   
   const payload = {
     prompt,
@@ -478,7 +475,7 @@ export async function* simulatePolicy(
       airQualityIndex: cityMetrics.airQualityIndex,
       crimeRate: cityMetrics.crimeRate,
     },
-    selectedZones,
+    selectedZones: zonesToSend,
     neighborhoodProperties,
   }
 
@@ -496,9 +493,9 @@ export async function* simulatePolicy(
   console.log('Backend response status:', response.status, response.statusText)
 
   if (!response.ok) {
-    const errorText = await response.text()
+    const errorText = await response.text().catch(() => 'Could not read error message')
     console.error('Backend error response:', errorText)
-    throw new Error(`Backend error: ${response.status} ${response.statusText}`)
+    throw new Error(`Backend error: ${response.status} ${response.statusText}\n${errorText}`)
   }
 
   const reader = response.body?.getReader()
