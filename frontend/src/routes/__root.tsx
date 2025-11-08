@@ -25,13 +25,22 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'Atlanta City Simulation',
+        title: 'Mimic',
       },
     ],
     links: [
       {
         rel: 'stylesheet',
         href: appCss,
+      },
+      {
+        rel: 'icon',
+        type: 'image/png',
+        href: '/mimic_logo.png',
+      },
+      {
+        rel: 'apple-touch-icon',
+        href: '/mimic_logo.png',
       },
     ],
   }),
