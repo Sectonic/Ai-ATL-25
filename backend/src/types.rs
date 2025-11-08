@@ -8,305 +8,94 @@
 
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct EducationDistribution {
+    #[serde(rename = "high_school_or_less")]
+    pub high_school_or_less: f64,
+    #[serde(rename = "some_college")]
+    pub some_college: f64,
+    pub bachelors: f64,
+    pub graduate: f64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RaceDistribution {
+    pub white: f64,
+    pub black: f64,
+    pub asian: f64,
+    pub mixed: f64,
+    pub hispanic: f64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Commute {
+    #[serde(rename = "avg_minutes")]
+    pub avg_minutes: f64,
+    #[serde(rename = "car_dependence")]
+    pub car_dependence: f64,
+    #[serde(rename = "transit_usage")]
+    pub transit_usage: f64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Derived {
+    #[serde(rename = "higher_ed_percent")]
+    pub higher_ed_percent: f64,
+    #[serde(rename = "density_index")]
+    pub density_index: f64,
+}
+
 /// Neighborhood demographic and geographic properties
 ///
 /// Contains comprehensive data about Atlanta neighborhoods including:
-/// - Geographic information (area, coordinates, boundaries)
-/// - Demographic data (population, gender, race, education)
+/// - Geographic information (area)
+/// - Demographic data (population, race, education)
 /// - Housing data (units, ownership, vacancy)
 /// - Economic indicators (household income, home values)
 /// - Commute patterns
 ///
 /// This data is used by the AI to generate realistic, neighborhood-specific
 /// simulation results based on actual Atlanta neighborhood characteristics.
+/// The `name` field serves as the unique identifier for each neighborhood.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NeighborhoodProperties {
-    #[serde(rename = "OBJECTID_1")]
-    pub objectid_1: i32,
-    #[serde(rename = "OBJECTID")]
-    pub objectid: Option<i32>,
-    #[serde(rename = "LOCALID")]
-    pub localid: String,
-    #[serde(rename = "NAME")]
     pub name: String,
-    #[serde(rename = "GEOTYPE")]
-    pub geotype: String,
-    #[serde(rename = "FULLFIPS")]
-    pub fullfips: String,
-    #[serde(rename = "LEGALAREA")]
-    pub legalarea: f64,
-    #[serde(rename = "EFFECTDATE")]
-    pub effectdate: Option<String>,
-    #[serde(rename = "ENDDATE")]
-    pub enddate: Option<String>,
-    #[serde(rename = "SRCREF")]
-    pub srcref: String,
-    #[serde(rename = "ACRES")]
-    pub acres: f64,
-    #[serde(rename = "SQMILES")]
-    pub sqmiles: f64,
-    #[serde(rename = "OLDNAME")]
-    pub oldname: String,
-    #[serde(rename = "NPU")]
     pub npu: String,
-    #[serde(rename = "CREATED_US")]
-    pub created_us: String,
-    #[serde(rename = "CREATED_DA")]
-    pub created_da: Option<String>,
-    #[serde(rename = "LAST_EDITE")]
-    pub last_edite: String,
-    #[serde(rename = "LAST_EDI_1")]
-    pub last_edi_1: String,
-    #[serde(rename = "GLOBALID")]
-    pub globalid: String,
-    #[serde(rename = "Shape_Leng")]
-    pub shape_leng: f64,
-    #[serde(rename = "aggregatio")]
-    pub aggregatio: String,
-    #[serde(rename = "HasData")]
-    pub has_data: i32,
-    #[serde(rename = "ORIGINAL_O")]
-    pub original_o: i32,
-    #[serde(rename = "sourceCoun")]
-    pub source_coun: String,
-    #[serde(rename = "apportionm")]
-    pub apportionm: f64,
-    #[serde(rename = "population")]
-    pub population: f64,
-    #[serde(rename = "populati_1")]
-    pub populati_1: i32,
-    #[serde(rename = "gender_MED")]
-    pub gender_med: f64,
-    #[serde(rename = "gender_MAL")]
-    pub gender_mal: i32,
-    #[serde(rename = "gender_M_1")]
-    pub gender_m_1: f64,
-    #[serde(rename = "gender_M_2")]
-    pub gender_m_2: i32,
-    #[serde(rename = "gender_M_3")]
-    pub gender_m_3: f64,
-    #[serde(rename = "gender_M_4")]
-    pub gender_m_4: i32,
-    #[serde(rename = "gender_M_5")]
-    pub gender_m_5: f64,
-    #[serde(rename = "gender_M_6")]
-    pub gender_m_6: i32,
-    #[serde(rename = "gender_M_7")]
-    pub gender_m_7: f64,
-    #[serde(rename = "gender_M_8")]
-    pub gender_m_8: i32,
-    #[serde(rename = "gender_M_9")]
-    pub gender_m_9: f64,
-    #[serde(rename = "gender__10")]
-    pub gender_10: i32,
-    #[serde(rename = "gender__11")]
-    pub gender_11: f64,
-    #[serde(rename = "gender__12")]
-    pub gender_12: i32,
-    #[serde(rename = "gender__13")]
-    pub gender_13: f64,
-    #[serde(rename = "gender__14")]
-    pub gender_14: i32,
-    #[serde(rename = "gender__15")]
-    pub gender_15: f64,
-    #[serde(rename = "gender__16")]
-    pub gender_16: i32,
-    #[serde(rename = "gender__17")]
-    pub gender_17: f64,
-    #[serde(rename = "gender__18")]
-    pub gender_18: i32,
-    #[serde(rename = "gender__19")]
-    pub gender_19: f64,
-    #[serde(rename = "gender__20")]
-    pub gender_20: i32,
-    #[serde(rename = "gender__21")]
-    pub gender_21: f64,
-    #[serde(rename = "gender__22")]
-    pub gender_22: i32,
-    #[serde(rename = "gender__23")]
-    pub gender_23: f64,
-    #[serde(rename = "gender__24")]
-    pub gender_24: i32,
-    #[serde(rename = "gender__25")]
-    pub gender_25: f64,
-    #[serde(rename = "gender__26")]
-    pub gender_26: i32,
-    #[serde(rename = "gender__27")]
-    pub gender_27: f64,
-    #[serde(rename = "gender_FEM")]
-    pub gender_fem: i32,
-    #[serde(rename = "gender_F_1")]
-    pub gender_f_1: f64,
-    #[serde(rename = "gender_F_2")]
-    pub gender_f_2: i32,
-    #[serde(rename = "gender_F_3")]
-    pub gender_f_3: f64,
-    #[serde(rename = "gender_F_4")]
-    pub gender_f_4: i32,
-    #[serde(rename = "gender_F_5")]
-    pub gender_f_5: f64,
-    #[serde(rename = "gender_F_6")]
-    pub gender_f_6: i32,
-    #[serde(rename = "gender_F_7")]
-    pub gender_f_7: f64,
-    #[serde(rename = "gender_F_8")]
-    pub gender_f_8: i32,
-    #[serde(rename = "gender_F_9")]
-    pub gender_f_9: f64,
-    #[serde(rename = "gender__28")]
-    pub gender_28: i32,
-    #[serde(rename = "gender__29")]
-    pub gender_29: f64,
-    #[serde(rename = "gender__30")]
-    pub gender_30: i32,
-    #[serde(rename = "gender__31")]
-    pub gender_31: f64,
-    #[serde(rename = "gender__32")]
-    pub gender_32: i32,
-    #[serde(rename = "gender__33")]
-    pub gender_33: f64,
-    #[serde(rename = "gender__34")]
-    pub gender_34: i32,
-    #[serde(rename = "gender__35")]
-    pub gender_35: f64,
-    #[serde(rename = "gender__36")]
-    pub gender_36: i32,
-    #[serde(rename = "gender__37")]
-    pub gender_37: f64,
-    #[serde(rename = "gender__38")]
-    pub gender_38: i32,
-    #[serde(rename = "gender__39")]
-    pub gender_39: f64,
-    #[serde(rename = "gender__40")]
-    pub gender_40: i32,
-    #[serde(rename = "gender__41")]
-    pub gender_41: f64,
-    #[serde(rename = "gender__42")]
-    pub gender_42: i32,
-    #[serde(rename = "gender__43")]
-    pub gender_43: f64,
-    #[serde(rename = "gender__44")]
-    pub gender_44: i32,
-    #[serde(rename = "gender__45")]
-    pub gender_45: f64,
-    #[serde(rename = "householdt")]
-    pub householdt: i32,
-    #[serde(rename = "OwnerRente")]
-    pub owner_rente: i32,
-    #[serde(rename = "OwnerRen_1")]
-    pub owner_ren_1: f64,
-    #[serde(rename = "OwnerRen_2")]
-    pub owner_ren_2: i32,
-    #[serde(rename = "OwnerRen_3")]
-    pub owner_ren_3: f64,
-    #[serde(rename = "housinguni")]
-    pub housinguni: i32,
-    #[serde(rename = "vacant_VAC")]
-    pub vacant_vac: i32,
-    #[serde(rename = "vacant_V_1")]
-    pub vacant_v_1: f64,
-    #[serde(rename = "raceandhis")]
-    pub raceandhis: i32,
-    #[serde(rename = "raceandh_1")]
-    pub raceandh_1: f64,
-    #[serde(rename = "raceandh_2")]
-    pub raceandh_2: i32,
-    #[serde(rename = "raceandh_3")]
-    pub raceandh_3: f64,
-    #[serde(rename = "raceandh_4")]
-    pub raceandh_4: i32,
-    #[serde(rename = "raceandh_5")]
-    pub raceandh_5: f64,
-    #[serde(rename = "raceandh_6")]
-    pub raceandh_6: i32,
-    #[serde(rename = "raceandh_7")]
-    pub raceandh_7: f64,
-    #[serde(rename = "raceandh_8")]
-    pub raceandh_8: i32,
-    #[serde(rename = "raceandh_9")]
-    pub raceandh_9: f64,
-    #[serde(rename = "raceand_10")]
-    pub raceand_10: i32,
-    #[serde(rename = "raceand_11")]
-    pub raceand_11: f64,
-    #[serde(rename = "hispanicor")]
-    pub hispanicor: i32,
-    #[serde(rename = "hispanic_1")]
-    pub hispanic_1: f64,
-    #[serde(rename = "educationa")]
-    pub educationa: f64,
-    #[serde(rename = "educatio_1")]
-    pub educatio_1: f64,
-    #[serde(rename = "educatio_2")]
-    pub educatio_2: f64,
-    #[serde(rename = "educatio_3")]
-    pub educatio_3: f64,
-    #[serde(rename = "educatio_4")]
-    pub educatio_4: f64,
-    #[serde(rename = "educatio_5")]
-    pub educatio_5: f64,
-    #[serde(rename = "educatio_6")]
-    pub educatio_6: f64,
-    #[serde(rename = "househol_1")]
-    pub househol_1: f64,
-    #[serde(rename = "households")]
-    pub households: f64,
-    #[serde(rename = "householdi")]
-    pub householdi: i64,
-    #[serde(rename = "homevalue_")]
-    pub homevalue: i64,
-    #[serde(rename = "F5yearincre")]
-    pub f5yearincre: f64,
-    #[serde(rename = "unitsinstr")]
-    pub unitsinstr: i32,
-    #[serde(rename = "unitsins_1")]
-    pub unitsins_1: f64,
-    #[serde(rename = "unitsins_2")]
-    pub unitsins_2: i32,
-    #[serde(rename = "unitsins_3")]
-    pub unitsins_3: f64,
-    #[serde(rename = "unitsins_4")]
-    pub unitsins_4: i32,
-    #[serde(rename = "unitsins_5")]
-    pub unitsins_5: f64,
-    #[serde(rename = "unitsins_6")]
-    pub unitsins_6: i32,
-    #[serde(rename = "unitsins_7")]
-    pub unitsins_7: f64,
-    #[serde(rename = "unitsins_8")]
-    pub unitsins_8: i32,
-    #[serde(rename = "unitsins_9")]
-    pub unitsins_9: f64,
-    #[serde(rename = "unitsin_10")]
-    pub unitsin_10: i32,
-    #[serde(rename = "unitsin_11")]
-    pub unitsin_11: f64,
-    #[serde(rename = "unitsin_12")]
-    pub unitsin_12: i32,
-    #[serde(rename = "unitsin_13")]
-    pub unitsin_13: f64,
-    #[serde(rename = "unitsin_14")]
-    pub unitsin_14: i32,
-    #[serde(rename = "unitsin_15")]
-    pub unitsin_15: f64,
-    #[serde(rename = "commute_AC")]
-    pub commute_ac: f64,
-    #[serde(rename = "commute__1")]
-    pub commute_1: f64,
-    #[serde(rename = "commute__2")]
-    pub commute_2: f64,
-    #[serde(rename = "commute__3")]
-    pub commute_3: f64,
-    #[serde(rename = "commute__4")]
-    pub commute_4: f64,
-    #[serde(rename = "commute__5")]
-    pub commute_5: f64,
-    #[serde(rename = "commute__6")]
-    pub commute_6: f64,
-    #[serde(rename = "Shape__Area")]
-    pub shape_area: f64,
-    #[serde(rename = "Shape__Length")]
-    pub shape_length: f64,
+    #[serde(rename = "area_acres")]
+    pub area_acres: f64,
+    #[serde(rename = "population_total")]
+    pub population_total: i32,
+    #[serde(rename = "median_age")]
+    pub median_age: f64,
+    #[serde(rename = "population_density")]
+    pub population_density: f64,
+    #[serde(rename = "median_income")]
+    pub median_income: i32,
+    #[serde(rename = "median_home_value")]
+    pub median_home_value: i32,
+    #[serde(rename = "affordability_index")]
+    pub affordability_index: f64,
+    #[serde(rename = "housing_units")]
+    pub housing_units: i32,
+    pub households: i32,
+    #[serde(rename = "vacant_units")]
+    pub vacant_units: i32,
+    #[serde(rename = "vacancy_rate")]
+    pub vacancy_rate: f64,
+    #[serde(rename = "owner_occupancy")]
+    pub owner_occupancy: f64,
+    #[serde(rename = "housing_density")]
+    pub housing_density: f64,
+    #[serde(rename = "education_distribution")]
+    pub education_distribution: EducationDistribution,
+    #[serde(rename = "race_distribution")]
+    pub race_distribution: RaceDistribution,
+    #[serde(rename = "diversity_index")]
+    pub diversity_index: f64,
+    #[serde(rename = "livability_index")]
+    pub livability_index: f64,
+    pub commute: Commute,
+    pub derived: Derived,
 }
 
 /// City-wide metrics representing the overall state of Atlanta
@@ -355,10 +144,13 @@ pub struct CityMetrics {
         skip_serializing_if = "Option::is_none"
     )]
     pub air_quality_index_change: Option<f64>,
-    #[serde(rename = "crimeRate")]
-    pub crime_rate: f64,
-    #[serde(rename = "crimeRateChange", skip_serializing_if = "Option::is_none")]
-    pub crime_rate_change: Option<f64>,
+    #[serde(rename = "livabilityIndex")]
+    pub livability_index: f64,
+    #[serde(
+        rename = "livabilityIndexChange",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub livability_index_change: Option<f64>,
 }
 
 /// Types of events that can occur in a simulation
@@ -371,7 +163,6 @@ pub enum EventType {
     Economic,
     Environmental,
 }
-
 
 /// An event that occurs as a result of a policy implementation
 ///
@@ -499,10 +290,13 @@ pub struct PartialCityMetrics {
         skip_serializing_if = "Option::is_none"
     )]
     pub air_quality_index_change: Option<f64>,
-    #[serde(rename = "crimeRate", skip_serializing_if = "Option::is_none")]
-    pub crime_rate: Option<f64>,
-    #[serde(rename = "crimeRateChange", skip_serializing_if = "Option::is_none")]
-    pub crime_rate_change: Option<f64>,
+    #[serde(rename = "livabilityIndex", skip_serializing_if = "Option::is_none")]
+    pub livability_index: Option<f64>,
+    #[serde(
+        rename = "livabilityIndexChange",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub livability_index_change: Option<f64>,
 }
 
 impl Default for PartialCityMetrics {
@@ -520,8 +314,8 @@ impl Default for PartialCityMetrics {
             traffic_congestion_index_change: None,
             air_quality_index: None,
             air_quality_index_change: None,
-            crime_rate: None,
-            crime_rate_change: None,
+            livability_index: None,
+            livability_index_change: None,
         }
     }
 }
