@@ -77,12 +77,9 @@ export function DragSelection({ features }: DragSelectionProps) {
     features.forEach((feature) => {
       if (!feature.properties) return
       
-      const featureId = feature.properties.OBJECTID_1 || 
-                       feature.properties.OBJECTID || 
-                       feature.properties.id || 
-                       feature.properties.NAME
+      const featureName = feature.properties.name
       
-      if (!featureId) return
+      if (!featureName) return
 
       let centerLat = 0
       let centerLng = 0
@@ -111,7 +108,7 @@ export function DragSelection({ features }: DragSelectionProps) {
         const centerPoint = L.latLng(centerLat, centerLng)
 
         if (bounds.contains(centerPoint)) {
-          selectedFeatureIds.push(featureId.toString())
+          selectedFeatureIds.push(featureName)
         }
       }
     })

@@ -172,7 +172,7 @@ export function CommandPanel() {
   }
 
   return (
-    <div className="fixed bottom-4 left-[49.2%] -translate-x-1/2 w-[calc(50%-50px)] z-10 pointer-events-none">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(60%-6rem)] z-10 pointer-events-none">
       <motion.div layout transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}>
         <AnimatePresence>
           {simulationStatus !== 'loading' && (

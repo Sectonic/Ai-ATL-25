@@ -1,30 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { useNeighborhoods } from '../services/geojsonApi'
 import { useSimulationStore } from '../stores/simulationStore'
-import type { ZoneData } from '../stores/simulationStore'
+import type { ZoneData, NeighborhoodProperties } from '../stores/simulationStore'
 
-const calculateTrafficFlow = (population: number, area: number, commuteData: any): number => {
-  if (area <= 0) return 0
-  
-  const density = population / area
-  const baseTraffic = density * 0.5
-  
-  let commuteTraffic = 0
-  if (commuteData) {
-    const driveAlone = commuteData.commute_AC || 0
-    const carpool = (commuteData.commute__1 || 0) + (commuteData.commute__2 || 0)
-    const publicTransit = commuteData.commute__3 || 0
-    const walk = commuteData.commute__4 || 0
-    const other = (commuteData.commute__5 || 0) + (commuteData.commute__6 || 0)
-    
-    const totalCommuters = driveAlone + carpool + publicTransit + walk + other
-    if (totalCommuters > 0) {
-      const vehicleRatio = (driveAlone + carpool * 0.5) / totalCommuters
-      commuteTraffic = vehicleRatio * 100
-    }
-  }
-  
-  return Math.round(baseTraffic + commuteTraffic)
+const calculateTrafficFlow = (carDependence: number, densityIndex: number): number => {
+  return Math.round(carDependence + (densityIndex * 100))
 }
 
 const calculateEconomicIndex = (homeValue: number, income: number): number => {
@@ -48,44 +28,75 @@ export function useZoneDataInitializer() {
     neighborhoodsData.features.forEach((feature) => {
       if (!feature.properties) return
 
-      const zoneId = feature.properties.OBJECTID_1?.toString() || 
-                     feature.properties.OBJECTID?.toString() || 
-                     feature.properties.id?.toString()
+      const neighborhoodName = feature.properties.name
       
-      if (!zoneId) return
+      if (!neighborhoodName) return
 
-      if (initializedZonesRef.current.has(zoneId)) return
+      if (initializedZonesRef.current.has(neighborhoodName)) return
       
-      if (zoneId in currentZoneData) return
+      if (neighborhoodName in currentZoneData) return
 
       const props = feature.properties
-      const population = props.populati_1 || props.population || 0
-      const housingUnits = props.housinguni || 0
-      const area = props.SQMILES || (props.ACRES ? props.ACRES / 640 : 0) || 0.1
-      const homeValue = props.homevalue_ || props.homevalue || 0
-      const income = props.householdi || 0
       
-      const commuteData = {
-        commute_AC: props.commute_AC || 0,
-        commute__1: props.commute__1 || 0,
-        commute__2: props.commute__2 || 0,
-        commute__3: props.commute__3 || 0,
-        commute__4: props.commute__4 || 0,
-        commute__5: props.commute__5 || 0,
-        commute__6: props.commute__6 || 0,
+      const properties: NeighborhoodProperties = {
+        name: props.name,
+        npu: props.npu || '',
+        area_acres: props.area_acres || 0,
+        population_total: props.population_total || 0,
+        median_age: props.median_age || 0,
+        population_density: props.population_density || 0,
+        median_income: props.median_income || 0,
+        median_home_value: props.median_home_value || 0,
+        affordability_index: props.affordability_index || 0,
+        housing_units: props.housing_units || 0,
+        households: props.households || 0,
+        vacant_units: props.vacant_units || 0,
+        vacancy_rate: props.vacancy_rate || 0,
+        owner_occupancy: props.owner_occupancy || 0,
+        housing_density: props.housing_density || 0,
+        education_distribution: props.education_distribution || {
+          high_school_or_less: 0,
+          some_college: 0,
+          bachelors: 0,
+          graduate: 0,
+        },
+        race_distribution: props.race_distribution || {
+          white: 0,
+          black: 0,
+          asian: 0,
+          mixed: 0,
+          hispanic: 0,
+        },
+        diversity_index: props.diversity_index || 0,
+        commute: props.commute || {
+          avg_minutes: 0,
+          car_dependence: 0,
+          transit_usage: 0,
+        },
+        derived: props.derived || {
+          higher_ed_percent: 0,
+          density_index: 0,
+        },
       }
 
       const zoneDataEntry: ZoneData = {
-        zoneId,
-        zoneName: props.NAME || `Zone ${zoneId}`,
-        population: Math.round(population),
-        housingUnits: Math.round(housingUnits),
-        trafficFlow: calculateTrafficFlow(population, area, commuteData),
-        economicIndex: calculateEconomicIndex(homeValue, income),
+        zoneId: neighborhoodName,
+        zoneName: neighborhoodName,
+        population: Math.round(properties.population_total),
+        housingUnits: Math.round(properties.housing_units),
+        trafficFlow: calculateTrafficFlow(
+          properties.commute.car_dependence,
+          properties.derived.density_index
+        ),
+        economicIndex: calculateEconomicIndex(
+          properties.median_home_value,
+          properties.median_income
+        ),
+        properties,
       }
 
-      updateZoneData(zoneId, zoneDataEntry)
-      initializedZonesRef.current.add(zoneId)
+      updateZoneData(neighborhoodName, zoneDataEntry)
+      initializedZonesRef.current.add(neighborhoodName)
     })
   }, [neighborhoodsData, isLoading, updateZoneData])
 }

@@ -1,8 +1,31 @@
 import { useRef, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSimulationStore, type EventNotification } from '../../stores/simulationStore'
-import { TrendingUp, Home, Users, Leaf, DollarSign, X } from 'lucide-react'
+import { TrendingUp, Home, Users, Leaf, DollarSign, X, ChevronDown } from 'lucide-react'
 import { getEventColor } from '../../lib/eventColors'
+
+const cities = [
+  'Atlanta, GA',
+  'New York, NY',
+  'Los Angeles, CA',
+  'Chicago, IL',
+  'Houston, TX',
+  'Phoenix, AZ',
+  'Philadelphia, PA',
+  'San Antonio, TX',
+  'San Diego, CA',
+  'Dallas, TX',
+  'San Jose, CA',
+  'Austin, TX',
+  'Jacksonville, FL',
+  'Fort Worth, TX',
+  'Columbus, OH',
+  'Charlotte, NC',
+  'San Francisco, CA',
+  'Indianapolis, IN',
+  'Seattle, WA',
+  'Denver, CO',
+]
 
 const eventIcons = {
   traffic: TrendingUp,
@@ -188,6 +211,25 @@ export function EventNotificationPanel() {
   const selectedEvent = eventNotifications.find((e) => e.id === selectedEventId)
   const containerRef = useRef<HTMLDivElement>(null)
   const [showGradient, setShowGradient] = useState(false)
+  const [selectedCity, setSelectedCity] = useState('Atlanta, GA')
+  const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false)
+  const cityDropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target as Node)) {
+        setIsCityDropdownOpen(false)
+      }
+    }
+
+    if (isCityDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isCityDropdownOpen])
 
   useEffect(() => {
     const checkOverflow = () => {
@@ -220,15 +262,75 @@ export function EventNotificationPanel() {
     }
   }, [eventNotifications, selectedEvent])
 
-  if (eventNotifications.length === 0) {
-    return null
-  }
-
   return (
-    <div className="fixed left-3 top-[160px] bottom-0 w-1/4 z-10 pointer-events-none">
-      <div className="relative h-full">
-        <div ref={containerRef} className="h-full overflow-y-auto pr-2 pl-1 scrollbar-hide" style={{ overflowX: 'visible' }}>
-          <div className="space-y-2 py-1">
+    <div className="fixed left-3 top-[80px] bottom-0 w-1/5 z-10 pointer-events-none">
+      <div className="relative h-full pointer-events-auto flex flex-col">
+        <div className="flex flex-col gap-3 mb-3 ml-1">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.3 }}
+            className="relative"
+            ref={cityDropdownRef}
+          >
+            <button
+              onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 hover:bg-white/15 transition-colors text-white text-sm font-medium"
+            >
+              <span>{selectedCity}</span>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-200 ${
+                  isCityDropdownOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            <AnimatePresence>
+              {isCityDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                  className="absolute top-full left-0 mt-2 w-64 max-h-64 overflow-y-auto rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg scrollbar-hide z-50"
+                >
+                  <div>
+                    {cities.map((city, index) => (
+                      <button
+                        key={city}
+                        onClick={() => {
+                          setSelectedCity(city)
+                          setIsCityDropdownOpen(false)
+                        }}
+                        className={`w-full px-4 py-2 text-left text-sm text-white/90 hover:bg-white/10 transition-colors cursor-pointer ${
+                          index === 0 ? 'rounded-t-xl' : ''
+                        } ${
+                          index === cities.length - 1 ? 'rounded-b-xl' : ''
+                        }`}
+                      >
+                        {city}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.4 }}
+            className="ml-1 text-xs font-medium text-white/70 uppercase tracking-wider"
+          >
+            {selectedEventId ? 'Selected Event' : 'Event Alerts'}
+          </motion.div>
+        </div>
+        
+        {eventNotifications.length > 0 && (
+          <div className="flex-1 min-h-0">
+            <div ref={containerRef} className="h-full overflow-y-auto pr-2 pl-1 scrollbar-hide" style={{ overflowX: 'visible' }}>
+              <div className="space-y-2 py-1">
             <AnimatePresence mode="wait">
               {selectedEvent ? (
                 <SelectedEventView
@@ -254,24 +356,27 @@ export function EventNotificationPanel() {
                     />
                   ))}
                 </motion.div>
-              )}
-            </AnimatePresence>
+                )}
+              </AnimatePresence>
+              </div>
+
+              <AnimatePresence>
+                {showGradient && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none z-10"
+                    style={{
+                      background: 'linear-gradient(to top, rgba(2, 2, 2, 0.95) 0%, rgba(2, 2, 2, 0.7) 20%, rgba(2, 2, 2, 0.4) 40%, rgba(2, 2, 2, 0.1) 70%, transparent 100%)'
+                    }}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
           </div>
-        </div>
-        <AnimatePresence>
-          {showGradient && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none z-10"
-            style={{
-              background: 'linear-gradient(to top, rgba(2, 2, 2, 0.95) 0%, rgba(2, 2, 2, 0.7) 20%, rgba(2, 2, 2, 0.4) 40%, rgba(2, 2, 2, 0.1) 70%, transparent 100%)'
-            }}
-            />
-          )}
-        </AnimatePresence>
+        )}
       </div>
     </div>
   )

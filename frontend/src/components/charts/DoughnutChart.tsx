@@ -34,11 +34,12 @@ export function DoughnutChart({ title, labels, data, backgroundColor }: Doughnut
           '#334155',
           '#1e293b',
         ],
-        borderColor: '#0f172a',
-        borderWidth: 2,
+        borderWidth: 0,
       },
     ],
   }
+
+  const total = data.reduce((sum, value) => sum + value, 0)
 
   const options = {
     responsive: true,
@@ -48,28 +49,42 @@ export function DoughnutChart({ title, labels, data, backgroundColor }: Doughnut
         display: true,
         position: 'bottom' as const,
         labels: {
-          color: '#cbd5e1',
+          color: '#ffffff',
           font: {
-            size: 10,
+            size: 9,
+            family: "'Space Grotesk', sans-serif",
           },
-          padding: 10,
+          padding: 8,
+          boxWidth: 8,
+          boxHeight: 8,
+          generateLabels: (chart: any) => {
+            const datasets = chart.data.datasets
+            return chart.data.labels.map((label: string, i: number) => {
+              const value = datasets[0].data[i]
+              const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'
+              return {
+                text: `${label} (${percentage}%)`,
+                fillStyle: datasets[0].backgroundColor[i],
+                fontColor: '#ffffff',
+                hidden: false,
+                index: i,
+              }
+            })
+          },
         },
       },
       title: {
-        display: true,
+        display: title ? true : false,
         text: title,
         color: '#f1f5f9',
         font: {
           size: 14,
           weight: 'normal' as const,
+          family: "'Space Grotesk', sans-serif",
         },
       },
       tooltip: {
-        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-        titleColor: '#f1f5f9',
-        bodyColor: '#cbd5e1',
-        borderColor: '#475569',
-        borderWidth: 1,
+        enabled: false,
       },
     },
   }

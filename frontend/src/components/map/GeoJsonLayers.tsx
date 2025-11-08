@@ -84,19 +84,19 @@ export function GeoJsonLayers() {
       }
     }
 
-    const featureId = feature.properties.OBJECTID_1 || feature.properties.OBJECTID || feature.properties.id || feature.properties.NAME
-    if (featureId) {
-      if (selectedZones.includes(featureId.toString())) {
-        removeSelectedZone(featureId.toString())
+    const featureName = feature.properties.name
+    if (featureName) {
+      if (selectedZones.includes(featureName)) {
+        removeSelectedZone(featureName)
       } else {
-        addSelectedZone(featureId.toString())
+        addSelectedZone(featureName)
       }
     }
   }
 
   const getFeatureStyle = (feature: any): PathOptions => {
-    const featureId = feature.properties.OBJECTID_1 || feature.properties.OBJECTID || feature.properties.id || feature.properties.NAME
-    const isSelected = featureId && selectedZones.includes(featureId.toString())
+    const featureName = feature.properties.name
+    const isSelected = featureName && selectedZones.includes(featureName)
     
     return {
       fillColor: '#808080',

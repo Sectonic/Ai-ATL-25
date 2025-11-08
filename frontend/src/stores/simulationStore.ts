@@ -23,6 +23,47 @@ export interface EventNotification {
   comments: Comment[]
 }
 
+export interface NeighborhoodProperties {
+  name: string
+  npu: string
+  area_acres: number
+  population_total: number
+  median_age: number
+  population_density: number
+  median_income: number
+  median_home_value: number
+  affordability_index: number
+  housing_units: number
+  households: number
+  vacant_units: number
+  vacancy_rate: number
+  owner_occupancy: number
+  housing_density: number
+  education_distribution: {
+    high_school_or_less: number
+    some_college: number
+    bachelors: number
+    graduate: number
+  }
+  race_distribution: {
+    white: number
+    black: number
+    asian: number
+    mixed: number
+    hispanic: number
+  }
+  diversity_index: number
+  commute: {
+    avg_minutes: number
+    car_dependence: number
+    transit_usage: number
+  }
+  derived: {
+    higher_ed_percent: number
+    density_index: number
+  }
+}
+
 export interface ZoneData {
   zoneId: string
   zoneName: string
@@ -34,6 +75,7 @@ export interface ZoneData {
   trafficFlowChange?: number
   economicIndex: number
   economicIndexChange?: number
+  properties: NeighborhoodProperties
 }
 
 export interface CityMetrics {
@@ -99,14 +141,41 @@ interface SimulationState {
   resetSimulation: () => void
 }
 
-const initialCityMetrics: CityMetrics = {
-  population: 498715,
-  averageIncome: 68500,
-  unemploymentRate: 3.8,
-  housingAffordabilityIndex: 72,
-  trafficCongestionIndex: 68,
-  airQualityIndex: 85,
-  crimeRate: 4.2,
+const computeCityMetrics = (zoneData: Record<string, ZoneData>): CityMetrics => {
+  const zones = Object.values(zoneData)
+  if (zones.length === 0) {
+    return {
+      population: 0,
+      averageIncome: 0,
+      unemploymentRate: 0,
+      housingAffordabilityIndex: 0,
+      trafficCongestionIndex: 0,
+      airQualityIndex: 0,
+      crimeRate: 0,
+    }
+  }
+
+  const totalPopulation = zones.reduce((sum, z) => sum + z.population, 0)
+  const totalIncome = zones.reduce((sum, z) => sum + (z.properties?.median_income || 0) * z.population, 0)
+  const avgIncome = totalPopulation > 0 ? totalIncome / totalPopulation : 0
+  
+  const avgAffordability = zones.reduce((sum, z) => sum + (z.properties?.affordability_index || 0), 0) / zones.length
+  const avgCarDependence = zones.reduce((sum, z) => sum + (z.properties?.commute?.car_dependence || 0), 0) / zones.length
+  const avgDensityIndex = zones.reduce((sum, z) => sum + (z.properties?.derived?.density_index || 0), 0) / zones.length
+  
+  const trafficCongestion = Math.min(100, avgCarDependence + (avgDensityIndex * 100))
+  const environmentalScore = Math.max(0, 100 - trafficCongestion)
+  const airQuality = environmentalScore
+
+  return {
+    population: totalPopulation,
+    averageIncome: Math.round(avgIncome),
+    unemploymentRate: 0,
+    housingAffordabilityIndex: Math.round(avgAffordability * 10),
+    trafficCongestionIndex: Math.round(trafficCongestion),
+    airQualityIndex: Math.round(airQuality),
+    crimeRate: 0,
+  }
 }
 
 export const useSimulationStore = create<SimulationState>((set) => ({
@@ -118,7 +187,7 @@ export const useSimulationStore = create<SimulationState>((set) => ({
   promptText: '',
   simulationSummary: '',
   zoneData: {},
-  cityMetrics: initialCityMetrics,
+  cityMetrics: computeCityMetrics({}),
   layerVisibility: {
     buildings: false,
     neighborhoods: true,
@@ -168,15 +237,19 @@ export const useSimulationStore = create<SimulationState>((set) => ({
   setPreviousMapView: (view) => set({ previousMapView: view }),
   
   updateZoneData: (zoneId, data) =>
-    set((state) => ({
-      zoneData: {
+    set((state) => {
+      const updatedZoneData = {
         ...state.zoneData,
         [zoneId]: {
           ...state.zoneData[zoneId],
           ...data,
         },
-      },
-    })),
+      }
+      return {
+        zoneData: updatedZoneData,
+        cityMetrics: computeCityMetrics(updatedZoneData),
+      }
+    }),
   
   updateCityMetrics: (metrics) =>
     set((state) => ({
@@ -204,7 +277,7 @@ export const useSimulationStore = create<SimulationState>((set) => ({
       selectedEventId: null,
       previousMapView: null,
       zoneData: {},
-      cityMetrics: initialCityMetrics,
+      cityMetrics: computeCityMetrics({}),
     }),
 }))
 
