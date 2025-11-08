@@ -1,0 +1,9 @@
+build:
+  cargo build --release
+  mv target/release/backend bin/backend
+
+run:
+  bin/backend
+  
+clean:
+  cargo clean && rm -rf bin/backend
