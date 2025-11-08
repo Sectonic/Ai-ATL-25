@@ -134,8 +134,12 @@ code {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    background-color: #020202;
+  }
   body {
     @apply bg-background text-foreground;
+    background-color: #020202;
   }
 }
 
@@ -150,4 +154,20 @@ code {
 .leaflet-popup {
   outline: none !important;
   box-shadow: none !important;
+}
+
+.leaflet-container {
+  background-color: #020202 !important;
+}
+
+.leaflet-tile-container {
+  background-color: #020202 !important;
+}
+
+.leaflet-tile {
+  background-color: #020202 !important;
+}
+
+.leaflet-tile-pane {
+  background-color: #020202 !important;
 }

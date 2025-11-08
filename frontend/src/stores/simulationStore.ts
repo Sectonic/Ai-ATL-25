@@ -2,6 +2,14 @@ import { create } from 'zustand'
 
 export type SimulationStatus = 'idle' | 'loading' | 'complete'
 
+export interface Comment {
+  id: string
+  userName: string
+  userInitials: string
+  comment: string
+  timestamp: number
+}
+
 export interface EventNotification {
   id: string
   zoneId: string
@@ -11,6 +19,7 @@ export interface EventNotification {
   severity: 'low' | 'medium' | 'high'
   timestamp: number
   coordinates: [number, number]
+  comments: Comment[]
 }
 
 export interface ZoneData {
@@ -55,10 +64,17 @@ export interface LayerVisibility {
   beltlineSubareas: boolean
 }
 
+interface MapView {
+  center: [number, number]
+  zoom: number
+}
+
 interface SimulationState {
   simulationStatus: SimulationStatus
   selectedZones: string[]
   eventNotifications: EventNotification[]
+  selectedEventId: string | null
+  previousMapView: MapView | null
   promptText: string
   processedPrompt: string
   zoneData: Record<string, ZoneData>
@@ -74,6 +90,8 @@ interface SimulationState {
   setSelectedZones: (zones: string[]) => void
   addEventNotification: (event: EventNotification) => void
   clearEventNotifications: () => void
+  setSelectedEventId: (id: string | null) => void
+  setPreviousMapView: (view: MapView | null) => void
   updateZoneData: (zoneId: string, data: Partial<ZoneData>) => void
   updateCityMetrics: (metrics: Partial<CityMetrics>) => void
   toggleLayerVisibility: (layer: keyof LayerVisibility) => void
@@ -94,6 +112,8 @@ export const useSimulationStore = create<SimulationState>((set) => ({
   simulationStatus: 'idle',
   selectedZones: [],
   eventNotifications: [],
+  selectedEventId: null,
+  previousMapView: null,
   promptText: '',
   processedPrompt: '',
   zoneData: {},
@@ -139,6 +159,10 @@ export const useSimulationStore = create<SimulationState>((set) => ({
   
   clearEventNotifications: () => set({ eventNotifications: [] }),
   
+  setSelectedEventId: (id) => set({ selectedEventId: id }),
+  
+  setPreviousMapView: (view) => set({ previousMapView: view }),
+  
   updateZoneData: (zoneId, data) =>
     set((state) => ({
       zoneData: {
@@ -173,6 +197,8 @@ export const useSimulationStore = create<SimulationState>((set) => ({
       promptText: '',
       processedPrompt: '',
       eventNotifications: [],
+      selectedEventId: null,
+      previousMapView: null,
       zoneData: {},
       cityMetrics: initialCityMetrics,
     }),

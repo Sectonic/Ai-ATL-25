@@ -1,38 +1,20 @@
-import { useState, useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { GeoJSON, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { useSimulationStore } from '../../stores/simulationStore'
 import { DragSelection } from './DragSelection'
+import { useNeighborhoods } from '../../services/geojsonApi'
 import type { PathOptions, Layer } from 'leaflet'
 import type { Feature } from 'geojson'
-
-interface GeoJSONData {
-  type: string
-  features: any[]
-}
 
 export function GeoJsonLayers() {
   const map = useMap()
   const { selectedZones, addSelectedZone, removeSelectedZone, clearSelectedZones } = useSimulationStore()
-  const [neighborhoodsData, setNeighborhoodsData] = useState<GeoJSONData | null>(null)
+  const { data: neighborhoodsData, isLoading } = useNeighborhoods()
   const clickStartTime = useRef<number>(0)
   const clickStartPos = useRef<{ x: number; y: number } | null>(null)
   const mapClickStartTime = useRef<number>(0)
   const mapClickStartPos = useRef<{ x: number; y: number } | null>(null)
-
-  useEffect(() => {
-    const loadNeighborhoods = async () => {
-      try {
-        const response = await fetch('/geojson/neighborhoods.geojson')
-        const data = await response.json()
-        setNeighborhoodsData(data)
-      } catch (error) {
-        console.error('Failed to load neighborhoods data:', error)
-      }
-    }
-
-    loadNeighborhoods()
-  }, [])
 
   useMapEvents({
     mousedown: (e: L.LeafletMouseEvent) => {
@@ -120,32 +102,32 @@ export function GeoJsonLayers() {
     }
   }
 
+  if (isLoading || !neighborhoodsData) {
+    return null
+  }
+
   return (
     <>
-      {neighborhoodsData && (
-        <>
-          <GeoJSON
-            key={`neighborhoods-${selectedZones.join(',')}`}
-            data={neighborhoodsData}
-            style={getFeatureStyle}
-            onEachFeature={(feature: Feature, layer: Layer) => {
-              layer.on({
-                mousedown: (e: L.LeafletMouseEvent) => {
-                  clickStartTime.current = Date.now()
-                  clickStartPos.current = {
-                    x: e.originalEvent.clientX,
-                    y: e.originalEvent.clientY,
-                  }
-                },
-                click: (e: L.LeafletMouseEvent) => {
-                  handleFeatureClick(feature, e)
-                },
-              })
-            }}
-          />
-          <DragSelection features={neighborhoodsData.features} />
-        </>
-      )}
+      <GeoJSON
+        key={`neighborhoods-${selectedZones.join(',')}`}
+        data={neighborhoodsData}
+        style={getFeatureStyle}
+        onEachFeature={(feature: Feature, layer: Layer) => {
+          layer.on({
+            mousedown: (e: L.LeafletMouseEvent) => {
+              clickStartTime.current = Date.now()
+              clickStartPos.current = {
+                x: e.originalEvent.clientX,
+                y: e.originalEvent.clientY,
+              }
+            },
+            click: (e: L.LeafletMouseEvent) => {
+              handleFeatureClick(feature, e)
+            },
+          })
+        }}
+      />
+      <DragSelection features={neighborhoodsData.features} />
     </>
   )
 }
