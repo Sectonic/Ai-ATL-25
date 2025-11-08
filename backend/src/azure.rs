@@ -212,7 +212,8 @@ You must return a JSON array of simulation chunks. Each chunk must be one of the
      "zoneName": "<neighborhood-name>",
      "type": "traffic" | "housing" | "population" | "economic" | "environmental",
      "description": "<detailed description of the event>",
-     "severity": "low" | "medium" | "high",
+     "severity": <number 0.0-1.0> (how impactful/significant: 0=minor, 1=major),
+     "positivity": <number -1.0 to 1.0> (how positive/negative: -1=very negative, 0=neutral, 1=very positive),
      "timestamp": <unix-timestamp>,
      "coordinates": [<latitude>, <longitude>]
    }}}}

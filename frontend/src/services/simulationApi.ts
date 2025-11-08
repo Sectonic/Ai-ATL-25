@@ -109,7 +109,7 @@ const commentTemplates = {
   },
 }
 
-function generateComments(eventType: EventNotification['type'], severity: EventNotification['severity']): Comment[] {
+function generateComments(eventType: EventNotification['type'], positivity: number): Comment[] {
   const templates = commentTemplates[eventType]
   const commentCount = Math.floor(Math.random() * 3) + 3
   
@@ -124,9 +124,9 @@ function generateComments(eventType: EventNotification['type'], severity: EventN
     usedUsers.add(userIndex)
     
     const user = fakeUsers[userIndex]
-    const sentiment = severity === 'high' 
+    const sentiment = positivity < -0.3
       ? (Math.random() > 0.3 ? 'negative' : 'neutral')
-      : severity === 'low'
+      : positivity > 0.3
       ? (Math.random() > 0.3 ? 'positive' : 'neutral')
       : (Math.random() > 0.5 ? 'positive' : Math.random() > 0.5 ? 'negative' : 'neutral')
     
@@ -468,7 +468,7 @@ export async function* simulatePolicy(
             const chunk = JSON.parse(jsonStr) as SimulationChunk
             
             if (chunk.type === 'event') {
-              const comments = generateComments(chunk.data.type, chunk.data.severity)
+              const comments = generateComments(chunk.data.type, chunk.data.positivity)
               yield {
                 type: 'event',
                 data: {

@@ -16,7 +16,8 @@ export interface EventNotification {
   zoneName: string
   type: 'traffic' | 'housing' | 'population' | 'economic' | 'environmental'
   description: string
-  severity: 'low' | 'medium' | 'high'
+  severity: number
+  positivity: number
   timestamp: number
   coordinates: [number, number]
   comments: Comment[]

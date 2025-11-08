@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSimulationStore, type EventNotification } from '../../stores/simulationStore'
 import { TrendingUp, Home, Users, Leaf, DollarSign, X } from 'lucide-react'
+import { getEventColor } from '../../lib/eventColors'
 
 const eventIcons = {
   traffic: TrendingUp,
@@ -11,19 +12,20 @@ const eventIcons = {
   economic: DollarSign,
 }
 
-const severityDotColors = {
-  low: 'bg-green-400',
-  medium: 'bg-amber-400',
-  high: 'bg-red-400',
-}
-
-function PulsatingDot({ severity }: { severity: 'low' | 'medium' | 'high' }) {
-  const colorClass = severityDotColors[severity]
+function PulsatingDot({ severity, positivity }: { severity: number; positivity: number }) {
+  const color = getEventColor(positivity, severity)
+  const size = 10 + (severity * 4)
   
   return (
-    <div className="relative flex items-center justify-center w-3 h-3 shrink-0">
-      <div className={`absolute inset-0 ${colorClass} rounded-full animate-ping opacity-75`} />
-      <div className={`relative ${colorClass} rounded-full w-3 h-3`} />
+    <div className="relative flex items-center justify-center shrink-0" style={{ width: `${size}px`, height: `${size}px` }}>
+      <div 
+        className="absolute inset-0 rounded-full animate-ping opacity-75" 
+        style={{ background: color, width: `${size}px`, height: `${size}px` }}
+      />
+      <div 
+        className="relative rounded-full" 
+        style={{ background: color, width: `${size}px`, height: `${size}px` }}
+      />
     </div>
   )
 }
@@ -110,7 +112,7 @@ function EventCard({ event, onClick }: { event: EventNotification, onClick: () =
       >
         <div className="flex items-start justify-between mb-2">
           <Icon className="w-4 h-4 shrink-0 text-white/90" />
-          <PulsatingDot severity={event.severity} />
+          <PulsatingDot severity={event.severity} positivity={event.positivity} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-medium text-sm text-white leading-tight">

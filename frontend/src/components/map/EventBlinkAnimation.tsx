@@ -2,12 +2,7 @@ import { useMap } from 'react-leaflet'
 import { useEffect, useState } from 'react'
 import { useSimulationStore, type EventNotification } from '../../stores/simulationStore'
 import { motion, AnimatePresence } from 'framer-motion'
-
-const severityColors = {
-  low: '#22c55e',
-  medium: '#f59e0b',
-  high: '#ef4444',
-}
+import { getEventColor } from '../../lib/eventColors'
 
 interface EventBlinkAnimationProps {
   event: EventNotification | null
@@ -82,7 +77,9 @@ export function EventBlinkAnimation({ event }: EventBlinkAnimationProps) {
     return null
   }
 
-  const color = severityColors[event.severity]
+  const color = getEventColor(event.positivity, event.severity)
+  const borderWidth = 2 + (event.severity * 2)
+  const glowIntensity = 20 + (event.severity * 20)
 
   return (
     <div className="pointer-events-none" style={{ position: 'absolute', inset: 0, zIndex: 400 }}>
@@ -101,12 +98,11 @@ export function EventBlinkAnimation({ event }: EventBlinkAnimationProps) {
             marginLeft: '-100px',
             marginTop: '-100px',
             borderRadius: '50%',
-            border: `3px solid ${color}`,
-            boxShadow: `0 0 30px ${color}`,
+            border: `${borderWidth}px solid ${color}`,
+            boxShadow: `0 0 ${glowIntensity}px ${color}`,
           }}
         />
       </AnimatePresence>
     </div>
   )
 }
-

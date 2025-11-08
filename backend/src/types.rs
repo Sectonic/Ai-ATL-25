@@ -372,19 +372,15 @@ pub enum EventType {
     Environmental,
 }
 
-/// Severity levels for events
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum EventSeverity {
-    Low,
-    Medium,
-    High,
-}
 
 /// An event that occurs as a result of a policy implementation
 ///
 /// Events represent specific occurrences like construction starting, traffic changes,
 /// or new developments. They are displayed on the map and in event panels.
+///
+/// ## Severity and Positivity
+/// - `severity` (0.0 to 1.0): How impactful/significant the event is (affects visual prominence)
+/// - `positivity` (-1.0 to 1.0): How positive/negative the event is (affects color: red to yellow to green)
 #[derive(Debug, Deserialize, Serialize)]
 pub struct EventNotification {
     pub id: String,
@@ -395,7 +391,8 @@ pub struct EventNotification {
     #[serde(rename = "type")]
     pub event_type: EventType,
     pub description: String,
-    pub severity: EventSeverity,
+    pub severity: f64,
+    pub positivity: f64,
     pub timestamp: i64,
     pub coordinates: Vec<f64>,
 }

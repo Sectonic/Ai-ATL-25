@@ -2,26 +2,22 @@ import { Marker, useMap } from 'react-leaflet'
 import { useSimulationStore } from '../../stores/simulationStore'
 import L from 'leaflet'
 import { useEffect } from 'react'
+import { getEventColor } from '../../lib/eventColors'
 
-const createEventIcon = (severity: 'low' | 'medium' | 'high') => {
-  const colors = {
-    low: '#22c55e',
-    medium: '#f59e0b',
-    high: '#ef4444',
-  }
-  
-  const color = colors[severity]
+const createEventIcon = (severity: number, positivity: number) => {
+  const color = getEventColor(positivity, severity)
+  const size = 16 + (severity * 8)
   
   return L.divIcon({
     html: `
-      <div class="relative">
-        <div class="absolute inset-0 animate-ping opacity-75" style="background: ${color}; border-radius: 50%; width: 20px; height: 20px;"></div>
-        <div style="background: ${color}; border-radius: 50%; width: 20px; height: 20px; border: 2px solid white;"></div>
+      <div class="relative" style="width: ${size}px; height: ${size}px;">
+        <div class="absolute inset-0 animate-ping opacity-75" style="background: ${color}; border-radius: 50%; width: ${size}px; height: ${size}px;"></div>
+        <div style="background: ${color}; border-radius: 50%; width: ${size}px; height: ${size}px; border: 2px solid white; box-shadow: 0 2px ${4 + severity * 4}px rgba(0,0,0,${0.3 + severity * 0.3});"></div>
       </div>
     `,
     className: 'event-marker',
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
   })
 }
 
@@ -45,7 +41,7 @@ export function EventMarkers() {
         <Marker
           key={event.id}
           position={event.coordinates}
-          icon={createEventIcon(event.severity)}
+          icon={createEventIcon(event.severity, event.positivity)}
           eventHandlers={{
             click: () => {
               setSelectedEventId(event.id)
@@ -56,4 +52,3 @@ export function EventMarkers() {
     </>
   )
 }
-
