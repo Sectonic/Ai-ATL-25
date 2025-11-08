@@ -397,6 +397,7 @@ export function DataPanel() {
     aggregated.educationDistribution.bachelors,
     aggregated.educationDistribution.graduate,
   ]
+  
   const educationColors = ['#525252', '#737373', '#a3a3a3', '#d4d4d4']
   const educationDeltas = aggregatedDeltas?.educationDistribution ? [
     aggregatedDeltas.educationDistribution.high_school_or_less,
