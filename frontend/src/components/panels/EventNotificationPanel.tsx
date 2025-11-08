@@ -44,6 +44,9 @@ const getEventIcon = (eventType: string) => {
   return eventIcons[eventType.toLowerCase()] || eventIcons[eventType] || TrendingUp
 }
 
+const formatTimestamp = (value: number) =>
+  new Date(value).toLocaleString(undefined, { hour: 'numeric', minute: '2-digit' })
+
 function PulsatingDot({ severity, positivity }: { severity: number; positivity: number }) {
   const color = getEventColor(positivity, severity)
   const size = 10 + (severity * 4)
@@ -62,40 +65,8 @@ function PulsatingDot({ severity, positivity }: { severity: number; positivity: 
   )
 }
 
-function SelectedEventView({ event, onClose, containerRef }: { event: EventNotification, onClose: () => void, containerRef: React.RefObject<HTMLDivElement | null> }) {
+function SelectedEventView({ event, onClose }: { event: EventNotification, onClose: () => void }) {
   const Icon = getEventIcon(event.type)
-  const [showGradient, setShowGradient] = useState(false)
-
-  useEffect(() => {
-    const checkOverflow = () => {
-      if (containerRef.current) {
-        const { scrollHeight, clientHeight, scrollTop } = containerRef.current
-        const hasOverflow = scrollHeight > clientHeight
-        const isScrolledToBottom = scrollTop + clientHeight >= scrollHeight - 10
-        setShowGradient(hasOverflow && !isScrolledToBottom)
-      }
-    }
-
-    checkOverflow()
-    window.addEventListener('resize', checkOverflow)
-    
-    const container = containerRef.current
-    if (container) {
-      container.addEventListener('scroll', checkOverflow)
-      const observer = new MutationObserver(checkOverflow)
-      observer.observe(container, { childList: true, subtree: true })
-      
-      return () => {
-        window.removeEventListener('resize', checkOverflow)
-        container.removeEventListener('scroll', checkOverflow)
-        observer.disconnect()
-      }
-    }
-
-    return () => {
-      window.removeEventListener('resize', checkOverflow)
-    }
-  }, [containerRef])
 
   return (
     <div className="relative">
@@ -104,9 +75,9 @@ function SelectedEventView({ event, onClose, containerRef }: { event: EventNotif
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.3 }}
-        className="pointer-events-auto max-h-[calc(100vh-2rem)]"
+        className="pointer-events-auto h-full"
       >
-        <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg flex flex-col max-h-[calc(100vh-2rem)]">
+        <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg flex flex-col h-full">
         <div className="flex items-start justify-between mb-3 shrink-0">
           <div className="flex items-center gap-2">
             <Icon className="w-5 h-5 shrink-0 text-white/90" />
@@ -204,44 +175,28 @@ function SelectedEventView({ event, onClose, containerRef }: { event: EventNotif
         )}
 
         <div className="border-t border-white/10 pt-4 min-h-0 flex flex-col">
-          <div className="text-sm font-medium text-white/90 mb-3 shrink-0">Reactions</div>
-          <div className="overflow-y-auto pr-2 -mr-2 space-y-3 scrollbar-hide">
+          <div className="text-sm font-medium text-white/90 mb-1 shrink-0">Constituents</div>
+          <div className="text-xs text-white/60 mb-3">Documented remarks from community members.</div>
+          <div className="space-y-3">
             {event.comments.map((comment) => (
-              <div key={comment.id} className="flex gap-3">
-                <img
-                  src={`https://ui-avatars.com/api/?name=${comment.userInitials}&background=1a1a1a&size=40&bold=true&color=fff`}
-                  alt={comment.userName}
-                  className="w-10 h-10 rounded-full shrink-0 border border-white/30"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-medium text-white/90">{comment.userName}</span>
-                    <span className="text-xs text-white/50">
-                      {new Date(comment.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                  <p className="text-sm text-white/80 leading-relaxed">{comment.comment}</p>
+              <div
+                key={comment.id}
+                className="rounded-xl border border-white/15 bg-white/5 p-3 transition-colors"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold text-white/90">{comment.userName}</span>
+                  <span className="text-xs text-white/50">{formatTimestamp(comment.timestamp)}</span>
                 </div>
+                <div className="text-[11px] uppercase tracking-widest text-white/40 mt-1">
+                  {comment.userInitials}
+                </div>
+                <p className="text-sm text-white/80 leading-relaxed mt-2">{comment.comment}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
       </motion.div>
-      <AnimatePresence>
-        {showGradient && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none z-10"
-            style={{
-              background: 'linear-gradient(to top, rgba(2, 2, 2, 0.95) 0%, rgba(2, 2, 2, 0.7) 20%, rgba(2, 2, 2, 0.4) 40%, rgba(2, 2, 2, 0.1) 70%, transparent 100%)'
-            }}
-          />
-        )}
-      </AnimatePresence>
     </div>
   )
 }
@@ -342,6 +297,12 @@ export function EventNotificationPanel() {
     }
   }, [eventNotifications, selectedEvent])
 
+  useEffect(() => {
+    if (selectedEventId && containerRef.current) {
+      containerRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }, [selectedEventId])
+
   return (
     <div className="fixed left-3 top-[80px] bottom-0 w-[22%] z-10 pointer-events-none">
       <div className="relative h-full pointer-events-auto flex flex-col">
@@ -410,14 +371,13 @@ export function EventNotificationPanel() {
         {eventNotifications.length > 0 && (
           <div className="flex-1 min-h-0">
             <div ref={containerRef} className="h-full overflow-y-auto pr-2 pl-1 scrollbar-hide" style={{ overflowX: 'visible' }}>
-              <div className="space-y-2 py-1">
+              <div className="space-y-2 py-1 h-full">
             <AnimatePresence mode="wait">
               {selectedEvent ? (
                 <SelectedEventView
                   key={`selected-${selectedEvent.id}`}
                   event={selectedEvent}
                   onClose={() => setSelectedEventId(null)}
-                  containerRef={containerRef}
                 />
               ) : (
                 <motion.div
@@ -435,7 +395,7 @@ export function EventNotificationPanel() {
                       onClick={() => setSelectedEventId(event.id)}
                     />
                   ))}
-                </motion.div>
+            </motion.div>
                 )}
               </AnimatePresence>
               </div>

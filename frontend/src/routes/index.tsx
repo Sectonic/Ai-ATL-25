@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { useState, useEffect, useRef } from 'react'
 import { Button } from '../components/ui/button'
-import { Textarea } from '../components/ui/textarea'
 import { ArrowRight } from 'lucide-react'
 import { LandingNav } from '../components/layout/LandingNav'
 
@@ -173,7 +172,7 @@ function HeroSection({ onGetStarted }: { onGetStarted: () => void }) {
               <Button
                 onClick={onGetStarted}
                 size="lg"
-                className="bg-white text-[#020202] hover:bg-white/90 hover:scale-105 text-base px-8 py-6 rounded-lg font-medium transition-all duration-200"
+                className="bg-white text-dark hover:bg-white/90 hover:scale-105 text-base px-8 py-6 rounded-lg font-medium transition-all duration-200"
               >
                 Get Started
                 <ArrowRight className="w-4 h-4 ml-2" />

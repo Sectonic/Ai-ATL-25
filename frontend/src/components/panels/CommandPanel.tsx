@@ -250,7 +250,7 @@ export function CommandPanel() {
   }
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(60%-6rem)] z-10 pointer-events-none">
+    <div className="fixed bottom-4 left-[50.575%] -translate-x-1/2 w-[calc(60%-6rem)] z-10 pointer-events-none">
       <motion.div layout transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}>
         <AnimatePresence>
           {simulationStatus !== 'loading' && (
@@ -398,9 +398,9 @@ export function CommandPanel() {
               <div className="relative rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
                 <div className="p-4">
                   <div className="text-xs text-white/60 mb-2">
-                    Summary:
+                    Summary
                   </div>
-                  <div className="text-sm text-white/90 leading-relaxed opacity-90 cursor-default select-none">
+                  <div className="text-sm text-white/90 leading-relaxed opacity-90 cursor-default select-none max-h-24 overflow-y-auto pr-2 scrollbar-hide">
                     <TypewriterText text={simulationSummary} />
                   </div>
                 </div>
