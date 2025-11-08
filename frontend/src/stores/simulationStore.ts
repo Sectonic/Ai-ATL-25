@@ -159,7 +159,10 @@ export const useSimulationStore = create<SimulationState>((set) => ({
   
   clearEventNotifications: () => set({ eventNotifications: [] }),
   
-  setSelectedEventId: (id) => set({ selectedEventId: id }),
+  setSelectedEventId: (id) => set((state) => ({ 
+    selectedEventId: id,
+    selectedZones: id ? [] : state.selectedZones, 
+  })),
   
   setPreviousMapView: (view) => set({ previousMapView: view }),
   

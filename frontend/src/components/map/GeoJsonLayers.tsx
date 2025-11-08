@@ -9,7 +9,7 @@ import type { Feature } from 'geojson'
 
 export function GeoJsonLayers() {
   const map = useMap()
-  const { selectedZones, addSelectedZone, removeSelectedZone, clearSelectedZones } = useSimulationStore()
+  const { selectedZones, addSelectedZone, removeSelectedZone, clearSelectedZones, selectedEventId, simulationStatus } = useSimulationStore()
   const { data: neighborhoodsData, isLoading } = useNeighborhoods()
   const clickStartTime = useRef<number>(0)
   const clickStartPos = useRef<{ x: number; y: number } | null>(null)
@@ -37,7 +37,7 @@ export function GeoJsonLayers() {
       }
     },
     click: (e: L.LeafletMouseEvent) => {
-      if (e.originalEvent.shiftKey) {
+      if (e.originalEvent.shiftKey || selectedEventId || simulationStatus === 'loading') {
         return
       }
 
@@ -66,6 +66,10 @@ export function GeoJsonLayers() {
   })
 
   const handleFeatureClick = (feature: any, e: L.LeafletMouseEvent) => {
+    if (selectedEventId || simulationStatus === 'loading') {
+      return
+    }
+
     const timeDiff = Date.now() - clickStartTime.current
     const isQuickClick = timeDiff < 200
     
@@ -109,7 +113,7 @@ export function GeoJsonLayers() {
   return (
     <>
       <GeoJSON
-        key={`neighborhoods-${selectedZones.join(',')}`}
+        key={`neighborhoods-${selectedZones.join(',')}-${selectedEventId}-${simulationStatus}`}
         data={neighborhoodsData}
         style={getFeatureStyle}
         onEachFeature={(feature: Feature, layer: Layer) => {
