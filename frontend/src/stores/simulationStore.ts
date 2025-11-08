@@ -92,8 +92,8 @@ export interface CityMetrics {
   trafficCongestionIndexChange?: number
   airQualityIndex: number
   airQualityIndexChange?: number
-  crimeRate: number
-  crimeRateChange?: number
+  livabilityIndex: number
+  livabilityIndexChange?: number
 }
 
 export interface LayerVisibility {
@@ -124,7 +124,7 @@ interface SimulationState {
   zoneData: Record<string, ZoneData>
   cityMetrics: CityMetrics
   layerVisibility: LayerVisibility
-  
+
   setSimulationStatus: (status: SimulationStatus) => void
   setPromptText: (text: string) => void
   setSimulationSummary: (summary: string) => void
@@ -152,18 +152,19 @@ const computeCityMetrics = (zoneData: Record<string, ZoneData>): CityMetrics => 
       housingAffordabilityIndex: 0,
       trafficCongestionIndex: 0,
       airQualityIndex: 0,
-      crimeRate: 0,
+      livabilityIndex: 0,
     }
   }
 
   const totalPopulation = zones.reduce((sum, z) => sum + z.population, 0)
   const totalIncome = zones.reduce((sum, z) => sum + (z.properties?.median_income || 0) * z.population, 0)
   const avgIncome = totalPopulation > 0 ? totalIncome / totalPopulation : 0
-  
+
   const avgAffordability = zones.reduce((sum, z) => sum + (z.properties?.affordability_index || 0), 0) / zones.length
   const avgCarDependence = zones.reduce((sum, z) => sum + (z.properties?.commute?.car_dependence || 0), 0) / zones.length
   const avgDensityIndex = zones.reduce((sum, z) => sum + (z.properties?.derived?.density_index || 0), 0) / zones.length
-  
+  const avgLivability = zones.reduce((sum, z) => sum + (z.properties?.livability_index || 0), 0) / zones.length
+
   const trafficCongestion = Math.min(100, avgCarDependence + (avgDensityIndex * 100))
   const environmentalScore = Math.max(0, 100 - trafficCongestion)
   const airQuality = environmentalScore
@@ -175,7 +176,7 @@ const computeCityMetrics = (zoneData: Record<string, ZoneData>): CityMetrics => 
     housingAffordabilityIndex: Math.round(avgAffordability * 10),
     trafficCongestionIndex: Math.round(trafficCongestion),
     airQualityIndex: Math.round(airQuality),
-    crimeRate: 0,
+    livabilityIndex: Math.round(avgLivability),
   }
 }
 
@@ -200,43 +201,43 @@ export const useSimulationStore = create<SimulationState>((set) => ({
     cityLimits: true,
     beltlineSubareas: false,
   },
-  
+
   setSimulationStatus: (status) => set({ simulationStatus: status }),
-  
+
   setPromptText: (text) => set({ promptText: text }),
-  
+
   setSimulationSummary: (summary) => set({ simulationSummary: summary }),
-  
+
   addSelectedZone: (zoneId) =>
     set((state) => ({
       selectedZones: state.selectedZones.includes(zoneId)
         ? state.selectedZones
         : [...state.selectedZones, zoneId],
     })),
-  
+
   removeSelectedZone: (zoneId) =>
     set((state) => ({
       selectedZones: state.selectedZones.filter((id) => id !== zoneId),
     })),
-  
+
   clearSelectedZones: () => set({ selectedZones: [] }),
-  
+
   setSelectedZones: (zones) => set({ selectedZones: zones }),
-  
+
   addEventNotification: (event) =>
     set((state) => ({
       eventNotifications: [...state.eventNotifications, event],
     })),
-  
+
   clearEventNotifications: () => set({ eventNotifications: [] }),
-  
-  setSelectedEventId: (id) => set((state) => ({ 
+
+  setSelectedEventId: (id) => set((state) => ({
     selectedEventId: id,
-    selectedZones: id ? [] : state.selectedZones, 
+    selectedZones: id ? [] : state.selectedZones,
   })),
-  
+
   setPreviousMapView: (view) => set({ previousMapView: view }),
-  
+
   updateZoneData: (zoneId, data) =>
     set((state) => {
       const updatedZoneData = {
@@ -246,12 +247,73 @@ export const useSimulationStore = create<SimulationState>((set) => ({
           ...data,
         },
       }
+      const computedMetrics = computeCityMetrics(updatedZoneData)
+      const currentMetrics = state.cityMetrics
+
+      const preserveIfSetByMetricsUpdate = (
+        current: number,
+        computed: number,
+        changeField: number | undefined
+      ): number => {
+        if (changeField !== undefined) {
+          return current
+        }
+        if (current > 0 && Math.abs(current - computed) > 1) {
+          return current
+        }
+        return computed
+      }
+
       return {
         zoneData: updatedZoneData,
-        cityMetrics: computeCityMetrics(updatedZoneData),
+        cityMetrics: {
+          ...computedMetrics,
+          population: preserveIfSetByMetricsUpdate(
+            currentMetrics.population,
+            computedMetrics.population,
+            currentMetrics.populationChange
+          ),
+          populationChange: currentMetrics.populationChange,
+          averageIncome: preserveIfSetByMetricsUpdate(
+            currentMetrics.averageIncome,
+            computedMetrics.averageIncome,
+            currentMetrics.averageIncomeChange
+          ),
+          averageIncomeChange: currentMetrics.averageIncomeChange,
+          unemploymentRate: preserveIfSetByMetricsUpdate(
+            currentMetrics.unemploymentRate,
+            computedMetrics.unemploymentRate,
+            currentMetrics.unemploymentRateChange
+          ),
+          unemploymentRateChange: currentMetrics.unemploymentRateChange,
+          housingAffordabilityIndex: preserveIfSetByMetricsUpdate(
+            currentMetrics.housingAffordabilityIndex,
+            computedMetrics.housingAffordabilityIndex,
+            currentMetrics.housingAffordabilityIndexChange
+          ),
+          housingAffordabilityIndexChange: currentMetrics.housingAffordabilityIndexChange,
+          livabilityIndex: preserveIfSetByMetricsUpdate(
+            currentMetrics.livabilityIndex,
+            computedMetrics.livabilityIndex,
+            currentMetrics.livabilityIndexChange
+          ),
+          livabilityIndexChange: currentMetrics.livabilityIndexChange,
+          trafficCongestionIndex: preserveIfSetByMetricsUpdate(
+            currentMetrics.trafficCongestionIndex,
+            computedMetrics.trafficCongestionIndex,
+            currentMetrics.trafficCongestionIndexChange
+          ),
+          trafficCongestionIndexChange: currentMetrics.trafficCongestionIndexChange,
+          airQualityIndex: preserveIfSetByMetricsUpdate(
+            currentMetrics.airQualityIndex,
+            computedMetrics.airQualityIndex,
+            currentMetrics.airQualityIndexChange
+          ),
+          airQualityIndexChange: currentMetrics.airQualityIndexChange,
+        },
       }
     }),
-  
+
   updateCityMetrics: (metrics) =>
     set((state) => ({
       cityMetrics: {
@@ -259,7 +321,7 @@ export const useSimulationStore = create<SimulationState>((set) => ({
         ...metrics,
       },
     })),
-  
+
   toggleLayerVisibility: (layer) =>
     set((state) => ({
       layerVisibility: {
@@ -267,7 +329,7 @@ export const useSimulationStore = create<SimulationState>((set) => ({
         [layer]: !state.layerVisibility[layer],
       },
     })),
-  
+
   resetSimulation: () =>
     set({
       simulationStatus: 'idle',

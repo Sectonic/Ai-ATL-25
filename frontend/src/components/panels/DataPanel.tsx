@@ -57,9 +57,58 @@ function aggregateNeighborhoodData(
 
   const selectedZoneData = zonesToAggregate
     .map(name => {
+      const feature = neighborhoodsData.features.find(f => f.properties?.name === name)
+      if (!feature || !feature.properties) return null
+
+      const baseProperties = feature.properties
       const zone = zoneData[name]
-      if (!zone || !zone.properties) return null
-      return zone.properties
+
+      if (!zone) {
+        return baseProperties
+      }
+
+      const baseProps = zone.properties || baseProperties
+      const updatedProperties = { ...baseProps }
+
+      if (zone.population !== undefined && zone.population !== baseProps.population_total) {
+        const populationRatio = baseProps.population_total > 0
+          ? zone.population / baseProps.population_total
+          : 1
+        updatedProperties.population_total = zone.population
+        updatedProperties.households = Math.round((baseProps.households || 0) * populationRatio)
+      }
+
+      if (zone.housingUnits !== undefined && zone.housingUnits !== baseProps.housing_units) {
+        updatedProperties.housing_units = zone.housingUnits
+        const vacancyRate = baseProps.housing_units > 0
+          ? ((baseProps.vacant_units || 0) / baseProps.housing_units) * 100
+          : 0
+        updatedProperties.vacant_units = Math.round((zone.housingUnits * vacancyRate) / 100)
+        updatedProperties.vacancy_rate = vacancyRate
+      }
+
+      if (zone.trafficFlow !== undefined) {
+        const densityIndex = updatedProperties.derived?.density_index || 0
+        const carDependence = Math.max(0, Math.min(100, zone.trafficFlow - (densityIndex * 100)))
+        updatedProperties.commute = {
+          ...updatedProperties.commute,
+          car_dependence: carDependence,
+        }
+      }
+
+      if (zone.economicIndex !== undefined) {
+        const normalizedIndex = Math.min(1, Math.max(0, zone.economicIndex / 100))
+        const homeValueEstimate = normalizedIndex * 1000000
+        const incomeEstimate = normalizedIndex * 200000
+        updatedProperties.median_home_value = Math.round(homeValueEstimate)
+        updatedProperties.median_income = Math.round(incomeEstimate)
+
+        if (updatedProperties.median_income > 0 && updatedProperties.median_home_value > 0) {
+          updatedProperties.affordability_index = updatedProperties.median_income / (updatedProperties.median_home_value / 1000)
+        }
+      }
+
+      return updatedProperties
     })
     .filter(Boolean)
 
@@ -67,19 +116,19 @@ function aggregateNeighborhoodData(
 
   const totalPopulation = selectedZoneData.reduce((sum, z) => sum + (z.population_total || 0), 0)
   const totalHouseholds = selectedZoneData.reduce((sum, z) => sum + (z.households || 0), 0)
-  
-  const weightedIncome = selectedZoneData.reduce((sum, z) => 
+
+  const weightedIncome = selectedZoneData.reduce((sum, z) =>
     sum + ((z.median_income || 0) * (z.households || 0)), 0)
   const avgIncome = totalHouseholds > 0 ? weightedIncome / totalHouseholds : 0
 
-  const avgAffordability = selectedZoneData.reduce((sum, z) => 
+  const avgAffordability = selectedZoneData.reduce((sum, z) =>
     sum + (z.affordability_index || 0), 0) / selectedZoneData.length
-  
-  const avgCarDependence = selectedZoneData.reduce((sum, z) => 
+
+  const avgCarDependence = selectedZoneData.reduce((sum, z) =>
     sum + (z.commute?.car_dependence || 0), 0) / selectedZoneData.length
-  const avgDensityIndex = selectedZoneData.reduce((sum, z) => 
+  const avgDensityIndex = selectedZoneData.reduce((sum, z) =>
     sum + (z.derived?.density_index || 0), 0) / selectedZoneData.length
-  
+
   const trafficCongestion = Math.min(100, avgCarDependence + (avgDensityIndex * 100))
   const environmentalScore = Math.max(0, 100 - trafficCongestion)
 
@@ -100,14 +149,14 @@ function aggregateNeighborhoodData(
 
   const avgDiversityIndex = selectedZoneData.reduce((sum, z) => sum + (z.diversity_index || 0), 0) / selectedZoneData.length
   const avgHigherEdPercent = selectedZoneData.reduce((sum, z) => sum + (z.derived?.higher_ed_percent || 0), 0) / selectedZoneData.length
-  
-  const weightedHomeValue = selectedZoneData.reduce((sum, z) => 
+
+  const weightedHomeValue = selectedZoneData.reduce((sum, z) =>
     sum + ((z.median_home_value || 0) * (z.households || 0)), 0)
   const avgHomeValue = totalHouseholds > 0 ? weightedHomeValue / totalHouseholds : 0
 
-  const avgCommuteMinutes = selectedZoneData.reduce((sum, z) => 
+  const avgCommuteMinutes = selectedZoneData.reduce((sum, z) =>
     sum + (z.commute?.avg_minutes || 0), 0) / selectedZoneData.length
-  
+
   const avgVacancyRate = selectedZoneData.reduce((sum, z) => sum + (z.vacancy_rate || 0), 0) / selectedZoneData.length
   const avgOwnerOccupancy = selectedZoneData.reduce((sum, z) => sum + (z.owner_occupancy || 0), 0) / selectedZoneData.length
 
@@ -139,15 +188,31 @@ function aggregateNeighborhoodData(
 }
 
 export function DataPanel() {
-  const { selectedZones, zoneData } = useSimulationStore()
+  const { selectedZones, zoneData, cityMetrics } = useSimulationStore()
   const { data: neighborhoodsData } = useNeighborhoods()
   const containerRef = useRef<HTMLDivElement>(null)
   const [showGradient, setShowGradient] = useState(false)
 
-  const aggregated = useMemo(() => 
-    aggregateNeighborhoodData(selectedZones, zoneData, neighborhoodsData),
-    [selectedZones, zoneData, neighborhoodsData]
-  )
+  const aggregated = useMemo(() => {
+    const aggregatedData = aggregateNeighborhoodData(selectedZones, zoneData, neighborhoodsData)
+    if (!aggregatedData) return null
+
+    return {
+      ...aggregatedData,
+      population: cityMetrics.population > 0 ? cityMetrics.population : aggregatedData.population,
+      medianIncome: cityMetrics.averageIncome > 0 ? cityMetrics.averageIncome : aggregatedData.medianIncome,
+      housingAffordability: cityMetrics.housingAffordabilityIndex > 0
+        ? cityMetrics.housingAffordabilityIndex
+        : aggregatedData.housingAffordability,
+      livabilityScore: cityMetrics.livabilityIndex > 0 ? cityMetrics.livabilityIndex : aggregatedData.livabilityScore,
+      trafficCongestion: cityMetrics.trafficCongestionIndex > 0
+        ? cityMetrics.trafficCongestionIndex
+        : aggregatedData.trafficCongestion,
+      environmentalScore: cityMetrics.airQualityIndex > 0
+        ? cityMetrics.airQualityIndex
+        : aggregatedData.environmentalScore,
+    }
+  }, [selectedZones, zoneData, neighborhoodsData, cityMetrics])
 
   useEffect(() => {
     const checkOverflow = () => {
@@ -161,13 +226,13 @@ export function DataPanel() {
 
     checkOverflow()
     window.addEventListener('resize', checkOverflow)
-    
+
     const container = containerRef.current
     if (container) {
       container.addEventListener('scroll', checkOverflow)
       const observer = new MutationObserver(checkOverflow)
       observer.observe(container, { childList: true, subtree: true })
-      
+
       return () => {
         window.removeEventListener('resize', checkOverflow)
         container.removeEventListener('scroll', checkOverflow)
@@ -204,10 +269,10 @@ export function DataPanel() {
   const commuteSegments = [
     { value: aggregated.commute.car_dependence, color: '#737373', label: 'Car' },
     { value: aggregated.commute.transit_usage, color: '#a3a3a3', label: 'Transit' },
-    { 
-      value: Math.max(0, 100 - aggregated.commute.car_dependence - aggregated.commute.transit_usage), 
-      color: '#d4d4d4', 
-      label: 'Other' 
+    {
+      value: Math.max(0, 100 - aggregated.commute.car_dependence - aggregated.commute.transit_usage),
+      color: '#d4d4d4',
+      label: 'Other'
     },
   ]
 
