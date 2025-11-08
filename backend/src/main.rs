@@ -1,4 +1,6 @@
+mod azure;
 mod handlers;
+mod types;
 
 use actix_web::{App, HttpServer, web};
 use std::path::PathBuf;
