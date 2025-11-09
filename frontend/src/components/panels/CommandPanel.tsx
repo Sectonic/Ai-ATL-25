@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useSimulationStore } from '../../stores/simulationStore'
 import { simulatePolicy } from '../../services/simulationApi'
 import { useNeighborhoods } from '../../services/geojsonApi'
+import { adjustCoordinatesToBounds } from '../../lib/geoBounds'
 import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { Loader2, Play, ChevronUp, X, Layers } from 'lucide-react'
@@ -237,9 +238,29 @@ export function CommandPanel() {
 
         if (chunk.type === 'event') {
           setZonesAnalyzing(null)
-          addEventNotification(chunk.data)
-          if (chunk.data.metrics) {
-            updateMetricsFromEvent(chunk.data)
+
+          const originalCoords = chunk.data.coordinates
+          const adjustedCoords = adjustCoordinatesToBounds(
+            originalCoords,
+            chunk.data.zoneName,
+            neighborhoodsData
+          )
+
+          if (originalCoords[0] !== adjustedCoords[0] || originalCoords[1] !== adjustedCoords[1]) {
+            console.log(`Event coordinates adjusted for ${chunk.data.zoneName}:`, {
+              original: originalCoords,
+              adjusted: adjustedCoords
+            })
+          }
+
+          const adjustedEvent = {
+            ...chunk.data,
+            coordinates: adjustedCoords
+          }
+
+          addEventNotification(adjustedEvent)
+          if (adjustedEvent.metrics) {
+            updateMetricsFromEvent(adjustedEvent)
           }
         } else if (chunk.type === 'complete') {
           setSimulationSummary(chunk.data.summary)

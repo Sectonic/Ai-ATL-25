@@ -1,9 +1,10 @@
-import { useRef } from 'react'
+import { useRef, useMemo } from 'react'
 import { GeoJSON, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { useSimulationStore } from '../../stores/simulationStore'
 import { useNeighborhoods } from '../../services/geojsonApi'
 import { DragSelection } from './DragSelection'
+import { getEventColor } from '../../lib/eventColors'
 import type { PathOptions, Layer } from 'leaflet'
 import type { Feature } from 'geojson'
 
@@ -20,13 +21,38 @@ export function GeoJsonLayers({ disabled = false }: GeoJsonLayersProps) {
     clearSelectedZones,
     selectedEventId,
     simulationStatus,
-    setHoveredNeighborhood
+    setHoveredNeighborhood,
+    eventNotifications
   } = useSimulationStore()
   const { data: neighborhoodsData, isLoading } = useNeighborhoods()
   const clickStartTime = useRef<number>(0)
   const clickStartPos = useRef<{ x: number; y: number } | null>(null)
   const mapClickStartTime = useRef<number>(0)
   const mapClickStartPos = useRef<{ x: number; y: number } | null>(null)
+
+  const zoneEventMetrics = useMemo(() => {
+    const metricsMap = new Map<string, { positivity: number; severity: number }>()
+
+    eventNotifications.forEach(event => {
+      const existing = metricsMap.get(event.zoneName)
+      if (existing) {
+        const count = (existing as any).count || 1
+        metricsMap.set(event.zoneName, {
+          positivity: (existing.positivity * count + event.positivity) / (count + 1),
+          severity: (existing.severity * count + event.severity) / (count + 1),
+          ...({ count: count + 1 } as any)
+        })
+      } else {
+        metricsMap.set(event.zoneName, {
+          positivity: event.positivity,
+          severity: event.severity,
+          ...({ count: 1 } as any)
+        })
+      }
+    })
+
+    return metricsMap
+  }, [eventNotifications])
 
   useMapEvents({
     mousedown: (e: L.LeafletMouseEvent) => {
@@ -109,13 +135,27 @@ export function GeoJsonLayers({ disabled = false }: GeoJsonLayersProps) {
   const getFeatureStyle = (feature: any): PathOptions => {
     const featureName = feature.properties.name
     const isSelected = featureName && selectedZones.includes(featureName)
-    
+    const eventMetrics = featureName ? zoneEventMetrics.get(featureName) : null
+
+    let fillColor = '#808080'
+    let fillOpacity = isSelected ? 0.30 : 0
+    let strokeColor = isSelected ? '#FFFFFF' : '#606060'
+    let strokeOpacity = isSelected ? 0.7 : 0.4
+
+    if (eventMetrics) {
+      const eventColor = getEventColor(eventMetrics.positivity, eventMetrics.severity)
+      fillColor = eventColor
+      fillOpacity = isSelected ? 0.35 : 0.12
+      strokeColor = eventColor
+      strokeOpacity = isSelected ? 0.85 : 0.65
+    }
+
     return {
-      fillColor: '#808080',
-      fillOpacity: isSelected ? 0.30 : 0,
-      color: isSelected ? '#FFFFFF' : '#606060',
-      weight: isSelected ? 1.5 : 0.8,
-      opacity: isSelected ? 0.7 : 0.4,
+      fillColor,
+      fillOpacity,
+      color: strokeColor,
+      weight: isSelected ? 1.5 : eventMetrics ? 1.0 : 0.8,
+      opacity: strokeOpacity,
     }
   }
 
@@ -126,10 +166,15 @@ export function GeoJsonLayers({ disabled = false }: GeoJsonLayersProps) {
   return (
     <>
       <GeoJSON
-        key={`neighborhoods-${selectedZones.join(',')}-${selectedEventId}-${simulationStatus}`}
+        key={`neighborhoods-${selectedZones.join(',')}-${selectedEventId}-${simulationStatus}-${eventNotifications.length}`}
         data={neighborhoodsData}
         style={getFeatureStyle}
         onEachFeature={(feature: Feature, layer: Layer) => {
+          const pathElement = (layer as any)._path
+          if (pathElement) {
+            pathElement.style.transition = 'fill 0.4s ease-in-out, fill-opacity 0.4s ease-in-out, stroke 0.3s ease-in-out, stroke-width 0.3s ease-in-out, stroke-opacity 0.3s ease-in-out'
+          }
+
           layer.on({
             mousedown: (e: L.LeafletMouseEvent) => {
               clickStartTime.current = Date.now()

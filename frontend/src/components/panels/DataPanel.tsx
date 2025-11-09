@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState, useEffect } from 'react'
+import { Fragment, useMemo, useRef, useState, useEffect } from 'react'
+import type { ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useSimulationStore, type NeighborhoodProperties, type NeighborhoodMetrics } from '../../stores/simulationStore'
+import { useSimulationStore, type NeighborhoodProperties } from '../../stores/simulationStore'
 import { useNeighborhoods } from '../../services/geojsonApi'
 import { Users, Home, DollarSign, Car, Leaf, Scale, Star, ArrowUp, ArrowDown } from 'lucide-react'
 import { DoughnutChart } from '../charts/DoughnutChart'
@@ -76,6 +77,61 @@ interface AggregatedDeltas {
   densityIndex?: number
 }
 
+interface PanelSection {
+  id: string
+  order: number
+  score: number
+  node: ReactNode
+}
+
+const raceKeys = ['white', 'black', 'asian', 'mixed', 'hispanic'] as const
+const educationKeys = ['high_school_or_less', 'some_college', 'bachelors', 'graduate'] as const
+
+type RaceKey = typeof raceKeys[number]
+type EducationKey = typeof educationKeys[number]
+
+const toNumber = (value: number | null | undefined) => {
+  if (typeof value !== 'number') return 0
+  if (!Number.isFinite(value)) return 0
+  return value
+}
+
+const clampValue = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+const clampPercent = (value: number) => clampValue(value, 0, 100)
+const clampRatio = (value: number) => clampValue(value, 0, 1)
+const safeDivide = (numerator: number, denominator: number) => (denominator === 0 ? 0 : numerator / denominator)
+
+function normalizePercentages<K extends readonly string[]>(
+  source: Partial<Record<K[number], number>> | undefined,
+  keys: K
+): Record<K[number], number> {
+  const normalized = {} as Record<K[number], number>
+  const typedKeys = keys as ReadonlyArray<K[number]>
+  let total = 0
+
+  typedKeys.forEach((key) => {
+    const typedKey = key as K[number]
+    const value = clampPercent(toNumber(source?.[typedKey]))
+    normalized[typedKey] = value
+    total += value
+  })
+
+  if (total === 0) {
+    typedKeys.forEach((key) => {
+      const typedKey = key as K[number]
+      normalized[typedKey] = 0
+    })
+    return normalized
+  }
+
+  typedKeys.forEach((key) => {
+    const typedKey = key as K[number]
+    normalized[typedKey] = normalized[typedKey] / total
+  })
+
+  return normalized
+}
+
 function aggregateNeighborhoodData(
   selectedZones: string[],
   neighborhoodData: Record<string, NeighborhoodProperties>,
@@ -83,106 +139,121 @@ function aggregateNeighborhoodData(
 ): AggregatedData | null {
   if (!neighborhoodsData) return null
 
-  const zonesToAggregate = selectedZones.length === 0
-    ? neighborhoodsData.features.map(f => f.properties?.name).filter(Boolean) as string[]
-    : selectedZones
+  const featureLookup = new Map<string, NeighborhoodProperties>()
+  neighborhoodsData.features.forEach((feature) => {
+    const name = feature.properties?.name
+    if (name && feature.properties) {
+      featureLookup.set(name, feature.properties as NeighborhoodProperties)
+    }
+  })
 
-  if (zonesToAggregate.length === 0) return null
+  const availableNames = featureLookup.size > 0
+    ? Array.from(featureLookup.keys())
+    : Object.keys(neighborhoodData)
 
-  const selectedZoneData = zonesToAggregate
-    .map(name => {
-      const simulatedData = neighborhoodData[name]
-      if (simulatedData) {
-        return simulatedData
-      }
-      const feature = neighborhoodsData.features.find(f => f.properties?.name === name)
-      if (!feature || !feature.properties) return null
-      return feature.properties as any
-    })
-    .filter(Boolean)
+  const requestedZones = selectedZones.length === 0 ? availableNames : selectedZones
+  const uniqueZones = Array.from(new Set(requestedZones.filter((name): name is string => Boolean(name))))
+
+  const selectedZoneData = uniqueZones
+    .map((name) => neighborhoodData[name] ?? featureLookup.get(name) ?? null)
+    .filter((zone): zone is NeighborhoodProperties => Boolean(zone))
 
   if (selectedZoneData.length === 0) return null
 
-  const totalPopulation = selectedZoneData.reduce((sum, z) => sum + (z.population_total || 0), 0)
-  const totalHouseholds = selectedZoneData.reduce((sum, z) => sum + (z.households || 0), 0)
+  const zoneEntries = selectedZoneData.map((zone) => ({
+    zone,
+    population: Math.max(0, toNumber(zone.population_total)),
+    households: Math.max(0, toNumber(zone.households)),
+    race: normalizePercentages(zone.race_distribution, raceKeys),
+    education: normalizePercentages(zone.education_distribution, educationKeys),
+  }))
 
-  const weightedIncome = selectedZoneData.reduce((sum, z) =>
-    sum + ((z.median_income || 0) * (z.households || 0)), 0)
-  const avgIncome = totalHouseholds > 0 ? weightedIncome / totalHouseholds : 0
+  const totalPopulation = zoneEntries.reduce((sum, entry) => sum + entry.population, 0)
+  const totalHouseholds = zoneEntries.reduce((sum, entry) => sum + entry.households, 0)
 
-  const avgAffordability = selectedZoneData.reduce((sum, z) =>
-    sum + (z.affordability_index || 0), 0) / selectedZoneData.length
-
-  const avgCarDependence = selectedZoneData.reduce((sum, z) =>
-    sum + ((z.commute?.car_dependence || 0) * (z.population_total || 0)), 0) / totalPopulation
-  const avgDensityIndex = selectedZoneData.reduce((sum, z) =>
-    sum + ((z.derived?.density_index || 0) * (z.population_total || 0)), 0) / totalPopulation
-
-  const trafficCongestion = Math.min(100, avgCarDependence + (avgDensityIndex * 100))
-  const environmentalScore = Math.max(0, 100 - trafficCongestion)
-
-  const raceDistribution = {
-    white: selectedZoneData.reduce((sum, z) => sum + ((z.race_distribution?.white || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation,
-    black: selectedZoneData.reduce((sum, z) => sum + ((z.race_distribution?.black || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation,
-    asian: selectedZoneData.reduce((sum, z) => sum + ((z.race_distribution?.asian || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation,
-    mixed: selectedZoneData.reduce((sum, z) => sum + ((z.race_distribution?.mixed || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation,
-    hispanic: selectedZoneData.reduce((sum, z) => sum + ((z.race_distribution?.hispanic || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation,
+  const average = (selector: (entry: typeof zoneEntries[number]) => number) => {
+    if (zoneEntries.length === 0) return 0
+    return safeDivide(zoneEntries.reduce((sum, entry) => sum + selector(entry), 0), zoneEntries.length)
   }
 
-  const educationDistribution = {
-    high_school_or_less: selectedZoneData.reduce((sum, z) => 
-      sum + ((z.education_distribution?.high_school_or_less || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation * 100,
-    some_college: selectedZoneData.reduce((sum, z) => 
-      sum + ((z.education_distribution?.some_college || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation * 100,
-    bachelors: selectedZoneData.reduce((sum, z) => 
-      sum + ((z.education_distribution?.bachelors || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation * 100,
-    graduate: selectedZoneData.reduce((sum, z) => 
-      sum + ((z.education_distribution?.graduate || 0) / 100 * (z.population_total || 0)), 0) / totalPopulation * 100,
+  const weightedByPopulation = (selector: (entry: typeof zoneEntries[number]) => number) => {
+    if (totalPopulation === 0) {
+      return average(selector)
+    }
+    return safeDivide(zoneEntries.reduce((sum, entry) => sum + selector(entry) * entry.population, 0), totalPopulation)
   }
 
-  const avgDiversityIndex = selectedZoneData.reduce((sum, z) => 
-    sum + ((z.diversity_index || 0) * (z.population_total || 0)), 0) / totalPopulation
-  const avgHigherEdPercent = selectedZoneData.reduce((sum, z) => 
-    sum + ((z.derived?.higher_ed_percent || 0) * (z.population_total || 0)), 0) / totalPopulation
+  const weightedByHouseholds = (selector: (entry: typeof zoneEntries[number]) => number) => {
+    if (totalHouseholds === 0) {
+      return average(selector)
+    }
+    return safeDivide(zoneEntries.reduce((sum, entry) => sum + selector(entry) * entry.households, 0), totalHouseholds)
+  }
 
-  const weightedHomeValue = selectedZoneData.reduce((sum, z) =>
-    sum + ((z.median_home_value || 0) * (z.households || 0)), 0)
-  const avgHomeValue = totalHouseholds > 0 ? weightedHomeValue / totalHouseholds : 0
+  const population = totalPopulation
+  const medianIncome = weightedByHouseholds((entry) => toNumber(entry.zone.median_income))
+  const medianHomeValue = weightedByHouseholds((entry) => toNumber(entry.zone.median_home_value))
+  const avgAffordability = average((entry) => toNumber(entry.zone.affordability_index))
+  const avgCarDependence = clampPercent(weightedByPopulation((entry) => clampPercent(toNumber(entry.zone.commute?.car_dependence))))
+  const avgTransitUsage = clampPercent(weightedByPopulation((entry) => clampPercent(toNumber(entry.zone.commute?.transit_usage))))
+  const densityIndex = clampRatio(weightedByPopulation((entry) => clampRatio(toNumber(entry.zone.derived?.density_index))))
+  const trafficCongestion = clampPercent(avgCarDependence + densityIndex * 100)
+  const environmentalScore = clampPercent(100 - trafficCongestion)
 
-  const avgCommuteMinutes = selectedZoneData.reduce((sum, z) =>
-    sum + ((z.commute?.avg_minutes || 0) * (z.population_total || 0)), 0) / totalPopulation
+  const raceDistribution: Record<RaceKey, number> = {
+    white: weightedByPopulation((entry) => entry.race.white),
+    black: weightedByPopulation((entry) => entry.race.black),
+    asian: weightedByPopulation((entry) => entry.race.asian),
+    mixed: weightedByPopulation((entry) => entry.race.mixed),
+    hispanic: weightedByPopulation((entry) => entry.race.hispanic),
+  }
 
-  const avgVacancyRate = selectedZoneData.reduce((sum, z) => sum + (z.vacancy_rate || 0), 0) / selectedZoneData.length
-  const avgOwnerOccupancy = selectedZoneData.reduce((sum, z) => sum + (z.owner_occupancy || 0), 0) / selectedZoneData.length
+  const educationDistribution: Record<EducationKey, number> = {
+    high_school_or_less: weightedByPopulation((entry) => entry.education.high_school_or_less) * 100,
+    some_college: weightedByPopulation((entry) => entry.education.some_college) * 100,
+    bachelors: weightedByPopulation((entry) => entry.education.bachelors) * 100,
+    graduate: weightedByPopulation((entry) => entry.education.graduate) * 100,
+  }
 
-  const avgLivabilityScore = selectedZoneData.reduce((sum, z) => 
-    sum + ((z.livability_index || 0) * (z.population_total || 0)), 0) / totalPopulation
+  const diversityIndex = clampRatio(weightedByPopulation((entry) => clampRatio(toNumber(entry.zone.diversity_index))))
+  const higherEdPercent = clampPercent(weightedByPopulation((entry) => clampPercent(toNumber(entry.zone.derived?.higher_ed_percent))))
+  const avgCommuteMinutes = Math.max(0, weightedByPopulation((entry) => Math.max(0, toNumber(entry.zone.commute?.avg_minutes))))
+  const vacancyRate = clampPercent(average((entry) => clampPercent(toNumber(entry.zone.vacancy_rate))))
+  const ownerOccupancy = clampPercent(average((entry) => clampPercent(toNumber(entry.zone.owner_occupancy))))
+  const avgLivabilityScore = clampPercent(weightedByPopulation((entry) => clampPercent(toNumber(entry.zone.livability_index))))
+  const affordabilityScore = clampPercent(100 - Math.max(0, avgAffordability) * 10)
 
-  const affordabilityScore = Math.min(100, Math.max(0, 100 - (avgAffordability * 10)))
+  const selectedNames = Array.from(
+    new Set(
+      zoneEntries
+        .map((entry) => entry.zone.name)
+        .filter((name): name is string => Boolean(name))
+    )
+  )
+  const resolvedNames = selectedNames.length > 0 ? selectedNames : uniqueZones
 
   return {
-    population: totalPopulation,
-    medianIncome: avgIncome,
+    population,
+    medianIncome,
     housingAffordability: Math.round(affordabilityScore),
     environmentalScore: Math.round(environmentalScore),
     livabilityScore: Math.round(avgLivabilityScore),
     trafficCongestion: Math.round(trafficCongestion),
     raceDistribution,
     educationDistribution,
-    diversityIndex: avgDiversityIndex,
-    higherEdPercent: avgHigherEdPercent,
-    medianHomeValue: avgHomeValue,
+    diversityIndex,
+    higherEdPercent,
+    medianHomeValue,
     affordabilityIndex: avgAffordability,
     commute: {
       avg_minutes: avgCommuteMinutes,
       car_dependence: avgCarDependence,
-      transit_usage: selectedZoneData.reduce((sum, z) => 
-        sum + ((z.commute?.transit_usage || 0) * (z.population_total || 0)), 0) / totalPopulation,
+      transit_usage: avgTransitUsage,
     },
-    vacancyRate: avgVacancyRate,
-    ownerOccupancy: avgOwnerOccupancy,
-    densityIndex: avgDensityIndex,
-    selectedNames: zonesToAggregate,
+    vacancyRate,
+    ownerOccupancy,
+    densityIndex,
+    selectedNames: resolvedNames,
   }
 }
 
@@ -296,38 +367,27 @@ function calculateAggregatedDeltas(
 }
 
 const EPSILON = 0.005
+const DISPLAY_EPSILON = 0.05
 
 function formatDelta(value: number | undefined, positiveIsGood: boolean = true): { display: string; isPositive: boolean; color: string } | null {
-  if (value === undefined || Math.abs(value) < EPSILON) return null
-  const isPositive = value > 0
+  if (value === undefined) return null
+  if (Math.abs(value) < DISPLAY_EPSILON) return null
+  const rounded = Number(value.toFixed(1))
+  if (Math.abs(rounded) < DISPLAY_EPSILON) return null
+  const isPositive = rounded > 0
   const isGood = positiveIsGood ? isPositive : !isPositive
   return {
-    display: `${isPositive ? '+' : ''}${value.toFixed(1)}`,
+    display: `${isPositive ? '+' : ''}${rounded.toFixed(1)}`,
     isPositive,
     color: isGood ? 'text-green-400' : 'text-red-400',
   }
 }
 
-function getAffectedMetrics(eventMetrics?: NeighborhoodMetrics): Set<string> {
-  if (!eventMetrics) return new Set()
-  
-  const affected = new Set<string>()
-  
-  if (eventMetrics.population_total !== undefined) affected.add('population')
-  if (eventMetrics.median_income !== undefined) affected.add('income')
-  if (eventMetrics.median_home_value !== undefined) affected.add('homeValue')
-  if (eventMetrics.affordability_index !== undefined) affected.add('affordability')
-  if (eventMetrics.vacancy_rate !== undefined) affected.add('vacancy')
-  if (eventMetrics.owner_occupancy !== undefined) affected.add('ownerOccupancy')
-  if (eventMetrics.derived?.density_index !== undefined || eventMetrics.commute !== undefined) affected.add('environmental')
-  if (eventMetrics.livability_index !== undefined) affected.add('livability')
-  if (eventMetrics.commute !== undefined) affected.add('traffic')
-  if (eventMetrics.race_distribution !== undefined || eventMetrics.diversity_index !== undefined) affected.add('demographics')
-  if (eventMetrics.education_distribution !== undefined || eventMetrics.derived?.higher_ed_percent !== undefined) affected.add('education')
-  if (eventMetrics.commute !== undefined) affected.add('commute')
-  
-  return affected
+const hasMeaningfulDelta = (value?: number) => value !== undefined && Math.abs(value) >= DISPLAY_EPSILON
+const countDeltaChanges = (values: Array<number | undefined>): number => {
+  return values.reduce((total: number, value) => total + (hasMeaningfulDelta(value) ? 1 : 0), 0)
 }
+
 
 export function DataPanel() {
   const {
@@ -342,95 +402,23 @@ export function DataPanel() {
   const containerRef = useRef<HTMLDivElement>(null)
   const [showGradient, setShowGradient] = useState(false)
 
-  const selectedEvent = selectedEventId 
+  const selectedEvent = selectedEventId
     ? eventNotifications.find(e => e.id === selectedEventId)
     : null
 
-  const affectedMetrics = useMemo(() => {
-    return selectedEvent ? getAffectedMetrics(selectedEvent.metrics) : new Set<string>()
-  }, [selectedEvent])
+  const effectiveZones = selectedEvent ? [selectedEvent.zoneName] : selectedZones
 
-  const hasSimulation = Object.keys(simulatedNeighborhoodData).length > 0
-  const dataToUse = hasSimulation ? simulatedNeighborhoodData : originalNeighborhoodData
+  const hasSimulatedResults = simulationStatus === 'complete' && Object.keys(simulatedNeighborhoodData).length > 0
+  const activeNeighborhoodData = hasSimulatedResults ? simulatedNeighborhoodData : originalNeighborhoodData
 
   const aggregated = useMemo(() => {
-    if (selectedEvent && selectedEvent.metrics) {
-      const eventZone = selectedEvent.zoneName
-      const eventData: Record<string, NeighborhoodProperties> = {}
-      
-      if (neighborhoodsData) {
-        const feature = neighborhoodsData.features.find(f => f.properties?.name === eventZone)
-        if (feature?.properties) {
-          const original = feature.properties as any
-          const updated = {
-            ...original,
-            ...(selectedEvent.metrics.population_total !== undefined && { population_total: selectedEvent.metrics.population_total }),
-            ...(selectedEvent.metrics.median_income !== undefined && { median_income: selectedEvent.metrics.median_income }),
-            ...(selectedEvent.metrics.median_home_value !== undefined && { median_home_value: selectedEvent.metrics.median_home_value }),
-            ...(selectedEvent.metrics.affordability_index !== undefined && { affordability_index: selectedEvent.metrics.affordability_index }),
-            ...(selectedEvent.metrics.vacancy_rate !== undefined && { vacancy_rate: selectedEvent.metrics.vacancy_rate }),
-            ...(selectedEvent.metrics.owner_occupancy !== undefined && { owner_occupancy: selectedEvent.metrics.owner_occupancy }),
-            ...(selectedEvent.metrics.livability_index !== undefined && { livability_index: selectedEvent.metrics.livability_index }),
-            ...(selectedEvent.metrics.diversity_index !== undefined && { diversity_index: selectedEvent.metrics.diversity_index }),
-            ...(selectedEvent.metrics.education_distribution !== undefined && { education_distribution: selectedEvent.metrics.education_distribution }),
-            ...(selectedEvent.metrics.race_distribution !== undefined && { race_distribution: selectedEvent.metrics.race_distribution }),
-            ...(selectedEvent.metrics.commute !== undefined && { commute: selectedEvent.metrics.commute }),
-            ...(selectedEvent.metrics.derived !== undefined && { derived: selectedEvent.metrics.derived }),
-          }
-          eventData[eventZone] = updated
-        }
-      }
-      
-      return aggregateNeighborhoodData([eventZone], eventData, neighborhoodsData)
-    }
-
-    if (Object.keys(dataToUse).length === 0 && neighborhoodsData) {
-      const fallbackData: Record<string, NeighborhoodProperties> = {}
-      neighborhoodsData.features.forEach((feature) => {
-        if (feature.properties?.name) {
-          fallbackData[feature.properties.name] = feature.properties as any
-        }
-      })
-      return aggregateNeighborhoodData(selectedZones, fallbackData, neighborhoodsData)
-    }
-    return aggregateNeighborhoodData(selectedZones, dataToUse, neighborhoodsData)
-  }, [selectedZones, dataToUse, neighborhoodsData, selectedEvent])
+    return aggregateNeighborhoodData(effectiveZones, activeNeighborhoodData, neighborhoodsData)
+  }, [effectiveZones, activeNeighborhoodData, neighborhoodsData, hasSimulatedResults])
 
   const aggregatedDeltas = useMemo(() => {
-    if (selectedEvent && selectedEvent.metrics && neighborhoodsData) {
-      const eventZone = selectedEvent.zoneName
-      const originalData: Record<string, NeighborhoodProperties> = {}
-      const simulatedData: Record<string, NeighborhoodProperties> = {}
-      
-      const feature = neighborhoodsData.features.find(f => f.properties?.name === eventZone)
-      if (feature?.properties) {
-        const original = feature.properties as any
-        originalData[eventZone] = original
-        
-        const updated = {
-          ...original,
-          ...(selectedEvent.metrics.population_total !== undefined && { population_total: selectedEvent.metrics.population_total }),
-          ...(selectedEvent.metrics.median_income !== undefined && { median_income: selectedEvent.metrics.median_income }),
-          ...(selectedEvent.metrics.median_home_value !== undefined && { median_home_value: selectedEvent.metrics.median_home_value }),
-          ...(selectedEvent.metrics.affordability_index !== undefined && { affordability_index: selectedEvent.metrics.affordability_index }),
-          ...(selectedEvent.metrics.vacancy_rate !== undefined && { vacancy_rate: selectedEvent.metrics.vacancy_rate }),
-          ...(selectedEvent.metrics.owner_occupancy !== undefined && { owner_occupancy: selectedEvent.metrics.owner_occupancy }),
-          ...(selectedEvent.metrics.livability_index !== undefined && { livability_index: selectedEvent.metrics.livability_index }),
-          ...(selectedEvent.metrics.diversity_index !== undefined && { diversity_index: selectedEvent.metrics.diversity_index }),
-          ...(selectedEvent.metrics.education_distribution !== undefined && { education_distribution: selectedEvent.metrics.education_distribution }),
-          ...(selectedEvent.metrics.race_distribution !== undefined && { race_distribution: selectedEvent.metrics.race_distribution }),
-          ...(selectedEvent.metrics.commute !== undefined && { commute: selectedEvent.metrics.commute }),
-          ...(selectedEvent.metrics.derived !== undefined && { derived: selectedEvent.metrics.derived }),
-        }
-        simulatedData[eventZone] = updated
-      }
-      
-      return calculateAggregatedDeltas([eventZone], originalData, simulatedData, neighborhoodsData)
-    }
-
-    if (simulationStatus !== 'complete' || !hasSimulation) return null
-    return calculateAggregatedDeltas(selectedZones, originalNeighborhoodData, simulatedNeighborhoodData, neighborhoodsData)
-  }, [selectedZones, simulationStatus, hasSimulation, originalNeighborhoodData, simulatedNeighborhoodData, neighborhoodsData, selectedEvent])
+    if (!hasSimulatedResults || !neighborhoodsData) return null
+    return calculateAggregatedDeltas(effectiveZones, originalNeighborhoodData, simulatedNeighborhoodData, neighborhoodsData)
+  }, [hasSimulatedResults, neighborhoodsData, originalNeighborhoodData, effectiveZones, simulatedNeighborhoodData])
 
   useEffect(() => {
     const checkOverflow = () => {
@@ -474,13 +462,15 @@ export function DataPanel() {
     aggregated.raceDistribution.hispanic,
   ]
   const raceColors = ['#737373', '#525252', '#a3a3a3', '#d4d4d4', '#e5e5e5']
-  const raceDeltas = aggregatedDeltas?.raceDistribution ? [
-    aggregatedDeltas.raceDistribution.white,
-    aggregatedDeltas.raceDistribution.black,
-    aggregatedDeltas.raceDistribution.asian,
-    aggregatedDeltas.raceDistribution.mixed,
-    aggregatedDeltas.raceDistribution.hispanic,
-  ] : undefined
+  const raceDeltas = aggregatedDeltas?.raceDistribution
+    ? [
+        aggregatedDeltas.raceDistribution.white * 100,
+        aggregatedDeltas.raceDistribution.black * 100,
+        aggregatedDeltas.raceDistribution.asian * 100,
+        aggregatedDeltas.raceDistribution.mixed * 100,
+        aggregatedDeltas.raceDistribution.hispanic * 100,
+      ]
+    : undefined
 
   const educationLabels = ['High School', 'Some College', "Bachelor's", 'Graduate']
   const educationData = [
@@ -491,21 +481,27 @@ export function DataPanel() {
   ]
   
   const educationColors = ['#525252', '#737373', '#a3a3a3', '#d4d4d4']
-  const educationDeltas = aggregatedDeltas?.educationDistribution ? [
-    aggregatedDeltas.educationDistribution.high_school_or_less,
-    aggregatedDeltas.educationDistribution.some_college,
-    aggregatedDeltas.educationDistribution.bachelors,
-    aggregatedDeltas.educationDistribution.graduate,
-  ] : undefined
+  const educationDeltas = aggregatedDeltas?.educationDistribution
+    ? [
+        aggregatedDeltas.educationDistribution.high_school_or_less,
+        aggregatedDeltas.educationDistribution.some_college,
+        aggregatedDeltas.educationDistribution.bachelors,
+        aggregatedDeltas.educationDistribution.graduate,
+      ]
+    : undefined
+
+  const rawCarShare = clampPercent(aggregated.commute.car_dependence)
+  const rawTransitShare = clampPercent(aggregated.commute.transit_usage)
+  const combinedPrimary = rawCarShare + rawTransitShare
+  const commuteScale = combinedPrimary > 100 ? 100 / combinedPrimary : 1
+  const carShare = rawCarShare * commuteScale
+  const transitShare = rawTransitShare * commuteScale
+  const otherShare = Math.max(0, 100 - carShare - transitShare)
 
   const commuteSegments = [
-    { value: aggregated.commute.car_dependence, color: '#737373', label: 'Car' },
-    { value: aggregated.commute.transit_usage, color: '#a3a3a3', label: 'Transit' },
-    {
-      value: Math.max(0, 100 - aggregated.commute.car_dependence - aggregated.commute.transit_usage),
-      color: '#d4d4d4',
-      label: 'Other'
-    },
+    { value: carShare, color: '#737373', label: 'Car' },
+    { value: transitShare, color: '#a3a3a3', label: 'Transit' },
+    { value: otherShare, color: '#d4d4d4', label: 'Other' },
   ]
 
   const radarData = [
@@ -515,6 +511,432 @@ export function DataPanel() {
     Math.round(aggregated.densityIndex * 100),
     Math.round(Math.min(100, (aggregated.medianIncome / 200000) * 100)),
   ]
+
+  const overviewDeltaValues = {
+    population: aggregatedDeltas?.population !== undefined ? aggregatedDeltas.population / 1000 : undefined,
+    income: aggregatedDeltas?.medianIncome !== undefined ? aggregatedDeltas.medianIncome / 1000 : undefined,
+    affordability: aggregatedDeltas?.housingAffordability,
+    environment: aggregatedDeltas?.environmentalScore,
+    livability: aggregatedDeltas?.livabilityScore,
+    traffic: aggregatedDeltas?.trafficCongestion,
+  }
+
+  const educationDeltaSingleValue = aggregatedDeltas?.higherEdPercent
+  const diversityDeltaValue = aggregatedDeltas?.diversityIndex
+  const homeValueDeltaValue = aggregatedDeltas?.medianHomeValue !== undefined ? aggregatedDeltas.medianHomeValue / 1000 : undefined
+  const affordabilityIndexDeltaValue = aggregatedDeltas?.affordabilityIndex
+  const commuteDeltaValue = aggregatedDeltas?.commute?.avg_minutes
+  const vacancyDeltaValue = aggregatedDeltas?.vacancyRate
+  const ownerOccupancyDeltaValue = aggregatedDeltas?.ownerOccupancy
+  const profileDeltaValues = [
+    aggregatedDeltas?.higherEdPercent,
+    aggregatedDeltas?.diversityIndex,
+    aggregatedDeltas?.affordabilityIndex,
+    aggregatedDeltas?.densityIndex,
+    aggregatedDeltas?.medianIncome !== undefined ? aggregatedDeltas.medianIncome / 1000 : undefined,
+  ]
+
+  const populationDelta = formatDelta(overviewDeltaValues.population, true)
+  const medianIncomeDelta = formatDelta(overviewDeltaValues.income, true)
+  const housingAffordabilityDelta = formatDelta(overviewDeltaValues.affordability, true)
+  const environmentalDelta = formatDelta(overviewDeltaValues.environment, true)
+  const livabilityDelta = formatDelta(overviewDeltaValues.livability, true)
+  const trafficDelta = formatDelta(overviewDeltaValues.traffic, false)
+  const higherEdDelta = formatDelta(educationDeltaSingleValue, true)
+  const diversityDelta = formatDelta(diversityDeltaValue, true)
+  const medianHomeValueDelta = formatDelta(homeValueDeltaValue, false)
+  const affordabilityIndexDelta = formatDelta(affordabilityIndexDeltaValue, true)
+  const commuteAvgDelta = formatDelta(commuteDeltaValue, false)
+  const vacancyDelta = formatDelta(vacancyDeltaValue, false)
+  const ownerOccupancyDelta = formatDelta(ownerOccupancyDeltaValue, true)
+
+  const overviewScore = countDeltaChanges(Object.values(overviewDeltaValues))
+  const demographicsScore = countDeltaChanges([...(raceDeltas ?? []), diversityDeltaValue])
+  const educationScore = countDeltaChanges([...(educationDeltas ?? []), educationDeltaSingleValue])
+  const costOfLivingScore = countDeltaChanges([overviewDeltaValues.income, homeValueDeltaValue, affordabilityIndexDeltaValue])
+  const commuteScore = countDeltaChanges([commuteDeltaValue])
+  const housingScore = countDeltaChanges([vacancyDeltaValue, ownerOccupancyDeltaValue])
+  const profileScore = countDeltaChanges(profileDeltaValues)
+
+  const overviewSection = (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.05 }}
+      className="p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto mb-2"
+    >
+      <h3 className="text-xs font-medium text-white/60 mb-2">
+        Overview
+      </h3>
+      <div className="grid grid-cols-2 gap-1.5">
+        <div className="p-2 rounded-lg bg-white/5">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <Users className="w-3 h-3 text-white/60" />
+            <span className="text-[10px] text-white/50">
+              Population
+            </span>
+          </div>
+          <div className="text-sm font-semibold text-white">
+            {(aggregated.population / 1000).toFixed(1)}k
+          </div>
+          {populationDelta && (
+            <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${populationDelta.color}`}>
+              {populationDelta.isPositive ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+              {populationDelta.display}
+            </div>
+          )}
+        </div>
+
+        <div className="p-2 rounded-lg bg-white/5">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <DollarSign className="w-3 h-3 text-white/60" />
+            <span className="text-[10px] text-white/50">
+              Avg Income
+            </span>
+          </div>
+          <div className="text-sm font-semibold text-white">
+            ${Math.round(aggregated.medianIncome / 1000)}k
+          </div>
+          {medianIncomeDelta && (
+            <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${medianIncomeDelta.color}`}>
+              {medianIncomeDelta.isPositive ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+              ${medianIncomeDelta.display}k
+            </div>
+          )}
+        </div>
+
+        <div className="p-2 rounded-lg bg-white/5">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <Home className="w-3 h-3 text-white/60" />
+            <span className="text-[10px] text-white/50">
+              Affordability
+            </span>
+          </div>
+          <div className="text-sm font-semibold text-white">
+            {aggregated.housingAffordability}/100
+          </div>
+          {housingAffordabilityDelta && (
+            <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${housingAffordabilityDelta.color}`}>
+              {housingAffordabilityDelta.isPositive ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+              {housingAffordabilityDelta.display}
+            </div>
+          )}
+        </div>
+
+        <div className="p-2 rounded-lg bg-white/5">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <Leaf className="w-3 h-3 text-white/60" />
+            <span className="text-[10px] text-white/50">
+              Environment
+            </span>
+          </div>
+          <div className="text-sm font-semibold text-white">
+            {aggregated.environmentalScore}/100
+          </div>
+          {environmentalDelta && (
+            <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${environmentalDelta.color}`}>
+              {environmentalDelta.isPositive ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+              {environmentalDelta.display}
+            </div>
+          )}
+        </div>
+
+        <div className="p-2 rounded-lg bg-white/5">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <Star className="w-3 h-3 text-white/60" />
+            <span className="text-[10px] text-white/50">
+              Livability
+            </span>
+          </div>
+          <div className="text-sm font-semibold text-white">
+            {aggregated.livabilityScore}/100
+          </div>
+          {livabilityDelta && (
+            <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${livabilityDelta.color}`}>
+              {livabilityDelta.isPositive ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+              {livabilityDelta.display}
+            </div>
+          )}
+        </div>
+
+        <div className="p-2 rounded-lg bg-white/5">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <Car className="w-3 h-3 text-white/60" />
+            <span className="text-[10px] text-white/50">
+              Traffic
+            </span>
+          </div>
+          <div className="h-2 bg-white/10 rounded-full overflow-hidden mb-0.5">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${aggregated.trafficCongestion}%` }}
+              transition={{ duration: 0.5 }}
+              className="h-full bg-neutral-400"
+            />
+          </div>
+          <div className="text-[10px] text-white/50">
+            {aggregated.trafficCongestion}%
+          </div>
+          {trafficDelta && (
+            <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${trafficDelta.color}`}>
+              {trafficDelta.isPositive ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+              {trafficDelta.display}%
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  )
+
+  const demographicsSection = (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.05 }}
+      className="p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto mb-2"
+    >
+      <h3 className="text-xs font-medium text-white/60 mb-2">
+        Demographics
+      </h3>
+      <div className="h-40 mb-1">
+        <DoughnutChart
+          title=""
+          labels={raceLabels}
+          data={raceData}
+          backgroundColor={raceColors}
+          deltas={raceDeltas}
+        />
+      </div>
+      <div className="text-center">
+        <div className="text-xs font-medium text-white/70 flex items-center justify-center gap-1">
+          Diversity: {aggregated.diversityIndex.toFixed(2)}
+          {diversityDelta && (
+            <span className={`text-[10px] flex items-center gap-0.5 ${diversityDelta.color}`}>
+              {diversityDelta.isPositive ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+              {diversityDelta.display}
+            </span>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  )
+
+  const educationSection = (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.05 }}
+      className="p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto mb-2"
+    >
+      <h3 className="text-xs font-medium text-white/60 mb-2">
+        Education
+      </h3>
+      <div className="h-40 mb-1">
+        <DoughnutChart
+          title=""
+          labels={educationLabels}
+          data={educationData}
+          backgroundColor={educationColors}
+          deltas={educationDeltas}
+        />
+      </div>
+      <div className="text-center">
+        <div className="text-xs font-medium text-white/70 flex items-center justify-center gap-1">
+          Higher Ed: {Math.round(aggregated.higherEdPercent)}%
+          {higherEdDelta && (
+            <span className={`text-[10px] flex items-center gap-0.5 ${higherEdDelta.color}`}>
+              {higherEdDelta.isPositive ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+              {higherEdDelta.display}%
+            </span>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  )
+
+  const costOfLivingSection = (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.05 }}
+      className="p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto mb-2"
+    >
+      <h3 className="text-xs font-medium text-white/60 mb-2">
+        Cost of Living
+      </h3>
+      <div className="grid grid-cols-2 gap-1.5">
+        <div className="p-2 rounded-lg bg-white/5">
+          <div className="flex items-center gap-1 text-[10px] text-white/50 mb-0.5">
+            <DollarSign className="w-3 h-3" />
+            Median Income
+          </div>
+          <div className="text-sm font-semibold text-white">
+            ${Math.round(aggregated.medianIncome / 1000)}k
+          </div>
+          {medianIncomeDelta && (
+            <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${medianIncomeDelta.color}`}>
+              {medianIncomeDelta.isPositive ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+              ${medianIncomeDelta.display}k
+            </div>
+          )}
+        </div>
+        <div className="p-2 rounded-lg bg-white/5">
+          <div className="flex items-center gap-1 text-[10px] text-white/50 mb-0.5">
+            <Home className="w-3 h-3" />
+            Home Value
+          </div>
+          <div className="text-sm font-semibold text-white">
+            ${Math.round(aggregated.medianHomeValue / 1000)}k
+          </div>
+          {medianHomeValueDelta && (
+            <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${medianHomeValueDelta.color}`}>
+              {medianHomeValueDelta.isPositive ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+              ${medianHomeValueDelta.display}k
+            </div>
+          )}
+        </div>
+        <div className="p-2 rounded-lg bg-white/5 col-span-2">
+          <div className="flex items-center gap-1 text-[10px] text-white/50 mb-0.5">
+            <Scale className="w-3 h-3" />
+            Affordability Ratio
+          </div>
+          <div className="text-sm font-semibold text-white">
+            {aggregated.affordabilityIndex.toFixed(2)}
+          </div>
+          {affordabilityIndexDelta && (
+            <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${affordabilityIndexDelta.color}`}>
+              {affordabilityIndexDelta.isPositive ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+              {affordabilityIndexDelta.display}
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  )
+
+  const commuteSection = (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.05 }}
+      className="p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto mb-2"
+    >
+      <h3 className="text-xs font-medium text-white/60 mb-2 flex items-center gap-1">
+        Commute ({Math.round(aggregated.commute.avg_minutes)} min avg)
+        {commuteAvgDelta && (
+          <span className={`text-[10px] flex items-center gap-0.5 ${commuteAvgDelta.color}`}>
+            {commuteAvgDelta.isPositive ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+            {commuteAvgDelta.display} min
+          </span>
+        )}
+      </h3>
+      <div className="h-24">
+        <SegmentedBar segments={commuteSegments} />
+      </div>
+    </motion.div>
+  )
+
+  const housingSection = (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.05 }}
+      className="p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto mb-2"
+    >
+      <h3 className="text-xs font-medium text-white/60 mb-2">
+        Housing Stability
+      </h3>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <div className="text-[10px] text-white/50 mb-1 flex items-center gap-1">
+            Vacancy
+            {vacancyDelta && (
+              <span className={`text-[10px] flex items-center gap-0.5 ${vacancyDelta.color}`}>
+                {vacancyDelta.isPositive ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                {vacancyDelta.display}%
+              </span>
+            )}
+          </div>
+          <div className="h-1.5 bg-white/10 rounded-full overflow-hidden mb-1">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${aggregated.vacancyRate}%` }}
+              transition={{ duration: 0.5 }}
+              className="h-full bg-neutral-500"
+            />
+          </div>
+          <div className="text-xs font-medium text-white">
+            {aggregated.vacancyRate.toFixed(1)}%
+          </div>
+        </div>
+        <div>
+          <div className="text-[10px] text-white/50 mb-1 flex items-center gap-1">
+            Owner Occ.
+            {ownerOccupancyDelta && (
+              <span className={`text-[10px] flex items-center gap-0.5 ${ownerOccupancyDelta.color}`}>
+                {ownerOccupancyDelta.isPositive ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                {ownerOccupancyDelta.display}%
+              </span>
+            )}
+          </div>
+          <div className="h-1.5 bg-white/10 rounded-full overflow-hidden mb-1">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${aggregated.ownerOccupancy}%` }}
+              transition={{ duration: 0.5 }}
+              className="h-full bg-neutral-300"
+            />
+          </div>
+          <div className="text-xs font-medium text-white">
+            {aggregated.ownerOccupancy.toFixed(1)}%
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  )
+
+  const profileSection = (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.05 }}
+      className="p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto mb-2"
+    >
+      <h3 className="text-xs font-medium text-white/60 mb-2">
+        Urban Profile
+      </h3>
+      <div className="h-48">
+        <RadarChart
+          labels={['Education', 'Diversity', 'Affordability', 'Density', 'Income']}
+          data={radarData}
+          fillColor="rgba(163, 163, 163, 0.2)"
+          borderColor="rgba(163, 163, 163, 0.8)"
+        />
+      </div>
+    </motion.div>
+  )
+
+  const sections: PanelSection[] = [
+    { id: 'overview', order: 0, score: overviewScore, node: overviewSection },
+    { id: 'demographics', order: 1, score: demographicsScore, node: demographicsSection },
+    { id: 'education', order: 2, score: educationScore, node: educationSection },
+    { id: 'cost', order: 3, score: costOfLivingScore, node: costOfLivingSection },
+    { id: 'commute', order: 4, score: commuteScore, node: commuteSection },
+    { id: 'housing', order: 5, score: housingScore, node: housingSection },
+    { id: 'profile', order: 6, score: profileScore, node: profileSection },
+  ]
+
+  const orderedSections = [...sections].sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score
+    return a.order - b.order
+  })
 
   return (
     <div className="fixed right-3 top-[60px] bottom-0 w-1/5 z-10 pointer-events-none">
@@ -546,404 +968,9 @@ export function DataPanel() {
               )}
             </motion.div>
 
-            <motion.div
-              layout
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.05 }}
-              className="p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto mb-2"
-            >
-              <h3 className="text-xs font-medium text-white/60 mb-2">
-                Overview
-              </h3>
-              <div className="grid grid-cols-2 gap-1.5">
-                {(!selectedEvent || affectedMetrics.has('population')) && (
-                  <div className="p-2 rounded-lg bg-white/5">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <Users className="w-3 h-3 text-white/60" />
-                      <span className="text-[10px] text-white/50">
-                        Population
-                      </span>
-                    </div>
-                    <div className="text-sm font-semibold text-white">
-                      {(aggregated.population / 1000).toFixed(1)}k
-                    </div>
-                    {aggregatedDeltas?.population !== undefined && Math.abs(aggregatedDeltas.population) >= EPSILON && (
-                      <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.population / 1000, true)?.color || ''}`}>
-                        {aggregatedDeltas.population > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
-                        {formatDelta(aggregatedDeltas.population / 1000, true)?.display}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {(!selectedEvent || affectedMetrics.has('income')) && (
-                  <div className="p-2 rounded-lg bg-white/5">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <DollarSign className="w-3 h-3 text-white/60" />
-                      <span className="text-[10px] text-white/50">
-                        Avg Income
-                      </span>
-                    </div>
-                    <div className="text-sm font-semibold text-white">
-                      ${Math.round(aggregated.medianIncome / 1000)}k
-                    </div>
-                    {aggregatedDeltas?.medianIncome !== undefined && Math.abs(aggregatedDeltas.medianIncome) >= EPSILON && (
-                      <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.medianIncome / 1000, true)?.color || ''}`}>
-                        {aggregatedDeltas.medianIncome > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
-                        ${formatDelta(aggregatedDeltas.medianIncome / 1000, true)?.display}k
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {(!selectedEvent || affectedMetrics.has('affordability')) && (
-                  <div className="p-2 rounded-lg bg-white/5">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <Home className="w-3 h-3 text-white/60" />
-                      <span className="text-[10px] text-white/50">
-                        Affordability
-                      </span>
-                    </div>
-                    <div className="text-sm font-semibold text-white">
-                      {aggregated.housingAffordability}/100
-                    </div>
-                    {aggregatedDeltas?.housingAffordability !== undefined && Math.abs(aggregatedDeltas.housingAffordability) >= EPSILON && (
-                      <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.housingAffordability, true)?.color || ''}`}>
-                        {aggregatedDeltas.housingAffordability > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
-                        {formatDelta(aggregatedDeltas.housingAffordability, true)?.display}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {(!selectedEvent || affectedMetrics.has('environmental')) && (
-                  <div className="p-2 rounded-lg bg-white/5">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <Leaf className="w-3 h-3 text-white/60" />
-                      <span className="text-[10px] text-white/50">
-                        Environmental
-                      </span>
-                    </div>
-                    <div className="text-sm font-semibold text-white">
-                      {aggregated.environmentalScore}/100
-                    </div>
-                    {aggregatedDeltas?.environmentalScore !== undefined && Math.abs(aggregatedDeltas.environmentalScore) >= EPSILON && (
-                      <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.environmentalScore, true)?.color || ''}`}>
-                        {aggregatedDeltas.environmentalScore > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
-                        {formatDelta(aggregatedDeltas.environmentalScore, true)?.display}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {(!selectedEvent || affectedMetrics.has('livability')) && (
-                  <div className="p-2 rounded-lg bg-white/5">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <Star className="w-3 h-3 text-white/60" />
-                      <span className="text-[10px] text-white/50">
-                        Livability
-                      </span>
-                    </div>
-                    <div className="text-sm font-semibold text-white">
-                      {aggregated.livabilityScore}/100
-                    </div>
-                    {aggregatedDeltas?.livabilityScore !== undefined && Math.abs(aggregatedDeltas.livabilityScore) >= EPSILON && (
-                      <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.livabilityScore, true)?.color || ''}`}>
-                        {aggregatedDeltas.livabilityScore > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
-                        {formatDelta(aggregatedDeltas.livabilityScore, true)?.display}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {(!selectedEvent || affectedMetrics.has('traffic')) && (
-                  <div className="p-2 rounded-lg bg-white/5">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <Car className="w-3 h-3 text-white/60" />
-                      <span className="text-[10px] text-white/50">
-                        Traffic
-                      </span>
-                    </div>
-                    <div className="h-2 bg-white/10 rounded-full overflow-hidden mb-0.5">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${aggregated.trafficCongestion}%` }}
-                        transition={{ duration: 0.5 }}
-                        className="h-full bg-neutral-400"
-                      />
-                    </div>
-                    <div className="text-[10px] text-white/50">
-                      {aggregated.trafficCongestion}%
-                    </div>
-                    {aggregatedDeltas?.trafficCongestion !== undefined && Math.abs(aggregatedDeltas.trafficCongestion) >= EPSILON && (
-                      <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.trafficCongestion, false)?.color || ''}`}>
-                        {aggregatedDeltas.trafficCongestion > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
-                        {formatDelta(aggregatedDeltas.trafficCongestion, false)?.display}%
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-
-            <AnimatePresence mode="popLayout">
-              {(!selectedEvent || affectedMetrics.has('demographics')) && (
-                <motion.div
-                  layout
-                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  animate={{ opacity: 1, height: 'auto', marginBottom: 8 }}
-                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                  className="p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto overflow-hidden"
-                >
-                <h3 className="text-xs font-medium text-white/60 mb-2">
-                  Demographics
-                </h3>
-              <div className="h-40 mb-1">
-                <DoughnutChart
-                  title=""
-                  labels={raceLabels}
-                  data={raceData}
-                  backgroundColor={raceColors}
-                  deltas={raceDeltas}
-                />
-              </div>
-              <div className="text-center">
-                <div className="text-xs font-medium text-white/70 flex items-center justify-center gap-1">
-                  Diversity: {aggregated.diversityIndex.toFixed(2)}
-                  {aggregatedDeltas?.diversityIndex !== undefined && Math.abs(aggregatedDeltas.diversityIndex) >= EPSILON && (
-                    <span className={`text-[10px] flex items-center gap-0.5 ${formatDelta(aggregatedDeltas.diversityIndex, true)?.color || ''}`}>
-                      {aggregatedDeltas.diversityIndex > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
-                      {formatDelta(aggregatedDeltas.diversityIndex, true)?.display}
-                    </span>
-                  )}
-                </div>
-              </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <AnimatePresence mode="popLayout">
-              {(!selectedEvent || affectedMetrics.has('education')) && (
-                <motion.div
-                  layout
-                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  animate={{ opacity: 1, height: 'auto', marginBottom: 8 }}
-                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                  className="p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto overflow-hidden"
-                >
-                <h3 className="text-xs font-medium text-white/60 mb-2">
-                  Education
-                </h3>
-              <div className="h-40 mb-1">
-                <DoughnutChart
-                  title=""
-                  labels={educationLabels}
-                  data={educationData}
-                  backgroundColor={educationColors}
-                  deltas={educationDeltas}
-                />
-              </div>
-              <div className="text-center">
-                <div className="text-xs font-medium text-white/70 flex items-center justify-center gap-1">
-                  Higher Ed: {Math.round(aggregated.higherEdPercent)}%
-                  {aggregatedDeltas?.higherEdPercent !== undefined && Math.abs(aggregatedDeltas.higherEdPercent) >= EPSILON && (
-                    <span className={`text-[10px] flex items-center gap-0.5 ${formatDelta(aggregatedDeltas.higherEdPercent, true)?.color || ''}`}>
-                      {aggregatedDeltas.higherEdPercent > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
-                      {formatDelta(aggregatedDeltas.higherEdPercent, true)?.display}%
-                    </span>
-                  )}
-                </div>
-              </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <AnimatePresence mode="popLayout">
-              {(!selectedEvent || affectedMetrics.has('income') || affectedMetrics.has('homeValue') || affectedMetrics.has('affordability')) && (
-                <motion.div
-                  layout
-                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  animate={{ opacity: 1, height: 'auto', marginBottom: 8 }}
-                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                  className="p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto overflow-hidden"
-                >
-                <h3 className="text-xs font-medium text-white/60 mb-2">
-                  Cost of Living
-                </h3>
-              <div className="grid grid-cols-2 gap-1.5">
-                {(!selectedEvent || affectedMetrics.has('income')) && (
-                  <div className="p-2 rounded-lg bg-white/5">
-                    <div className="flex items-center gap-1 text-[10px] text-white/50 mb-0.5">
-                      <DollarSign className="w-3 h-3" />
-                      Median Income
-                    </div>
-                    <div className="text-sm font-semibold text-white">
-                      ${Math.round(aggregated.medianIncome / 1000)}k
-                    </div>
-                    {aggregatedDeltas?.medianIncome !== undefined && Math.abs(aggregatedDeltas.medianIncome) >= EPSILON && (
-                      <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.medianIncome / 1000, true)?.color || ''}`}>
-                        {aggregatedDeltas.medianIncome > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
-                        ${formatDelta(aggregatedDeltas.medianIncome / 1000, true)?.display}k
-                      </div>
-                    )}
-                  </div>
-                )}
-                {(!selectedEvent || affectedMetrics.has('homeValue')) && (
-                  <div className="p-2 rounded-lg bg-white/5">
-                    <div className="flex items-center gap-1 text-[10px] text-white/50 mb-0.5">
-                      <Home className="w-3 h-3" />
-                      Home Value
-                    </div>
-                    <div className="text-sm font-semibold text-white">
-                      ${Math.round(aggregated.medianHomeValue / 1000)}k
-                    </div>
-                    {aggregatedDeltas?.medianHomeValue !== undefined && Math.abs(aggregatedDeltas.medianHomeValue) >= EPSILON && (
-                      <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.medianHomeValue / 1000, false)?.color || ''}`}>
-                        {aggregatedDeltas.medianHomeValue > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
-                        ${formatDelta(aggregatedDeltas.medianHomeValue / 1000, false)?.display}k
-                      </div>
-                    )}
-                  </div>
-                )}
-                {(!selectedEvent || affectedMetrics.has('affordability')) && (
-                  <div className={`p-2 rounded-lg bg-white/5 ${(!selectedEvent || affectedMetrics.has('income') || affectedMetrics.has('homeValue')) ? 'col-span-2' : ''}`}>
-                    <div className="flex items-center gap-1 text-[10px] text-white/50 mb-0.5">
-                      <Scale className="w-3 h-3" />
-                      Affordability Ratio
-                    </div>
-                    <div className="text-sm font-semibold text-white">
-                      {aggregated.affordabilityIndex.toFixed(2)}
-                    </div>
-                    {aggregatedDeltas?.affordabilityIndex !== undefined && Math.abs(aggregatedDeltas.affordabilityIndex) >= EPSILON && (
-                      <div className={`text-[9px] flex items-center gap-0.5 mt-0.5 ${formatDelta(aggregatedDeltas.affordabilityIndex, true)?.color || ''}`}>
-                        {aggregatedDeltas.affordabilityIndex > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
-                        {formatDelta(aggregatedDeltas.affordabilityIndex, true)?.display}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <AnimatePresence mode="popLayout">
-              {(!selectedEvent || affectedMetrics.has('commute')) && (
-                <motion.div
-                  layout
-                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  animate={{ opacity: 1, height: 'auto', marginBottom: 8 }}
-                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                  className="p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto overflow-hidden"
-                >
-                <h3 className="text-xs font-medium text-white/60 mb-2 flex items-center gap-1">
-                  Commute ({Math.round(aggregated.commute.avg_minutes)} min avg)
-                {aggregatedDeltas?.commute?.avg_minutes !== undefined && Math.abs(aggregatedDeltas.commute.avg_minutes) >= EPSILON && (
-                  <span className={`text-[10px] flex items-center gap-0.5 ${formatDelta(aggregatedDeltas.commute.avg_minutes, false)?.color || ''}`}>
-                    {aggregatedDeltas.commute.avg_minutes > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
-                    {formatDelta(aggregatedDeltas.commute.avg_minutes, false)?.display} min
-                  </span>
-                )}
-              </h3>
-              <div className="h-24">
-                <SegmentedBar segments={commuteSegments} />
-              </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <AnimatePresence mode="popLayout">
-              {(!selectedEvent || affectedMetrics.has('vacancy') || affectedMetrics.has('ownerOccupancy')) && (
-                <motion.div
-                  layout
-                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  animate={{ opacity: 1, height: 'auto', marginBottom: 8 }}
-                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                  className="p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto overflow-hidden"
-                >
-                <h3 className="text-xs font-medium text-white/60 mb-2">
-                  Housing Stability
-                </h3>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <div className="text-[10px] text-white/50 mb-1 flex items-center gap-1">
-                    Vacancy
-                    {aggregatedDeltas?.vacancyRate !== undefined && Math.abs(aggregatedDeltas.vacancyRate) >= EPSILON && (
-                      <span className={`text-[10px] flex items-center gap-0.5 ${formatDelta(aggregatedDeltas.vacancyRate, false)?.color || ''}`}>
-                        {aggregatedDeltas.vacancyRate > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
-                        {formatDelta(aggregatedDeltas.vacancyRate, false)?.display}%
-                      </span>
-                    )}
-                  </div>
-                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden mb-1">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${aggregated.vacancyRate}%` }}
-                      transition={{ duration: 0.5 }}
-                      className="h-full bg-neutral-500"
-                    />
-                  </div>
-                  <div className="text-xs font-medium text-white">
-                    {aggregated.vacancyRate.toFixed(1)}%
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-white/50 mb-1 flex items-center gap-1">
-                    Owner Occ.
-                    {aggregatedDeltas?.ownerOccupancy !== undefined && Math.abs(aggregatedDeltas.ownerOccupancy) >= EPSILON && (
-                      <span className={`text-[10px] flex items-center gap-0.5 ${formatDelta(aggregatedDeltas.ownerOccupancy, true)?.color || ''}`}>
-                        {aggregatedDeltas.ownerOccupancy > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
-                        {formatDelta(aggregatedDeltas.ownerOccupancy, true)?.display}%
-                      </span>
-                    )}
-                  </div>
-                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden mb-1">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${aggregated.ownerOccupancy}%` }}
-                      transition={{ duration: 0.5 }}
-                      className="h-full bg-neutral-300"
-                    />
-                  </div>
-                  <div className="text-xs font-medium text-white">
-                    {aggregated.ownerOccupancy.toFixed(1)}%
-                  </div>
-                </div>
-              </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <AnimatePresence mode="popLayout">
-              {(!selectedEvent || affectedMetrics.size > 3) && (
-                <motion.div
-                  layout
-                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  animate={{ opacity: 1, height: 'auto', marginBottom: 8 }}
-                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                  className="p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg pointer-events-auto overflow-hidden"
-                >
-                <h3 className="text-xs font-medium text-white/60 mb-2">
-                  Urban Profile
-                </h3>
-              <div className="h-48">
-                <RadarChart
-                  labels={['Education', 'Diversity', 'Affordability', 'Density', 'Income']}
-                  data={radarData}
-                  fillColor="rgba(163, 163, 163, 0.2)"
-                  borderColor="rgba(163, 163, 163, 0.8)"
-                />
-              </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {orderedSections.map((section) => (
+              <Fragment key={section.id}>{section.node}</Fragment>
+            ))}
           </div>
         </div>
         <AnimatePresence>

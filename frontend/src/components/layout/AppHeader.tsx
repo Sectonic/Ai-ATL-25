@@ -25,7 +25,7 @@ export function AppHeader() {
           >
             <Link to="/" className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
               <img src="/mimic_logo.png" alt="Mimic Logo" className="w-14 h-14" />
-              <h1 className="text-2xl font-light text-white/85 uppercase">Mimic</h1>
+              <h1 className="text-2xl font-light text-white/85 uppercase">CIMIC</h1>
             </Link>
           </motion.div>
           <motion.div

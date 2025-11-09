@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 
 export interface AgentData {
   agent_id: string
+  agent_prompt: string
   description: string
+  gender: 'male' | 'female'
 }
 
 export type AgentsMapping = Record<string, AgentData>

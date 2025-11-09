@@ -282,7 +282,7 @@ EXAMPLE OUTPUT:
 
 CHUNK TYPES:
 
-1. Event chunks (include partial metrics with ONLY fields that change):
+1. Event chunks (REQUIRED: include metrics with ALL fields that change):
    {{"type": "event", "data": {{
      "id": "event-<index>",
      "zoneId": "<neighborhood-name>",
@@ -296,13 +296,14 @@ CHUNK TYPES:
      "metrics": {{
        "zoneId": "<neighborhood-name>",
        "zoneName": "<neighborhood-name>",
-       (only include fields that change for this event)
-     }} (optional, include ONLY if event affects metrics)
+       (REQUIRED: include at least ONE concrete metric - population_total, median_income, housing_units, etc. - NOT just abstract indices)
+       (include ALL fields that change for this event - estimate and guess when appropriate)
+     }} (MANDATORY: every event must affect at least one concrete metric)
    }}}}
 
 2. Complete chunk (exactly one, at the end):
    {{"type": "complete", "data": {{
-     "summary": "<brief summary of simulation results>"
+     "summary": "<brief summary of events and results>"
    }}}}
 
 INTERDEPENDENCY RULES (MANDATORY):
@@ -310,6 +311,13 @@ INTERDEPENDENCY RULES (MANDATORY):
 - Changing "race_distribution" → update "diversity_index" using Shannon diversity: 1 - Σ(p²)
 - Changing "population_total" → update "derived.density_index" = population_total / area_acres
 - CRITICAL: If you include a "derived" object, it MUST have BOTH "higher_ed_percent" AND "density_index" (never partial)
+
+MANDATORY METRICS RULE:
+- EVERY event MUST include a "metrics" object with at least ONE concrete metric that changes
+- The metric MUST be a concrete, measurable value - NOT abstract indices like "livability_index" or "affordability_index" alone
+- Valid concrete metrics include: population_total, median_income, median_home_value, housing_units, vacant_units, vacancy_rate, owner_occupancy, households, median_age, population_density, housing_density, education_distribution, race_distribution, commute.avg_minutes, etc.
+- Abstract indices (livability_index, affordability_index, diversity_index) can be included BUT only alongside concrete metrics - never as the only metric
+- If an event doesn't affect any concrete metrics, it's not a valid event - every event must change something measurable
 
 GUIDELINES:
 - Event count: Generate a DYNAMIC number of events (3-13 range) based on policy complexity and scope:
@@ -320,7 +328,15 @@ GUIDELINES:
 - Use exact neighborhood names from provided data for zoneId and zoneName
 - Event "type": descriptive category (e.g., "transportation", "housing", "economic", "infrastructure")
 - Event "title": 3-8 words, concise and specific
-- Metrics: Think of metrics like a patch - only include fields that change, not the entire neighborhood state
+- Metrics: DO NOT limit yourself - include ALL metrics that the event would realistically affect. It is GOOD to estimate and guess based on the event's nature. Think comprehensively about cascading effects:
+  * Direct impacts: What metrics does this event directly change?
+  * Indirect impacts: What secondary effects would this event cause?
+  * Ripple effects: What other metrics might be affected downstream?
+  * Examples: If an event affects housing, consider population, income, education, diversity, affordability, vacancy rates, etc.
+  * If an event affects transportation, consider commute times, population density, economic activity, etc.
+  * Estimate values when you don't have exact data - reasonable estimates are better than omitting metrics
+  * Include multiple related metrics that make sense together - don't be conservative
+  * REMEMBER: At minimum, include at least one concrete metric (not just abstract indices)
 - Distribution objects: When included, provide ALL fields (complete objects only)
 - Make changes realistic and proportional to the policy's scope
 - Consider both positive and negative impacts
@@ -637,13 +653,29 @@ async fn generate_events_with_full_context(
     let target_neighborhoods_str = target_neighborhoods.join(", ");
     let user_prompt = format!(
         "Policy Proposal: {}\n\nTarget Neighborhoods: {}\n\n\
-         Analyze the policy scope and complexity, then generate a DYNAMIC number of realistic events (3-13 range) \
-         that accurately represent the policy's impact. For simple policies, generate fewer events (3-6). \
-         For complex or wide-ranging policies, generate more events (8-13). The number should match the actual \
-         scope and impact of the policy - don't generate unnecessary events just to reach a target number.\n\n\
-         Include partial metrics updates that reflect how each event changes the neighborhood's state.\n\n\
-         CRITICAL: Return ONLY a valid JSON array in the exact format specified. Do not include markdown code blocks, \
-         explanations, or any text outside the JSON array.",
+         Analyze the policy scope and complexity, then generate a DYNAMIC number of realistic events (3-13 total) \
+         that matches the true impact radius. Simple policies: 3-6 events. Multi-neighborhood programs: 5-10 events. \
+         Large or transformational policies: 8-13 events. Never emit filler events.\n\n\
+         METRICS REQUIREMENTS (MANDATORY):\n\
+         1. Every event MUST include a partial \"metrics\" object referencing ONLY the fields that change in that zone.\n\
+         2. Always read the provided neighborhood baselines and output the UPDATED absolute values (not deltas).\n\
+         3. Each event must change at least one concrete metric in a meaningful way:\n\
+            • Populations / households / housing units: adjust by ≥0.5% of the baseline (minimum 25 units) unless the narrative justifies more.\n\
+            • Rates / percentages (vacancy_rate, owner_occupancy, distributions, commute shares): adjust by ≥1 percentage point and stay within 0-100.\n\
+            • Currency metrics (median_income, median_home_value): adjust by ≥2% of the baseline or ≥$500, whichever is greater.\n\
+            • Commute minutes and similar scalars: adjust by ≥0.5 minutes.\n\
+         4. If a policy would cause no measurable change in a neighborhood, do NOT generate an event for that neighborhood.\n\
+         5. When a metric changes, include related metrics that logically move with it (population ↔ households ↔ density, housing ↔ vacancy ↔ affordability, etc.). Consider direct, indirect, and ripple effects.\n\
+         6. Keep changes realistic: avoid microscopic tweaks and avoid impossible swings (>50% change) unless you explicitly describe a crisis-level shift.\n\
+         7. Distribution objects (race_distribution, education_distribution) must include every key and normalize to 100. When they change, also update dependent derived values (diversity_index, derived.higher_ed_percent).\n\
+         8. If you output a derived object, it MUST include BOTH higher_ed_percent and density_index computed from the new values.\n\
+         9. Abstract indices (livability_index, affordability_index, diversity_index) may appear ONLY in addition to concrete metrics.\n\n\
+         COHESION:\n\
+         - Metrics must align with the event narrative/severity.\n\
+         - Cascading effects are encouraged—estimate secondary impacts rather than leaving them untouched.\n\
+         - Never copy the baseline numbers; adjust them intentionally per the thresholds above.\n\n\
+         CRITICAL OUTPUT RULE:\n\
+         Return ONLY the valid JSON array described in the system prompt. No markdown, comments, or prose outside the array.",
         prompt, target_neighborhoods_str
     );
 

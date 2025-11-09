@@ -22,12 +22,19 @@ interface DoughnutChartProps {
   deltas?: number[]
 }
 
-const formatDelta = (delta: number): { display: string; color: string } => {
-  const absDelta = Math.abs(delta)
-  const sign = delta >= 0 ? '+' : ''
+const DELTA_DISPLAY_EPSILON = 0.05
+
+const formatDelta = (delta: number | undefined): { display: string; color: string; isPositive: boolean } | null => {
+  if (delta === undefined) return null
+  if (Math.abs(delta) < DELTA_DISPLAY_EPSILON) return null
+  const rounded = Number(delta.toFixed(1))
+  if (Math.abs(rounded) < DELTA_DISPLAY_EPSILON) return null
+  const isPositive = rounded >= 0
+  const sign = isPositive ? '+' : ''
   return {
-    display: `${sign}${absDelta.toFixed(1)}%`,
-    color: delta >= 0 ? 'text-green-400' : 'text-red-400',
+    display: `${sign}${Math.abs(rounded).toFixed(1)}%`,
+    color: isPositive ? 'text-green-400' : 'text-red-400',
+    isPositive,
   }
 }
 
@@ -75,11 +82,12 @@ export function DoughnutChart({ title, labels, data, backgroundColor, deltas }: 
               
               let labelText = `${label} (${percentage}%)`
               
-              if (deltas && deltas[i] !== undefined && Math.abs(deltas[i]) >= 0.005) {
-                const delta = deltas[i]
-                const formatted = formatDelta(delta)
-                const arrow = delta >= 0 ? '↑' : '↓'
-                labelText = `${label} (${percentage}%) ${arrow} ${formatted.display}`
+              if (deltas && deltas[i] !== undefined) {
+                const formatted = formatDelta(deltas[i])
+                if (formatted) {
+                  const arrow = formatted.isPositive ? '↑' : '↓'
+                  labelText = `${label} (${percentage}%) ${arrow} ${formatted.display}`
+                }
               }
               
               return {
@@ -115,4 +123,3 @@ export function DoughnutChart({ title, labels, data, backgroundColor, deltas }: 
     </div>
   )
 }
-

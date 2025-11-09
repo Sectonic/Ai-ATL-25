@@ -1,79 +1,92 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Phone, PhoneOff } from 'lucide-react'
 import { useConversation } from '@elevenlabs/react'
 import { BarVisualizer, type AgentState } from '@/components/ui/bar-visualizer'
 import { useAgentData } from '@/services/agentsApi'
+import type { EventNotification } from '@/stores/simulationStore'
 
 interface ConstituentCallModalProps {
   constituentName: string | null
   onClose: () => void
   isOpen: boolean
+  event?: EventNotification | null
+  constituentMessage?: string | null
 }
 
 export function ConstituentCallModal({
   constituentName,
   onClose,
   isOpen,
+  event,
+  constituentMessage,
 }: ConstituentCallModalProps) {
   const [error, setError] = useState<string | null>(null)
   const modalRef = useRef<HTMLDivElement>(null)
-
-  // Load agent data using React Query
   const { data: agentData, isLoading, error: queryError } = useAgentData(constituentName)
 
-  // ElevenLabs conversation hook
-  // Note: Using public agents with agentId. For production, consider using
-  // authenticated agents with signedUrl from your backend for better security.
   const conversation = useConversation({
     onConnect: () => console.log('Connected to ElevenLabs'),
     onDisconnect: () => console.log('Disconnected from ElevenLabs'),
-    onError: (error) => {
-      console.error('ElevenLabs error:', error)
+    onError: (err) => {
+      console.error('ElevenLabs error:', err)
       setError('Failed to connect to voice agent')
     },
   })
 
-  // Map ElevenLabs status to BarVisualizer state
   const getVisualizerState = (): AgentState | undefined => {
-    switch (conversation.status) {
-      case 'connected':
-        if (conversation.isSpeaking) return 'speaking'
-        return 'listening'
-      default:
-        return undefined
-    }
+    if (conversation.status !== 'connected') return undefined
+    return conversation.isSpeaking ? 'speaking' : 'listening'
   }
 
-  // Handle call start
   const handleStartCall = async () => {
     if (!agentData?.agent_id) return
 
     try {
-      // Request microphone permission first
       await navigator.mediaDevices.getUserMedia({ audio: true })
-
-      // Start the conversation session
-      await conversation.startSession({
+      
+      const sessionConfig: any = {
         agentId: agentData.agent_id,
         connectionType: 'webrtc',
-      })
+      }
+
+      if (event && constituentMessage && agentData.agent_prompt) {
+        const additionalContext = `\n\nADDITIONAL CONTEXT FOR THIS CONVERSATION:\nYou are speaking with the person who enacted the policy that caused this event.\n\nEVENT DETAILS:\n- Title: ${event.title}\n- Location: ${event.zoneName}\n- Description: ${event.description}\n- Type: ${event.type}\n- Severity: ${event.severity.toFixed(2)} (0-1 scale)\n- Positivity: ${event.positivity.toFixed(2)} (-1 to 1 scale)\n\nYOUR PREVIOUS RESPONSE:\nYou previously said: "${constituentMessage}"\n\nIMPORTANT:\nThe person you're speaking with is the one who enacted this policy. Reference your previous response and discuss the event naturally while staying true to your character and personality.`
+        
+        const combinedPrompt = `${agentData.agent_prompt}${additionalContext}`
+        
+        sessionConfig.overrideAgentConfig = {
+          prompt: {
+            prompt: combinedPrompt,
+          },
+        }
+      }
+
+      if (agentData.gender === 'female') {
+        if (!sessionConfig.overrideAgentConfig) {
+          sessionConfig.overrideAgentConfig = {}
+        }
+        if (!sessionConfig.overrideAgentConfig.tts) {
+          sessionConfig.overrideAgentConfig.tts = {}
+        }
+        sessionConfig.overrideAgentConfig.tts.voice_id = 'iNwc1Lv2YQLywnCvjfn1'
+      }
+
+      await conversation.startSession(sessionConfig)
     } catch (err) {
       console.error('Failed to start call:', err)
       setError('Failed to start call. Please check microphone permissions.')
     }
   }
 
-  // Handle call end
-  const handleEndCall = async () => {
+  const handleEndCall = useCallback(async () => {
     try {
       await conversation.endSession()
     } catch (err) {
       console.error('Failed to end call:', err)
     }
-  }
+  }, [conversation])
 
-  // Handle click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
@@ -88,9 +101,8 @@ export function ConstituentCallModal({
       document.addEventListener('mousedown', handleClickOutside)
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [isOpen, conversation.status, onClose])
+  }, [isOpen, conversation.status, onClose, handleEndCall])
 
-  // Handle back button and cleanup on unmount
   const handleClose = () => {
     if (conversation.status === 'connected') {
       handleEndCall()
@@ -98,102 +110,88 @@ export function ConstituentCallModal({
     onClose()
   }
 
-  if (!isOpen || !constituentName) return null
+  const renderCallButton = () => {
+    if (conversation.status === 'connected') {
+      return (
+        <button
+          onClick={handleEndCall}
+          className="flex items-center justify-center gap-2 rounded-xl border border-red-400/40 bg-red-500/15 px-4 py-2.5 text-sm font-medium text-red-200 transition-colors hover:bg-red-500/25 w-full"
+        >
+          <PhoneOff className="h-4 w-4" />
+          End Call
+        </button>
+      )
+    }
+
+    return (
+      <button
+        onClick={handleStartCall}
+        disabled={conversation.status === 'connecting' || !agentData}
+        className="flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-medium text-white/90 transition-colors hover:bg-white/15 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 w-full"
+      >
+        <Phone className="h-4 w-4" />
+        {conversation.status === 'connecting' ? 'Connecting...' : 'Start Call'}
+      </button>
+    )
+  }
 
   return (
     <AnimatePresence>
-      <motion.div
-        ref={modalRef}
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: 20 }}
-        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-        className="fixed left-[calc(22%+2rem)] top-[80px] w-[400px] h-[600px] bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-6 flex flex-col gap-4 z-50"
-      >
-        {/* Header with back button */}
+      {isOpen && constituentName && (
+        <motion.div
+          key="constituent-call-modal"
+          ref={modalRef}
+          initial={{ opacity: 0, x: 12, scale: 0.96 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          exit={{ opacity: 0, x: 12, scale: 0.96 }}
+          transition={{
+            duration: 0.3,
+            ease: [0.16, 1, 0.3, 1],
+          }}
+          className="fixed left-[calc(22%+1.5rem)] top-[290px] w-[280px] max-h-[calc(100vh-120px)] overflow-y-auto rounded-2xl border border-white/15 bg-white/10 p-4 shadow-2xl backdrop-blur-xl z-40 flex flex-col gap-3"
+        >
         <div className="flex items-center gap-3">
           <button
             onClick={handleClose}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+            className="rounded-lg p-2 text-white/70 transition-colors hover:bg-white/10"
             aria-label="Close modal"
           >
-            <ArrowLeft className="w-5 h-5 text-white/70" />
+            <ArrowLeft className="h-4 w-4" />
           </button>
-          <h2 className="text-lg font-semibold text-white/90">Voice Call</h2>
+          <h2 className="text-base font-semibold text-white/90">{constituentName}</h2>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 flex flex-col gap-6">
+        <div>
           {isLoading ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-white/70">Loading agent data...</div>
-            </div>
+            <div className="flex items-center justify-center py-8 text-sm text-white/70">Loading agent data...</div>
           ) : error || queryError ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-red-400">{error || (queryError as Error)?.message || 'An error occurred'}</div>
+            <div className="flex items-center justify-center py-8 text-sm text-red-400">
+              {error || (queryError as Error)?.message || 'An error occurred'}
             </div>
           ) : !agentData ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-white/70">Agent not found</div>
-            </div>
+            <div className="flex items-center justify-center py-8 text-sm text-white/70">Agent not found</div>
           ) : (
-            <>
-              {/* Constituent Info */}
-              <div className="space-y-3">
-                <h3 className="text-2xl font-bold text-white/90">
-                  {constituentName}
-                </h3>
-                <p className="text-sm text-white/70 leading-relaxed">
-                  {agentData?.description}
-                </p>
+            <div className="flex flex-col gap-3">
+              <div className="space-y-2">
+                <p className="text-sm leading-relaxed text-white/70 line-clamp-4">{agentData.description}</p>
               </div>
 
-              {/* Call Button */}
-              <div className="flex justify-center">
-                {conversation.status === 'connected' ? (
-                  <button
-                    onClick={handleEndCall}
-                    className="flex items-center gap-2 px-6 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-xl border border-red-500/30 transition-colors"
-                  >
-                    <PhoneOff className="w-5 h-5" />
-                    <span className="font-medium">End Call</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleStartCall}
-                    disabled={conversation.status === 'connecting' || !agentData}
-                    className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white/90 rounded-xl border border-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Phone className="w-5 h-5" />
-                    <span className="font-medium">
-                      {conversation.status === 'connecting' ? 'Connecting...' : 'Start Call'}
-                    </span>
-                  </button>
-                )}
-              </div>
-
-              {/* Bar Visualizer */}
-              <div className="flex-1 flex items-end">
+              <div className="flex flex-col gap-3">
+                <div className="w-full">{renderCallButton()}</div>
                 <BarVisualizer
                   state={getVisualizerState()}
-                  barCount={15}
+                  barCount={16}
                   demo={conversation.status === 'connected'}
-                  className="w-full bg-white/5 border-white/10"
+                  className={`h-12 rounded-xl bg-transparent w-full transition-opacity ${
+                    conversation.status === 'connected' ? 'opacity-100' : 'opacity-30'
+                  }`}
                 />
               </div>
-
-              {/* Call Status */}
-              {conversation.status === 'connected' && (
-                <div className="text-center">
-                  <p className="text-sm text-white/60">
-                    {conversation.isSpeaking ? 'Agent is speaking...' : 'Listening...'}
-                  </p>
-                </div>
-              )}
-            </>
+            </div>
           )}
         </div>
-      </motion.div>
+        </motion.div>
+      )}
     </AnimatePresence>
   )
 }

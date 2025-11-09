@@ -126,10 +126,14 @@ function SelectedEventView({ event, onClose }: { event: EventNotification, onClo
   return (
     <div className="relative">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.3 }}
+        initial={{ opacity: 0, y: 100, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -100, scale: 0.95 }}
+        transition={{
+          duration: 0.4,
+          ease: [0.4, 0, 0.2, 1],
+          y: { duration: 0.5, ease: [0.4, 0, 0.2, 1] }
+        }}
         className="pointer-events-auto h-full"
       >
         <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg flex flex-col h-full">
@@ -239,9 +243,16 @@ function SelectedEventView({ event, onClose }: { event: EventNotification, onClo
                 <CommentSkeleton />
               </>
             ) : (
-              comments.map((comment: { name: string, message: string }) => (
-                <div
+              comments.map((comment: { name: string, message: string }, idx: number) => (
+                <motion.div
                   key={comment.name}
+                  initial={{ opacity: 0, x: -50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{
+                    duration: 0.4,
+                    delay: idx * 0.1,
+                    ease: [0.4, 0, 0.2, 1]
+                  }}
                   onClick={() => setSelectedConstituentName(comment.name)}
                   className="rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 hover:border-white/25 p-3 transition-all cursor-pointer"
                 >
@@ -249,7 +260,7 @@ function SelectedEventView({ event, onClose }: { event: EventNotification, onClo
                     <span className="text-sm font-semibold text-white/90">{comment.name}</span>
                   </div>
                   <p className="text-sm text-white/80 leading-relaxed">{comment.message}</p>
-                </div>
+                </motion.div>
               ))
             )}
           </div>
@@ -262,20 +273,46 @@ function SelectedEventView({ event, onClose }: { event: EventNotification, onClo
         constituentName={selectedConstituentName}
         onClose={() => setSelectedConstituentName(null)}
         isOpen={selectedConstituentName !== null}
+        event={event}
+        constituentMessage={
+          selectedConstituentName
+            ? comments.find((c: { name: string }) => c.name === selectedConstituentName)?.message || null
+            : null
+        }
       />
     </div>
   )
 }
 
-function EventCard({ event, onClick }: { event: EventNotification, onClick: () => void }) {
+function EventCard({ event, onClick, index }: { event: EventNotification, onClick: () => void, index: number }) {
   const Icon = getEventIcon(event.type)
+  const slideFromBottom = index % 3 === 0
+  const slideFromTop = index % 3 === 1
+  const slideFromRight = index % 3 === 2
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -20, scale: 0.95 }}
-      transition={{ duration: 0.3 }}
+      layout
+      layoutId={event.id}
+      initial={{
+        opacity: 0,
+        y: slideFromBottom ? 120 : slideFromTop ? -120 : 0,
+        x: slideFromRight ? 100 : 0
+      }}
+      animate={{ opacity: 1, y: 0, x: 0 }}
+      exit={{
+        opacity: 0,
+        y: slideFromBottom ? -80 : slideFromTop ? 80 : 0,
+        x: slideFromRight ? -80 : 0,
+        scale: 0.9
+      }}
+      transition={{
+        layout: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
+        opacity: { duration: 0.3, delay: index * 0.05 },
+        y: { duration: 0.5, ease: [0.4, 0, 0.2, 1], delay: index * 0.05 },
+        x: { duration: 0.5, ease: [0.4, 0, 0.2, 1], delay: index * 0.05 },
+        scale: { duration: 0.3 }
+      }}
       className="pointer-events-auto"
     >
       <div
@@ -308,8 +345,13 @@ function EventCard({ event, onClick }: { event: EventNotification, onClick: () =
 }
 
 export function EventNotificationPanel() {
-  const { eventNotifications, selectedEventId, setSelectedEventId } = useSimulationStore()
-  const selectedEvent = eventNotifications.find((e) => e.id === selectedEventId)
+  const { eventNotifications, selectedEventId, setSelectedEventId, selectedZones } = useSimulationStore()
+
+  const filteredEvents = selectedZones.length === 0
+    ? eventNotifications
+    : eventNotifications.filter(event => selectedZones.includes(event.zoneName))
+
+  const selectedEvent = filteredEvents.find((e) => e.id === selectedEventId)
   const containerRef = useRef<HTMLDivElement>(null)
   const [showGradient, setShowGradient] = useState(false)
   const [selectedCity, setSelectedCity] = useState('Atlanta, GA')
@@ -361,13 +403,19 @@ export function EventNotificationPanel() {
     return () => {
       window.removeEventListener('resize', checkOverflow)
     }
-  }, [eventNotifications, selectedEvent])
+  }, [filteredEvents, selectedEvent])
 
   useEffect(() => {
     if (selectedEventId && containerRef.current) {
       containerRef.current.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }, [selectedEventId])
+
+  useEffect(() => {
+    if (selectedEventId && !filteredEvents.find(e => e.id === selectedEventId)) {
+      setSelectedEventId(null)
+    }
+  }, [selectedEventId, filteredEvents, setSelectedEventId])
 
   return (
     <div className="fixed left-3 top-[80px] bottom-0 w-[22%] z-10 pointer-events-none">
@@ -433,12 +481,12 @@ export function EventNotificationPanel() {
             {selectedEventId ? 'Selected Event' : 'Event Alerts'}
           </motion.div>
         </div>
-        
-        {eventNotifications.length > 0 && (
+
+        {filteredEvents.length > 0 && (
           <div className="flex-1 min-h-0">
             <div ref={containerRef} className="h-full overflow-y-auto pr-2 pl-1 scrollbar-hide" style={{ overflowX: 'visible' }}>
               <div className="space-y-2 py-1 h-full">
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="popLayout">
               {selectedEvent ? (
                 <SelectedEventView
                   key={`selected-${selectedEvent.id}`}
@@ -448,20 +496,22 @@ export function EventNotificationPanel() {
               ) : (
                 <motion.div
                   key="event-cards"
+                  layout
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
                   className="space-y-2"
                 >
-                  {eventNotifications.map((event) => (
+                  {filteredEvents.map((event, index) => (
                     <EventCard
                       key={event.id}
                       event={event}
+                      index={index}
                       onClick={() => setSelectedEventId(event.id)}
                     />
                   ))}
-            </motion.div>
+                </motion.div>
                 )}
               </AnimatePresence>
               </div>
