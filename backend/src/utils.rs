@@ -5,7 +5,7 @@
 //! - Data formatting and transformation
 //! - JSON parsing utilities
 
-use crate::types::{NeighborhoodMetrics, NeighborhoodProperties};
+use crate::types::{MinimalNeighborhoodContext, NeighborhoodMetrics, NeighborhoodProperties};
 
 /// Completes interdependent metric calculations for partial neighborhood updates
 ///
@@ -68,6 +68,46 @@ pub fn complete_interdependent_metrics(
             }
         }
     }
+}
+
+/// Formats minimal neighborhood context into a human-readable string for Phase 1
+///
+/// Converts minimal neighborhood context (name + contextual fields) into a formatted
+/// text description for the LLM to identify which neighborhoods should have events.
+///
+/// # Arguments
+///
+/// * `context` - Slice of minimal neighborhood context to format
+///
+/// # Returns
+///
+/// A formatted string with minimal neighborhood data, or a fallback message
+/// if no context is provided
+pub fn build_minimal_context(context: &[MinimalNeighborhoodContext]) -> String {
+    if context.is_empty() {
+        return "No specific neighborhood data provided. Use general Atlanta neighborhood characteristics.".to_string();
+    }
+
+    context
+        .iter()
+        .map(|n| {
+            let neighbors = n.neighboring_neighborhoods.as_ref()
+                .map(|v| v.join(", "))
+                .unwrap_or_else(|| "None specified".to_string());
+            let current_events = n.current_events.as_ref()
+                .map(|v| v.join("; "))
+                .unwrap_or_else(|| "None specified".to_string());
+            let baseline = n.baseline_description.as_ref()
+                .map(|s| s.as_str())
+                .unwrap_or("No baseline description available");
+
+            format!(
+                "Neighborhood: {}\nBaseline Description: {}\nCurrent Events: {}\nNeighboring Neighborhoods: {}",
+                n.name, baseline, current_events, neighbors
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n---\n\n")
 }
 
 /// Formats neighborhood properties into a human-readable context string
@@ -245,4 +285,25 @@ impl Default for JsonArrayChunkParser {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Looks up full neighborhood properties by name
+///
+/// Creates a HashMap from neighborhood names to their full properties
+/// for efficient lookup during Phase 2 event generation.
+///
+/// # Arguments
+///
+/// * `properties` - Slice of full neighborhood properties
+///
+/// # Returns
+///
+/// A HashMap keyed by neighborhood name
+pub fn lookup_neighborhoods_by_names(
+    properties: &[NeighborhoodProperties],
+) -> std::collections::HashMap<String, NeighborhoodProperties> {
+    properties
+        .iter()
+        .map(|n| (n.name.clone(), n.clone()))
+        .collect()
 }

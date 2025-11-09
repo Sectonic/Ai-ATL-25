@@ -62,6 +62,34 @@ pub struct Derived {
     pub density_index: f64,
 }
 
+/// Minimal neighborhood context for Phase 1 LLM calls
+///
+/// Contains only the essential contextual information needed to identify
+/// which neighborhoods should have events generated. This reduces token usage
+/// significantly compared to sending full NeighborhoodProperties.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct MinimalNeighborhoodContext {
+    pub name: String,
+    #[serde(
+        rename = "baseline_description",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub baseline_description: Option<String>,
+    #[serde(
+        rename = "current_events",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub current_events: Option<Vec<String>>,
+    #[serde(
+        rename = "neighboring_neighborhoods",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub neighboring_neighborhoods: Option<Vec<String>>,
+}
+
 /// Neighborhood demographic and geographic properties
 ///
 /// Contains comprehensive data about Atlanta neighborhoods including:
@@ -292,7 +320,8 @@ pub struct SimulationComplete {
 /// Contains all the information needed to generate a simulation:
 /// - The policy proposal to simulate
 /// - Optional list of specific neighborhoods to focus on
-/// - Optional neighborhood demographic and geographic data for context
+/// - Minimal neighborhood context (names + contextual fields) for Phase 1
+/// - Full neighborhood properties for lookup (used in Phase 2)
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SimulationRequest {
     /// The policy proposal text describing what to simulate
@@ -301,8 +330,12 @@ pub struct SimulationRequest {
     /// If empty, the AI will analyze which neighborhoods would be affected
     #[serde(rename = "selectedZones", default)]
     pub selected_zones: Vec<String>,
-    /// Optional neighborhood properties providing demographic and geographic context
-    /// Used by the AI to generate more accurate, neighborhood-specific results
+    /// Minimal neighborhood context for Phase 1 (identifying target neighborhoods)
+    /// Contains only: name, baseline_description, current_events, neighboring_neighborhoods
+    #[serde(rename = "neighborhoodContext", default)]
+    pub neighborhood_context: Vec<MinimalNeighborhoodContext>,
+    /// Full neighborhood properties for Phase 2 (event generation)
+    /// Used as a lookup table keyed by neighborhood name
     #[serde(rename = "neighborhoodProperties", default)]
     pub neighborhood_properties: Vec<NeighborhoodProperties>,
 }

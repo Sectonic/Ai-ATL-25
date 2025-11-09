@@ -7,18 +7,20 @@ use crate::azure;
 use crate::types::SimulationRequest;
 use actix_web::{HttpResponse, Result, web};
 
-/// Simulates the impact of a city policy proposal
+/// Simulates the impact of a city policy proposal using a two-phase approach
 ///
 /// This endpoint receives a policy proposal along with neighborhood data,
-/// then uses Azure AI to generate realistic simulation results showing
-/// how the policy would affect different neighborhoods.
+/// then uses Azure AI in two phases to generate realistic simulation results:
+/// - Phase 1: Uses minimal context to identify target neighborhoods
+/// - Phase 2: Uses full properties for identified neighborhoods to generate events
 ///
 /// ## Request
 ///
 /// The request includes:
 /// - `prompt`: The policy proposal text (e.g., "Build a new light rail line")
 /// - `selectedZones`: Optional list of specific neighborhood names to focus on
-/// - `neighborhoodProperties`: Optional neighborhood demographic and geographic data
+/// - `neighborhoodContext`: Minimal context (name + contextual fields) for Phase 1
+/// - `neighborhoodProperties`: Full properties for Phase 2 lookup
 ///
 /// ## Response
 ///
@@ -41,6 +43,10 @@ pub async fn simulate_policy(body: web::Json<SimulationRequest>) -> Result<HttpR
     eprintln!("\n=== INCOMING SIMULATION REQUEST ===");
     eprintln!("Prompt: {}", request.prompt);
     eprintln!("Selected Zones: {:?}", request.selected_zones);
+    eprintln!(
+        "Neighborhood Context Count: {}",
+        request.neighborhood_context.len()
+    );
     eprintln!(
         "Neighborhood Properties Count: {}",
         request.neighborhood_properties.len()
