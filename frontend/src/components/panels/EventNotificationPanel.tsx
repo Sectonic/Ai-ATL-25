@@ -5,6 +5,7 @@ import { TrendingUp, Home, Users, Leaf, DollarSign, X, ChevronDown } from 'lucid
 import { getEventColor } from '../../lib/eventColors'
 import { useQuery } from '@tanstack/react-query'
 import { Skeleton } from '../ui/skeleton'
+import { ConstituentCallModal } from './ConstituentCallModal'
 
 const cities = [
   'Atlanta, GA',
@@ -104,6 +105,7 @@ function PulsatingDot({ severity, positivity }: { severity: number; positivity: 
 function SelectedEventView({ event, onClose }: { event: EventNotification, onClose: () => void }) {
   const Icon = getEventIcon(event.type)
   const { usedConstituentNames, updateEventComments, addUsedConstituentNames } = useSimulationStore()
+  const [selectedConstituentName, setSelectedConstituentName] = useState<string | null>(null)
 
   const { data: fetchedComments, isLoading } = useQuery({
     queryKey: ['constituentMessages', event.id],
@@ -237,10 +239,11 @@ function SelectedEventView({ event, onClose }: { event: EventNotification, onClo
                 <CommentSkeleton />
               </>
             ) : (
-              comments.map((comment) => (
+              comments.map((comment: { name: string, message: string }) => (
                 <div
                   key={comment.name}
-                  className="rounded-xl border border-white/15 bg-white/5 p-3 transition-colors"
+                  onClick={() => setSelectedConstituentName(comment.name)}
+                  className="rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 hover:border-white/25 p-3 transition-all cursor-pointer"
                 >
                   <div className="flex items-center justify-between gap-3 mb-2">
                     <span className="text-sm font-semibold text-white/90">{comment.name}</span>
@@ -253,6 +256,13 @@ function SelectedEventView({ event, onClose }: { event: EventNotification, onClo
         </div>
       </div>
       </motion.div>
+
+      {/* Constituent Call Modal */}
+      <ConstituentCallModal
+        constituentName={selectedConstituentName}
+        onClose={() => setSelectedConstituentName(null)}
+        isOpen={selectedConstituentName !== null}
+      />
     </div>
   )
 }
