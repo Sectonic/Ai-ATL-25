@@ -79,6 +79,19 @@ pub struct StreamResponse {
     pub usage: Option<Usage>,
 }
 
+/// Response format for structured JSON output
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ResponseFormat {
+    #[serde(rename = "type")]
+    pub format_type: String,
+}
+
+/// Structured response from Phase 1 containing neighborhood names
+#[derive(Debug, Deserialize)]
+pub struct Phase1Response {
+    pub neighborhoods: Vec<String>,
+}
+
 /// Request payload for Azure AI Responses API
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ChatCompletionRequest {
@@ -105,6 +118,9 @@ pub struct ChatCompletionRequest {
     /// Model identifier (default: "DeepSeek-V3.1")
     #[serde(default = "default_model")]
     pub model: String,
+    /// Response format for structured outputs (JSON mode)
+    #[serde(rename = "response_format", skip_serializing_if = "Option::is_none")]
+    pub response_format: Option<ResponseFormat>,
 }
 
 /// Helper function for serde to skip serializing false values
@@ -159,27 +175,33 @@ When given a policy proposal, you must:
 3. Identify neighborhoods that would be directly or indirectly affected by this policy
 4. Include neighborhoods that would experience spillover effects or secondary impacts
 5. Select neighborhoods based on realistic policy impact analysis - prioritize the most impacted neighborhoods
-6. Return NO MORE THAN 10 neighborhoods - this is a hard limit
+6. Return a DYNAMIC number of neighborhoods (3-18 range) based on the number of selected zones and policy scope:
+   * Few selected zones (1-3): Return 3-6 neighborhoods
+   * Moderate selected zones (4-8): Return 6-12 neighborhoods
+   * Many selected zones (9+): Return 12-18 neighborhoods
+   * The number should reflect both the selected zones count and actual impact scope - don't pad with unnecessary neighborhoods
 
 Neighborhood Context Data:
 {}
 
 CRITICAL OUTPUT FORMAT REQUIREMENTS:
-You MUST return a valid JSON array of neighborhood names. The response must be:
-- A JSON array starting with [ and ending with ]
-- Each element is a string containing the exact neighborhood name
+You MUST return a valid JSON object with a "neighborhoods" array. The response must be:
+- A JSON object with a "neighborhoods" field containing an array of strings
+- Each string is the exact neighborhood name
 - NO markdown code blocks (no ```json or ```)
 - NO explanatory text before or after the JSON
 - NO comments or additional formatting
 - Valid JSON that can be parsed directly
-- MAXIMUM 10 neighborhoods - this is a hard limit
+- Return 3-18 neighborhoods based on selected zones count and policy scope (not always the maximum)
 
-Example output format:
-["Downtown", "Midtown", "Buckhead"]
+Example output formats:
+Few zones (1-3 selected): {{"neighborhoods": ["Downtown", "Midtown", "Buckhead"]}}
+Moderate zones (4-8 selected): {{"neighborhoods": ["Downtown", "Midtown", "Buckhead", "West End", "Grant Park", "Cabbagetown", "Old Fourth Ward", "Inman Park"]}}
+Many zones (9+ selected): {{"neighborhoods": ["Downtown", "Midtown", "Buckhead", "West End", "Grant Park", "Cabbagetown", "Old Fourth Ward", "Inman Park", "Virginia-Highland", "Poncey-Highland", "Little Five Points", "East Atlanta", "Reynoldstown", "Edgewood", "Kirkwood", "Ormewood Park", "East Lake", "Candler Park"]}}
 
-CRITICAL: Return NO MORE THAN 10 neighborhood names. If more than 10 neighborhoods would be affected, select the 10 most directly impacted neighborhoods.
+CRITICAL: Return a DYNAMIC number of neighborhoods (3-18) that accurately reflects both the number of selected zones and the policy's actual impact scope. Base your count on the selected zones - if few zones are selected, return fewer neighborhoods; if many zones are selected, return more neighborhoods.
 
-Return ONLY the JSON array of neighborhood names, nothing else."#,
+Return ONLY the JSON object with the neighborhoods array, nothing else."#,
         minimal_context
     )
 }
@@ -351,12 +373,23 @@ async fn identify_target_neighborhoods(
         )
     };
 
+    let selected_zones_count = selected_zones.len();
+    let range_guidance = if selected_zones_count <= 3 {
+        "3-6 neighborhoods (few zones selected)"
+    } else if selected_zones_count <= 8 {
+        "6-12 neighborhoods (moderate zones selected)"
+    } else {
+        "12-18 neighborhoods (many zones selected)"
+    };
+
     let user_prompt = format!(
-        "Policy Proposal: {}\n\nSelected Zones: {}\n\n\
-         Identify all neighborhoods that would be directly or indirectly affected by this policy. \
+        "Policy Proposal: {}\n\nSelected Zones: {} ({} zones)\n\n\
+         Analyze the policy scope and the number of selected zones, then identify a DYNAMIC number of neighborhoods (3-18 range) \
+         that would be directly or indirectly affected. Based on {} selected zones, return approximately {}. \
          Include neighborhoods that would experience spillover effects or secondary impacts. \
-         Return a JSON array of neighborhood names.",
-        prompt, selected_zones_str
+         Return a JSON object with a \"neighborhoods\" array containing the neighborhood names. \
+         The count should reflect both the selected zones count and the policy's actual impact scope.",
+        prompt, selected_zones_str, selected_zones_count, selected_zones_count, range_guidance
     );
 
     let chat_request = ChatCompletionRequest {
@@ -377,6 +410,9 @@ async fn identify_target_neighborhoods(
         presence_penalty: 0.0,
         frequency_penalty: 0.0,
         model: default_model(),
+        response_format: Some(ResponseFormat {
+            format_type: "json_object".to_string(),
+        }),
     };
 
     let url = "https://aiatlai.services.ai.azure.com/models/chat/completions?api-version=2024-05-01-preview";
@@ -505,7 +541,6 @@ async fn identify_target_neighborhoods(
         "   📝 Response content length: {} characters",
         content.len()
     );
-
     let cleaned_content = content.trim();
     let cleaned_content = if cleaned_content.starts_with("```json") {
         &cleaned_content[7..]
@@ -516,27 +551,8 @@ async fn identify_target_neighborhoods(
     };
     let cleaned_content = cleaned_content.trim_end_matches("```").trim();
 
-    if !cleaned_content.trim().starts_with('[') || !cleaned_content.trim().ends_with(']') {
-        eprintln!("⚠️  Response may be incomplete or malformed");
-        eprintln!(
-            "   First 200 chars: {}",
-            cleaned_content.chars().take(200).collect::<String>()
-        );
-        eprintln!(
-            "   Last 200 chars: {}",
-            cleaned_content
-                .chars()
-                .rev()
-                .take(200)
-                .collect::<String>()
-                .chars()
-                .rev()
-                .collect::<String>()
-        );
-    }
-
-    let neighborhoods: Vec<String> = serde_json::from_str(cleaned_content).map_err(|e| {
-        eprintln!("✗ Failed to parse neighborhood names: {}", e);
+    let phase1_response: Phase1Response = serde_json::from_str(cleaned_content).map_err(|e| {
+        eprintln!("✗ Failed to parse Phase 1 structured response: {}", e);
         eprintln!(
             "   Response content length: {} characters",
             cleaned_content.len()
@@ -556,12 +572,19 @@ async fn identify_target_neighborhoods(
                 .rev()
                 .collect::<String>()
         );
-        actix_web::error::ErrorInternalServerError("Failed to parse neighborhood names")
+        actix_web::error::ErrorInternalServerError("Failed to parse Phase 1 structured response")
     })?;
 
-    if neighborhoods.len() > 15 {
+    let neighborhoods = phase1_response.neighborhoods;
+    eprintln!(
+        "   ✅ Successfully parsed {} neighborhoods from structured response",
+        neighborhoods.len()
+    );
+    eprintln!("   📋 Neighborhoods: {:?}", neighborhoods);
+
+    if neighborhoods.len() > 18 {
         eprintln!(
-            "   ⚠️  Warning: {} neighborhoods returned (expected 3-8)",
+            "   ⚠️  Warning: {} neighborhoods returned (expected 3-18)",
             neighborhoods.len()
         );
     }
@@ -642,6 +665,7 @@ async fn generate_events_with_full_context(
         presence_penalty: 0.0,
         frequency_penalty: 0.0,
         model: default_model(),
+        response_format: None,
     };
 
     let url = "https://aiatlai.services.ai.azure.com/models/chat/completions?api-version=2024-05-01-preview";
