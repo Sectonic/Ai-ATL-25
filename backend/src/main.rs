@@ -15,6 +15,7 @@
 //! - `POST /api/simulate`: Streams simulation results for a given policy proposal
 
 mod azure;
+mod constituents;
 mod handlers;
 mod types;
 mod utils;
@@ -62,6 +63,7 @@ async fn main() -> std::io::Result<()> {
     eprintln!();
     eprintln!("📡 Available endpoints:");
     eprintln!("   POST /api/simulate - Simulate city policy impacts");
+    eprintln!("   POST /api/messages  - Generate constituent responses to events");
     eprintln!();
     eprintln!("🔑 Environment check:");
     match std::env::var("AZURE_API_KEY") {
@@ -76,7 +78,9 @@ async fn main() -> std::io::Result<()> {
         let cors = Cors::permissive();
 
         App::new().wrap(cors).service(
-            web::scope("/api").route("/simulate", web::post().to(handlers::simulate_policy)),
+            web::scope("/api")
+                .route("/simulate", web::post().to(handlers::simulate_policy))
+                .route("/messages", web::post().to(constituents::handle_messages)),
         )
     })
     .bind(("127.0.0.1", 8080))?

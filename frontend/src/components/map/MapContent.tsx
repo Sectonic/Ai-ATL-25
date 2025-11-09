@@ -22,6 +22,7 @@ interface MapContentProps {
 }
 
 export function MapContent({ selectedEvent }: MapContentProps) {
+  const isEventSelected = selectedEvent !== null
 
   return (
     <div className="absolute inset-0 z-0 transition-opacity duration-300">
@@ -35,7 +36,10 @@ export function MapContent({ selectedEvent }: MapContentProps) {
         className="h-full w-full"
         zoomControl={false}
         attributionControl={false}
-        scrollWheelZoom={true}
+        scrollWheelZoom={!isEventSelected}
+        dragging={!isEventSelected}
+        doubleClickZoom={!isEventSelected}
+        touchZoom={!isEventSelected}
         zoomSnap={0.8}
         boxZoom={false}
       >
@@ -43,7 +47,7 @@ export function MapContent({ selectedEvent }: MapContentProps) {
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
         <NeighborhoodMask />
-        <GeoJsonLayers />
+        <GeoJsonLayers disabled={isEventSelected} />
         <LoadingAnimation />
         <EventMarkers />
         <EventBlinkAnimation event={selectedEvent} />

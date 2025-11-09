@@ -7,7 +7,11 @@ import { DragSelection } from './DragSelection'
 import type { PathOptions, Layer } from 'leaflet'
 import type { Feature } from 'geojson'
 
-export function GeoJsonLayers() {
+interface GeoJsonLayersProps {
+  disabled?: boolean
+}
+
+export function GeoJsonLayers({ disabled = false }: GeoJsonLayersProps) {
   const map = useMap()
   const {
     selectedZones,
@@ -149,7 +153,7 @@ export function GeoJsonLayers() {
           })
         }}
       />
-      <DragSelection features={neighborhoodsData.features} />
+      {!disabled && <DragSelection features={neighborhoodsData.features} />}
     </>
   )
 }

@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useSimulationStore, type EventNotification } from '../../stores/simulationStore'
 import { TrendingUp, Home, Users, Leaf, DollarSign, X, ChevronDown } from 'lucide-react'
 import { getEventColor } from '../../lib/eventColors'
+import { useQuery } from '@tanstack/react-query'
+import { Skeleton } from '../ui/skeleton'
 
 const cities = [
   'Atlanta, GA',
@@ -44,21 +46,55 @@ const getEventIcon = (eventType: string) => {
   return eventIcons[eventType.toLowerCase()] || eventIcons[eventType] || TrendingUp
 }
 
-const formatTimestamp = (value: number) =>
-  new Date(value).toLocaleString(undefined, { hour: 'numeric', minute: '2-digit' })
+const fetchConstituentMessages = async (event: EventNotification, exclusions: string[]) => {
+  const response = await fetch('http://localhost:8080/api/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      title: event.title,
+      description: event.description,
+      zone: event.zoneName,
+      positivity: event.positivity,
+      severity: event.severity,
+      exclusions,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch constituent messages')
+  }
+
+  return response.json()
+}
+
+function CommentSkeleton() {
+  return (
+    <div className="rounded-xl border border-white/15 bg-white/5 p-3">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <Skeleton className="h-4 w-32" />
+      </div>
+      <div className="space-y-2">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-5/6" />
+      </div>
+    </div>
+  )
+}
 
 function PulsatingDot({ severity, positivity }: { severity: number; positivity: number }) {
   const color = getEventColor(positivity, severity)
   const size = 10 + (severity * 4)
-  
+
   return (
     <div className="relative flex items-center justify-center shrink-0" style={{ width: `${size}px`, height: `${size}px` }}>
-      <div 
-        className="absolute inset-0 rounded-full animate-ping opacity-75" 
+      <div
+        className="absolute inset-0 rounded-full animate-ping opacity-75"
         style={{ background: color, width: `${size}px`, height: `${size}px` }}
       />
-      <div 
-        className="relative rounded-full" 
+      <div
+        className="relative rounded-full"
         style={{ background: color, width: `${size}px`, height: `${size}px` }}
       />
     </div>
@@ -67,6 +103,23 @@ function PulsatingDot({ severity, positivity }: { severity: number; positivity: 
 
 function SelectedEventView({ event, onClose }: { event: EventNotification, onClose: () => void }) {
   const Icon = getEventIcon(event.type)
+  const { usedConstituentNames, updateEventComments, addUsedConstituentNames } = useSimulationStore()
+
+  const { data: fetchedComments, isLoading } = useQuery({
+    queryKey: ['constituentMessages', event.id],
+    queryFn: () => fetchConstituentMessages(event, usedConstituentNames),
+    enabled: event.comments.length === 0,
+    staleTime: Infinity,
+  })
+
+  useEffect(() => {
+    if (fetchedComments && event.comments.length === 0) {
+      updateEventComments(event.id, fetchedComments)
+      addUsedConstituentNames(fetchedComments.map((c: { name: string }) => c.name))
+    }
+  }, [fetchedComments, event.id, event.comments.length, updateEventComments, addUsedConstituentNames])
+
+  const comments = event.comments.length > 0 ? event.comments : (fetchedComments || [])
 
   return (
     <div className="relative">
@@ -91,13 +144,13 @@ function SelectedEventView({ event, onClose }: { event: EventNotification, onClo
             <X className="w-4 h-4 text-white/70" />
           </button>
         </div>
-        
+
         <div className="text-xs text-white/60 mb-2 shrink-0">
           {event.zoneName}
         </div>
-        
+
         <p className="text-sm text-white/90 mb-3 leading-relaxed shrink-0">{event.description}</p>
-        
+
         <div className="flex items-center gap-2 mb-4 shrink-0">
           <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/70">
             {event.type}
@@ -176,23 +229,26 @@ function SelectedEventView({ event, onClose }: { event: EventNotification, onClo
 
         <div className="border-t border-white/10 pt-4 min-h-0 flex flex-col">
           <div className="text-sm font-medium text-white/90 mb-1 shrink-0">Constituents</div>
-          <div className="text-xs text-white/60 mb-3">Documented remarks from community members.</div>
+          <div className="text-xs text-white/60 mb-3 shrink-0">Documented remarks from community members.</div>
           <div className="space-y-3">
-            {event.comments.map((comment) => (
-              <div
-                key={comment.id}
-                className="rounded-xl border border-white/15 bg-white/5 p-3 transition-colors"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-semibold text-white/90">{comment.userName}</span>
-                  <span className="text-xs text-white/50">{formatTimestamp(comment.timestamp)}</span>
+            {isLoading ? (
+              <>
+                <CommentSkeleton />
+                <CommentSkeleton />
+              </>
+            ) : (
+              comments.map((comment) => (
+                <div
+                  key={comment.name}
+                  className="rounded-xl border border-white/15 bg-white/5 p-3 transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <span className="text-sm font-semibold text-white/90">{comment.name}</span>
+                  </div>
+                  <p className="text-sm text-white/80 leading-relaxed">{comment.message}</p>
                 </div>
-                <div className="text-[11px] uppercase tracking-widest text-white/40 mt-1">
-                  {comment.userInitials}
-                </div>
-                <p className="text-sm text-white/80 leading-relaxed mt-2">{comment.comment}</p>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>

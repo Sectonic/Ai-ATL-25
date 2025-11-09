@@ -3,11 +3,8 @@ import { create } from 'zustand'
 export type SimulationStatus = 'idle' | 'loading' | 'complete'
 
 export interface Comment {
-  id: string
-  userName: string
-  userInitials: string
-  comment: string
-  timestamp: number
+  name: string
+  message: string
 }
 
 export type NeighborhoodMetrics = Partial<NeighborhoodProperties> & {
@@ -105,6 +102,7 @@ interface SimulationState {
   layerVisibility: LayerVisibility
   zonesAnalyzing: number | null
   hoveredNeighborhood: string | null
+  usedConstituentNames: string[]
 
   setSimulationStatus: (status: SimulationStatus) => void
   setPromptText: (text: string) => void
@@ -119,6 +117,8 @@ interface SimulationState {
   setPreviousMapView: (view: MapView | null) => void
   initializeSimulationData: (neighborhoods: Record<string, NeighborhoodProperties>) => void
   updateMetricsFromEvent: (event: EventNotification) => void
+  updateEventComments: (eventId: string, comments: Comment[]) => void
+  addUsedConstituentNames: (names: string[]) => void
   calculateDeltas: () => void
   toggleLayerVisibility: (layer: keyof LayerVisibility) => void
   setZonesAnalyzing: (count: number | null) => void
@@ -150,6 +150,7 @@ export const useSimulationStore = create<SimulationState>((set) => ({
   },
   zonesAnalyzing: null,
   hoveredNeighborhood: null,
+  usedConstituentNames: [],
 
   setSimulationStatus: (status) => set({ simulationStatus: status }),
 
@@ -373,6 +374,18 @@ export const useSimulationStore = create<SimulationState>((set) => ({
 
   setHoveredNeighborhood: (name) => set({ hoveredNeighborhood: name }),
 
+  updateEventComments: (eventId, comments) =>
+    set((state) => ({
+      eventNotifications: state.eventNotifications.map((event) =>
+        event.id === eventId ? { ...event, comments } : event
+      ),
+    })),
+
+  addUsedConstituentNames: (names) =>
+    set((state) => ({
+      usedConstituentNames: [...state.usedConstituentNames, ...names],
+    })),
+
   resetSimulation: () =>
     set({
       simulationStatus: 'idle',
@@ -385,5 +398,6 @@ export const useSimulationStore = create<SimulationState>((set) => ({
       simulatedNeighborhoodData: {},
       neighborhoodDeltas: {},
       zonesAnalyzing: null,
+      usedConstituentNames: [],
     }),
 }))
