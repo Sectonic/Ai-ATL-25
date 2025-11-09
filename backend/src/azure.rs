@@ -204,68 +204,109 @@ fn build_system_prompt(neighborhoods_context: &str) -> String {
     format!(
         r#"You are an expert urban planning simulation AI for the city of Atlanta, Georgia. Your role is to generate realistic events that would occur as a result of a policy implementation in specific neighborhoods.
 
-When given a policy proposal and target neighborhoods, you must:
-1. Analyze how the policy would realistically impact each target neighborhood
-2. Consider the demographic, economic, and housing characteristics of each neighborhood
-3. Generate realistic events that would actually occur in each neighborhood as a result of the policy
-4. Assess the severity and positive/negative nature of each event
-5. Determine what neighborhood metrics would change as a result of each event
-6. Return results in the exact JSON format specified below
+ROLE: Generate realistic events that would occur from policy implementation in specific neighborhoods.
 
-Neighborhood Context Data:
+GROUNDING DATA:
 {}
 
-CRITICAL OUTPUT FORMAT REQUIREMENTS:
-You MUST return a valid JSON array. The response must be:
-- A JSON array starting with [ and ending with ]
-- Each element is a JSON object with a "type" field and a "data" field
+OUTPUT FORMAT (CRITICAL):
+You MUST return a valid JSON array. Requirements:
+- Start with [ and end with ]
+- Each element: {{"type": "...", "data": {{...}}}}
 - NO markdown code blocks (no ```json or ```)
-- NO explanatory text before or after the JSON
-- NO comments or additional formatting
-- Valid JSON that can be parsed directly
+- NO text before or after JSON
+- Valid, parseable JSON only
 
-The response must be a JSON array of simulation chunks. Each chunk must be one of these types:
+EXAMPLE OUTPUT:
+[
+  {{"type": "event", "data": {{
+    "id": "event-1",
+    "zoneId": "Downtown",
+    "zoneName": "Downtown",
+    "type": "infrastructure",
+    "title": "Water Service Disruption Begins",
+    "description": "Extended water shutdown forces temporary relocation of 500 residents. Emergency water distribution centers established.",
+    "severity": 0.8,
+    "positivity": -0.7,
+    "coordinates": [33.755, -84.389],
+    "metrics": {{
+      "zoneId": "Downtown",
+      "zoneName": "Downtown",
+      "population_total": 4800,
+      "derived": {{"higher_ed_percent": 45.2, "density_index": 12.5}}
+    }}
+  }}}},
+  {{"type": "event", "data": {{
+    "id": "event-2",
+    "zoneId": "Midtown",
+    "zoneName": "Midtown",
+    "type": "economic",
+    "title": "Business Closures Due to Water Crisis",
+    "description": "Restaurants and cafes forced to close, affecting 200 jobs.",
+    "severity": 0.6,
+    "positivity": -0.5,
+    "coordinates": [33.784, -84.384],
+    "metrics": {{
+      "zoneId": "Midtown",
+      "zoneName": "Midtown",
+      "median_income": 52000
+    }}
+  }}}},
+  {{"type": "complete", "data": {{
+    "summary": "Water shutdown resulted in temporary population displacement, business closures, and increased emergency service coordination across affected neighborhoods."
+  }}}}
+]
 
-1. Event chunks (each event includes a partial metrics object with ONLY the fields that change):
+CHUNK TYPES:
+
+1. Event chunks (include partial metrics with ONLY fields that change):
    {{"type": "event", "data": {{
      "id": "event-<index>",
      "zoneId": "<neighborhood-name>",
      "zoneName": "<neighborhood-name>",
      "type": "<dynamic-event-type>",
      "title": "<concise-event-title>",
-     "description": "<detailed description of the event>",
-     "severity": <number 0.0-1.0>,
-     "positivity": <number -1.0 to 1.0>,
+     "description": "<detailed description>",
+     "severity": <0.0-1.0>,
+     "positivity": <-1.0 to 1.0>,
      "coordinates": [<latitude>, <longitude>],
      "metrics": {{
        "zoneId": "<neighborhood-name>",
        "zoneName": "<neighborhood-name>",
-       (only include fields that change for this specific event)
+       (only include fields that change for this event)
      }} (optional, include ONLY if event affects metrics)
    }}}}
 
 2. Complete chunk (exactly one, at the end):
    {{"type": "complete", "data": {{
-     "summary": "<brief summary of the simulation results>"
+     "summary": "<brief summary of simulation results>"
    }}}}
 
-INTERDEPENDENCY RULES:
-- If you change "education_distribution", also update "derived.higher_ed_percent" = bachelors + graduate
-- If you change "race_distribution", also update "diversity_index" using Shannon diversity: 1 - Σ(p²)
-- If you change "population_total", also update "derived.density_index" = population_total / area_acres
-- CRITICAL: If you include a "derived" object in metrics, you MUST include BOTH "higher_ed_percent" AND "density_index" fields. Never include a partial "derived" object with only one field.
+INTERDEPENDENCY RULES (MANDATORY):
+- Changing "education_distribution" → update "derived.higher_ed_percent" = bachelors + graduate
+- Changing "race_distribution" → update "diversity_index" using Shannon diversity: 1 - Σ(p²)
+- Changing "population_total" → update "derived.density_index" = population_total / area_acres
+- CRITICAL: If you include a "derived" object, it MUST have BOTH "higher_ed_percent" AND "density_index" (never partial)
 
-Important Guidelines:
-- Generate events for the target neighborhoods provided
-- Generate EXACTLY 3-15 events total - this is a hard requirement (minimum 3, maximum 15)
-- Use neighborhood names from the provided data for zoneId and zoneName
-- The event "type" field should be descriptive (e.g., "transportation", "housing", "economic")
-- Each event MUST include a "title" field (3-8 words)
+GUIDELINES:
+- Generate 3-15 events total (hard requirement: minimum 3, maximum 15)
+- Use exact neighborhood names from provided data for zoneId and zoneName
+- Event "type": descriptive category (e.g., "transportation", "housing", "economic", "infrastructure")
+- Event "title": 3-8 words, concise and specific
+- Metrics: Think of metrics like a patch - only include fields that change, not the entire neighborhood state
+- Distribution objects: When included, provide ALL fields (complete objects only)
 - Make changes realistic and proportional to the policy's scope
 - Consider both positive and negative impacts
-- When including distribution objects, you MUST include complete objects with ALL fields
-- Generate events that accurately reflect how the policy would impact each neighborhood
-- Return ONLY the JSON array, nothing else"#,
+- Each event is like a news headline: specific, impactful, and tied to a location
+
+FALLBACK:
+If you cannot generate valid events for any reason, return a complete chunk with an error summary:
+{{"type": "complete", "data": {{"summary": "Unable to generate events: [reason]"}}}}
+
+FINAL REMINDERS:
+- Return ONLY the JSON array, nothing else
+- If including "derived" object, BOTH "higher_ed_percent" AND "density_index" are required
+- NO markdown, NO explanations, NO text outside the JSON array"#,
         neighborhoods_context
     )
 }
@@ -589,7 +630,9 @@ async fn generate_events_with_full_context(
         "Policy Proposal: {}\n\nTarget Neighborhoods: {}\n\n\
          Generate realistic events that would occur in each of these neighborhoods as a result of this policy. \
          Include partial metrics updates that reflect how each event changes the neighborhood's state. \
-         Create as many events as needed to accurately represent the policy's impact on each neighborhood.",
+         Create as many events as needed to accurately represent the policy's impact on each neighborhood.\n\n\
+         CRITICAL: Return ONLY a valid JSON array in the exact format specified. Do not include markdown code blocks, \
+         explanations, or any text outside the JSON array.",
         prompt, target_neighborhoods_str
     );
 
