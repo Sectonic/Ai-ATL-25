@@ -2,12 +2,16 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { useState, useEffect, useRef } from 'react'
 import { Button } from '../components/ui/button'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Users, DollarSign, Home, TrendingUp, Phone, PhoneOff } from 'lucide-react'
 import { LandingNav } from '../components/layout/LandingNav'
+import { DoughnutChart } from '../components/charts/DoughnutChart'
+import { RadarChart } from '../components/charts/RadarChart'
+import { BarVisualizer } from '../components/ui/bar-visualizer'
+import { getEventColor } from '../lib/eventColors'
 
-export const Route = createFileRoute('/')({
+export const Route = createFileRoute('/')(({
   component: RouteComponent,
-})
+}))
 
 function RouteComponent() {
   const navigate = useNavigate()
@@ -27,12 +31,321 @@ function RouteComponent() {
       transition={{ duration: 0.5, ease: 'easeInOut' }}
       className="min-h-screen text-white overflow-hidden relative"
       style={{
-        background: 'linear-gradient(to bottom, #000000 0%, #1a1a20 100%)'
+        background: 'linear-gradient(to bottom, #000000 0%, #0a0a12 50%, #0f0f1a 100%)'
       }}
     >
       <LandingNav />
       <HeroSection onGetStarted={handleGetStarted} />
     </motion.div>
+  )
+}
+
+function PulsatingDot({ severity, positivity }: { severity: number; positivity: number }) {
+  const color = getEventColor(positivity, severity)
+  const size = 10 + (severity * 4)
+
+  return (
+    <div className="relative flex items-center justify-center shrink-0" style={{ width: `${size}px`, height: `${size}px` }}>
+      <div
+        className="absolute inset-0 rounded-full animate-ping opacity-75"
+        style={{ background: color, width: `${size}px`, height: `${size}px` }}
+      />
+      <div
+        className="relative rounded-full"
+        style={{ background: color, width: `${size}px`, height: `${size}px` }}
+      />
+    </div>
+  )
+}
+
+function MockDataPanel({ mouseX, mouseY }: { mouseX: any; mouseY: any }) {
+  const rotateX = useSpring(useTransform(mouseY, [-1, 1], [4, -4]), {
+    stiffness: 100,
+    damping: 30
+  })
+  const rotateY = useSpring(useTransform(mouseX, [-1, 1], [-4, 4]), {
+    stiffness: 100,
+    damping: 30
+  })
+
+  const population = 85.3
+  const income = 67
+  const raceData = [35, 28, 15, 12, 10]
+  const radarData = [65, 72, 58, 68, 55]
+
+  return (
+    <div
+      className="relative"
+      style={{
+        perspective: '1200px',
+        transformStyle: 'preserve-3d'
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, x: 40, y: 20 }}
+        animate={{ opacity: 1, x: 0, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.6, ease: [0.4, 0, 0.2, 1] }}
+        className="w-72"
+        style={{
+          transformStyle: 'preserve-3d',
+          rotateX,
+          rotateY
+        }}
+      >
+        <div className="space-y-3">
+          <motion.div
+            initial={{ opacity: 0.7 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="p-3 rounded-2xl backdrop-blur-xl border border-white/10 shadow-lg"
+            style={{
+              background: 'linear-gradient(135deg, rgba(15, 15, 26, 0.6) 0%, rgba(5, 5, 10, 0.8) 100%)'
+            }}
+          >
+            <h3 className="text-xs font-medium text-white/60 mb-2">Overview</h3>
+            <div className="grid grid-cols-2 gap-1.5">
+              <div className="p-2 rounded-lg bg-white/5">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <Users className="w-3 h-3 text-white/60" />
+                  <span className="text-[10px] text-white/50">Population</span>
+                </div>
+                <div className="text-sm font-semibold text-white">
+                  {population.toFixed(1)}k
+                </div>
+              </div>
+              <div className="p-2 rounded-lg bg-white/5">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <DollarSign className="w-3 h-3 text-white/60" />
+                  <span className="text-[10px] text-white/50">Avg Income</span>
+                </div>
+                <div className="text-sm font-semibold text-white">
+                  ${Math.round(income)}k
+                </div>
+              </div>
+              <div className="p-2 rounded-lg bg-white/5">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <Home className="w-3 h-3 text-white/60" />
+                  <span className="text-[10px] text-white/50">Affordability</span>
+                </div>
+                <div className="text-sm font-semibold text-white">72/100</div>
+              </div>
+              <div className="p-2 rounded-lg bg-white/5">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <TrendingUp className="w-3 h-3 text-white/60" />
+                  <span className="text-[10px] text-white/50">Livability</span>
+                </div>
+                <div className="text-sm font-semibold text-white">85/100</div>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0.7 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="p-3 rounded-2xl backdrop-blur-xl border border-white/10 shadow-lg"
+            style={{
+              background: 'linear-gradient(135deg, rgba(15, 15, 26, 0.6) 0%, rgba(5, 5, 10, 0.8) 100%)'
+            }}
+          >
+            <h3 className="text-xs font-medium text-white/60 mb-2">Demographics</h3>
+            <div className="h-32">
+              <DoughnutChart
+                title=""
+                labels={['White', 'Black', 'Asian', 'Mixed', 'Hispanic']}
+                data={raceData}
+                backgroundColor={['#737373', '#525252', '#a3a3a3', '#d4d4d4', '#e5e5e5']}
+              />
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0.7 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="p-3 rounded-2xl backdrop-blur-xl border border-white/10 shadow-lg"
+            style={{
+              background: 'linear-gradient(135deg, rgba(15, 15, 26, 0.6) 0%, rgba(5, 5, 10, 0.8) 100%)'
+            }}
+          >
+            <h3 className="text-xs font-medium text-white/60 mb-2">Urban Profile</h3>
+            <div className="h-40">
+              <RadarChart
+                labels={['Education', 'Diversity', 'Affordability', 'Density', 'Income']}
+                data={radarData}
+                fillColor="rgba(163, 163, 163, 0.2)"
+                borderColor="rgba(163, 163, 163, 0.8)"
+              />
+            </div>
+          </motion.div>
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
+function MockEventPanel({ mouseX, mouseY }: { mouseX: any; mouseY: any }) {
+  const rotateX = useSpring(useTransform(mouseY, [-1, 1], [3, -3]), {
+    stiffness: 100,
+    damping: 30
+  })
+  const rotateY = useSpring(useTransform(mouseX, [-1, 1], [-3, 3]), {
+    stiffness: 100,
+    damping: 30
+  })
+
+  const mockEvents = [
+    {
+      id: '1',
+      title: 'Traffic Congestion Reduced',
+      zoneName: 'Downtown',
+      description: 'New transit lanes have decreased traffic by 15% in the downtown area.',
+      type: 'transportation',
+      severity: 0.6,
+      positivity: 0.7,
+    },
+    {
+      id: '2',
+      title: 'Housing Costs Rising',
+      zoneName: 'Midtown',
+      description: 'Median home values increased 8% following new development.',
+      type: 'housing',
+      severity: 0.5,
+      positivity: -0.3,
+    },
+    {
+      id: '3',
+      title: 'Green Space Expansion',
+      zoneName: 'East Atlanta',
+      description: 'New park opens, improving community livability scores.',
+      type: 'environmental',
+      severity: 0.4,
+      positivity: 0.8,
+    },
+  ]
+
+  return (
+    <div
+      className="relative"
+      style={{
+        perspective: '1200px',
+        transformStyle: 'preserve-3d'
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, x: -40, y: 20 }}
+        animate={{ opacity: 1, x: 0, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.7, ease: [0.4, 0, 0.2, 1] }}
+        className="w-72"
+        style={{
+          transformStyle: 'preserve-3d',
+          rotateX,
+          rotateY
+        }}
+      >
+        <div className="mb-3 ml-1 text-sm font-medium text-white/70 uppercase tracking-wider">
+          Event Alerts
+        </div>
+        <div className="space-y-2">
+          {mockEvents.map((event, index) => (
+            <motion.div
+              key={event.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.8 + index * 0.1 }}
+              className="p-3 rounded-2xl backdrop-blur-xl border border-white/10 shadow-lg"
+              style={{
+                background: 'linear-gradient(135deg, rgba(15, 15, 26, 0.6) 0%, rgba(5, 5, 10, 0.8) 100%)'
+              }}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <TrendingUp className="w-4 h-4 shrink-0 text-white/90" />
+                <PulsatingDot severity={event.severity} positivity={event.positivity} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm text-white leading-tight">
+                  {event.title}
+                </div>
+                <div className="text-xs text-white/60 mt-0.5">
+                  {event.zoneName}
+                </div>
+                <p className="text-xs text-white/80 mt-1 leading-tight line-clamp-2">
+                  {event.description}
+                </p>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/10 text-white/70">
+                    {event.type}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
+function MockCallPanel({ mouseX, mouseY }: { mouseX: any; mouseY: any }) {
+  const rotateX = useSpring(useTransform(mouseY, [-1, 1], [6, -6]), {
+    stiffness: 100,
+    damping: 30
+  })
+  const rotateY = useSpring(useTransform(mouseX, [-1, 1], [-6, 6]), {
+    stiffness: 100,
+    damping: 30
+  })
+
+  return (
+    <div
+      className="relative"
+      style={{
+        perspective: '1200px',
+        transformStyle: 'preserve-3d'
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.9, ease: [0.4, 0, 0.2, 1] }}
+        className="w-72"
+        style={{
+          transformStyle: 'preserve-3d',
+          rotateX,
+          rotateY
+        }}
+      >
+        <div className="rounded-2xl border border-white/10 p-4 shadow-2xl backdrop-blur-xl flex flex-col gap-3" style={{
+          background: 'linear-gradient(135deg, rgba(15, 15, 26, 0.6) 0%, rgba(5, 5, 10, 0.8) 100%)'
+        }}>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10">
+              <Phone className="w-5 h-5 text-white/90" />
+            </div>
+            <h2 className="text-base font-semibold text-white/90">Sarah Johnson</h2>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm leading-relaxed text-white/70">
+              Local resident concerned about traffic changes in their neighborhood
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <button className="flex items-center justify-center gap-2 rounded-xl border border-red-400/40 bg-red-500/15 px-4 py-2.5 text-sm font-medium text-red-200 w-full">
+              <PhoneOff className="h-4 w-4" />
+              End Call
+            </button>
+            <BarVisualizer
+              state="speaking"
+              barCount={16}
+              demo={true}
+              className="h-12 rounded-xl bg-transparent w-full"
+            />
+          </div>
+        </div>
+      </motion.div>
+    </div>
   )
 }
 
@@ -47,7 +360,7 @@ function HeroSection({ onGetStarted }: { onGetStarted: () => void }) {
   const [hasStarted, setHasStarted] = useState(false)
 
   const phrases = [
-    'How will congestion pricing affect Atlanta?',
+    'Implement congestion pricing in downtown with $15 peak-hour tolls',
   ]
 
   useEffect(() => {
@@ -86,7 +399,7 @@ function HeroSection({ onGetStarted }: { onGetStarted: () => void }) {
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
     }
-  }, [])
+  }, [mouseX, mouseY])
 
   useEffect(() => {
     if (!hasStarted) return
@@ -116,7 +429,7 @@ function HeroSection({ onGetStarted }: { onGetStarted: () => void }) {
     }
 
     return () => clearTimeout(timer)
-  }, [typedText, isDeleting, loopIndex, hasStarted])
+  }, [typedText, isDeleting, loopIndex, hasStarted, phrases])
 
   useEffect(() => {
     const cursorInterval = setInterval(() => {
@@ -129,7 +442,7 @@ function HeroSection({ onGetStarted }: { onGetStarted: () => void }) {
   return (
     <section className="relative z-10 min-h-screen px-16 sm:px-20 lg:px-24 pt-32">
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center relative">
           <div className="text-left">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -149,7 +462,7 @@ function HeroSection({ onGetStarted }: { onGetStarted: () => void }) {
               transition={{ duration: 0.6, delay: 0.1, ease: [0.4, 0, 0.2, 1] }}
             >
               <p className="text-xl sm:text-2xl text-white/70 mb-8 font-light" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                Visualize the impact of urban planning decisions on Atlanta
+                Visualize the impact of urban planning decisions on cities
               </p>
             </motion.div>
 
@@ -160,7 +473,7 @@ function HeroSection({ onGetStarted }: { onGetStarted: () => void }) {
             >
               <p className="text-base sm:text-lg text-white/60 mb-12 font-light leading-relaxed" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
                 Explore how policy changes affect neighborhoods, traffic, housing, and economic metrics in real-time.
-                Make data-driven decisions for a better Atlanta.
+                Make data-driven decisions for better cities.
               </p>
             </motion.div>
 
@@ -182,9 +495,9 @@ function HeroSection({ onGetStarted }: { onGetStarted: () => void }) {
 
           <div
             ref={cardRef}
-            className="relative"
+            className="-mt-16 relative"
             style={{
-              perspective: '1200px',
+              perspective: '1300px',
               transformStyle: 'preserve-3d'
             }}
           >
@@ -194,11 +507,12 @@ function HeroSection({ onGetStarted }: { onGetStarted: () => void }) {
               transition={{ duration: 0.8, delay: 0.4, ease: [0.4, 0, 0.2, 1] }}
               className="relative rounded-2xl overflow-hidden shadow-2xl"
               style={{
-                background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)',
+                background: 'linear-gradient(135deg, #0f0f1a 0%, #05050a 100%)',
                 boxShadow: '0 25px 70px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)',
                 transformStyle: 'preserve-3d',
                 rotateX,
-                rotateY
+                rotateY,
+                translateZ: 100
               }}
             >
               <div className="border-b border-white/10 relative">
@@ -210,7 +524,7 @@ function HeroSection({ onGetStarted }: { onGetStarted: () => void }) {
                       transition={{ duration: 0.6 }}
                       className="text-white/50"
                     >
-                      Type in a city policy.
+                      Describe a policy to simulate...
                     </motion.span>
                   ) : (
                     <span>
@@ -233,17 +547,29 @@ function HeroSection({ onGetStarted }: { onGetStarted: () => void }) {
                 </div>
               </div>
               <div className="px-4 py-4">
-                <p className="text-sm text-white/60 mb-2 font-medium">Simulation Results</p>
+                <p className="text-sm text-white/60 mb-2 font-medium">Summary</p>
                 <p className="text-base text-white/90 leading-relaxed">
-                  Implementing congestion pricing in downtown Atlanta would reduce traffic by 23% and increase public transit ridership by 18%.
-                  The policy would generate $12M annually in revenue while improving air quality by 15% in affected zones.
+                  This policy reduces downtown traffic congestion by 23% during peak hours while increasing public transit ridership by 18%.
+                  Annual revenue of $12M supports transit improvements, and air quality improves by 15% in affected zones.
+                  Average commute times decrease by 8 minutes for remaining drivers.
                 </p>
               </div>
             </motion.div>
+
+            <div className="absolute -top-40 -left-20 z-20 pointer-events-none" style={{ transform: 'translateZ(-50px)', transformStyle: 'preserve-3d' }}>
+              <MockEventPanel mouseX={mouseX} mouseY={mouseY} />
+            </div>
+
+            <div className="absolute -bottom-42 -right-20 z-20 pointer-events-none" style={{ transform: 'translateZ(-50px)', transformStyle: 'preserve-3d' }}>
+              <MockDataPanel mouseX={mouseX} mouseY={mouseY} />
+            </div>
+
+            <div className="absolute -bottom-60 left-48 z-20 pointer-events-none" style={{ transform: 'translateZ(0px)', transformStyle: 'preserve-3d' }}>
+              <MockCallPanel mouseX={mouseX} mouseY={mouseY} />
+            </div>
           </div>
         </div>
       </div>
     </section>
   )
 }
-
