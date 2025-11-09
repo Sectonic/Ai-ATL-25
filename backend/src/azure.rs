@@ -623,6 +623,21 @@ async fn generate_events_with_full_context(
     let stream = response.bytes_stream();
 
     let output_stream = async_stream::stream! {
+        let expected_event_count = (target_neighborhoods.len() as u32).max(3).min(15);
+        let update_chunk = SimulationChunk::Update {
+            data: crate::types::SimulationUpdate {
+                expected_event_count,
+                target_neighborhood_count: target_neighborhoods.len() as u32,
+            },
+        };
+
+        if let Ok(json) = serde_json::to_string(&update_chunk) {
+            let sse_data = format!("data: {}\n\n", json);
+            eprintln!("   📤 Sending update chunk: expecting ~{} events for {} neighborhoods",
+                expected_event_count, target_neighborhoods.len());
+            yield Ok::<_, std::io::Error>(Bytes::from(sse_data));
+        }
+
         let mut json_parser = JsonArrayChunkParser::new();
         let mut sse_buffer = String::new();
         let mut chunk_count = 0;
@@ -677,17 +692,23 @@ async fn generate_events_with_full_context(
                                                                 }
                                                                 event_count += 1;
                                                                 eprintln!("✅ Parsed and streaming event #{}", event_count);
-                                                                SimulationChunk::Event { data }
+                                                                Some(SimulationChunk::Event { data })
+                                                            }
+                                                            SimulationChunk::Update { .. } => {
+                                                                eprintln!("⚠️  Received update chunk from LLM (unexpected, skipping)");
+                                                                None
                                                             }
                                                             SimulationChunk::Complete { data } => {
                                                                 eprintln!("✅ Streaming completion summary");
-                                                                SimulationChunk::Complete { data }
+                                                                Some(SimulationChunk::Complete { data })
                                                             }
                                                         };
 
-                                                        if let Ok(json) = serde_json::to_string(&processed_chunk) {
-                                                            let sse_data = format!("data: {}\n\n", json);
-                                                            yield Ok::<_, std::io::Error>(Bytes::from(sse_data));
+                                                        if let Some(processed_chunk) = processed_chunk {
+                                                            if let Ok(json) = serde_json::to_string(&processed_chunk) {
+                                                                let sse_data = format!("data: {}\n\n", json);
+                                                                yield Ok::<_, std::io::Error>(Bytes::from(sse_data));
+                                                            }
                                                         }
                                                     }
                                                     Err(err) => {

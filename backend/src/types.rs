@@ -295,14 +295,30 @@ impl Default for EventNotification {
 /// the client to track how neighborhoods change incrementally as events occur.
 ///
 /// The `#[serde(tag = "type")]` attribute means the JSON includes a "type" field
-/// that determines which variant to deserialize ("event" or "complete").
+/// that determines which variant to deserialize ("event", "update", or "complete").
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum SimulationChunk {
     #[serde(rename = "event")]
     Event { data: EventNotification },
+    #[serde(rename = "update")]
+    Update { data: SimulationUpdate },
     #[serde(rename = "complete")]
     Complete { data: SimulationComplete },
+}
+
+/// Update message sent at the start of Phase 2 to inform the client
+/// about expected event generation progress
+///
+/// This chunk is sent early in Phase 2 to let the client know that
+/// events are being generated and provide an estimate of how many to expect.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SimulationUpdate {
+    /// Estimated number of events that will be generated
+    /// This is based on the number of target neighborhoods (typically 1-2 events per neighborhood)
+    pub expected_event_count: u32,
+    /// Number of target neighborhoods events will be generated for
+    pub target_neighborhood_count: u32,
 }
 
 /// Completion message sent at the end of a simulation stream
