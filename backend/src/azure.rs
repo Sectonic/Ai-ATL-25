@@ -150,13 +150,15 @@ fn default_model() -> String {
 /// A complete system prompt string for Phase 1
 fn build_phase1_system_prompt(minimal_context: &str) -> String {
     format!(
-        r#"You are an expert urban planning simulation AI for the city of Atlanta, Georgia. Your role is to analyze policy decisions and identify which neighborhoods would be affected.
+        r#"You are an expert urban planning analyst for the city of Atlanta, Georgia. Your role is to analyze policy proposals and identify which neighborhoods would be impacted.
 
 When given a policy proposal, you must:
-1. Analyze which neighborhoods would most likely be affected by the policy
+1. Analyze the policy to determine its scope and potential impacts
 2. Consider the baseline descriptions, current events, and neighboring neighborhoods to understand context and connections
-3. Identify EXACTLY 3-8 neighborhoods (no more, no less) that should have events generated (consider direct impacts and spillover effects)
-4. Select only the MOST IMPACTED neighborhoods - prioritize quality over quantity
+3. Identify neighborhoods that would be directly or indirectly affected by this policy
+4. Include neighborhoods that would experience spillover effects or secondary impacts
+5. Select neighborhoods based on realistic policy impact analysis - prioritize the most impacted neighborhoods
+6. Return NO MORE THAN 10 neighborhoods - this is a hard limit
 
 Neighborhood Context Data:
 {}
@@ -169,11 +171,12 @@ You MUST return a valid JSON array of neighborhood names. The response must be:
 - NO explanatory text before or after the JSON
 - NO comments or additional formatting
 - Valid JSON that can be parsed directly
+- MAXIMUM 10 neighborhoods - this is a hard limit
 
 Example output format:
 ["Downtown", "Midtown", "Buckhead"]
 
-CRITICAL: Return EXACTLY 3-8 neighborhood names. Do NOT return more than 8 neighborhoods. Focus on the most directly impacted neighborhoods.
+CRITICAL: Return NO MORE THAN 10 neighborhood names. If more than 10 neighborhoods would be affected, select the 10 most directly impacted neighborhoods.
 
 Return ONLY the JSON array of neighborhood names, nothing else."#,
         minimal_context
@@ -199,14 +202,14 @@ Return ONLY the JSON array of neighborhood names, nothing else."#,
 /// A complete system prompt string ready to send to the AI
 fn build_system_prompt(neighborhoods_context: &str) -> String {
     format!(
-        r#"You are an expert urban planning simulation AI for the city of Atlanta, Georgia. Your role is to analyze policy decisions and predict their realistic impacts on specific neighborhoods.
+        r#"You are an expert urban planning simulation AI for the city of Atlanta, Georgia. Your role is to generate realistic events that would occur as a result of a policy implementation in specific neighborhoods.
 
-When given a policy proposal, you must:
-1. Analyze which neighborhoods would most likely be affected by the policy
-2. Consider the baseline descriptions, current events, and neighboring neighborhoods to understand context and connections
-3. Determine what kinds of events would actually take place in each affected neighborhood
-4. Assess how severe and positive/negative each event would be
-5. Generate realistic simulation results that reflect real-world urban dynamics
+When given a policy proposal and target neighborhoods, you must:
+1. Analyze how the policy would realistically impact each target neighborhood
+2. Consider the demographic, economic, and housing characteristics of each neighborhood
+3. Generate realistic events that would actually occur in each neighborhood as a result of the policy
+4. Assess the severity and positive/negative nature of each event
+5. Determine what neighborhood metrics would change as a result of each event
 6. Return results in the exact JSON format specified below
 
 Neighborhood Context Data:
@@ -250,16 +253,18 @@ INTERDEPENDENCY RULES:
 - If you change "education_distribution", also update "derived.higher_ed_percent" = bachelors + graduate
 - If you change "race_distribution", also update "diversity_index" using Shannon diversity: 1 - Σ(p²)
 - If you change "population_total", also update "derived.density_index" = population_total / area_acres
+- CRITICAL: If you include a "derived" object in metrics, you MUST include BOTH "higher_ed_percent" AND "density_index" fields. Never include a partial "derived" object with only one field.
 
 Important Guidelines:
-- Analyze the policy to determine which neighborhoods would be affected
+- Generate events for the target neighborhoods provided
+- Generate EXACTLY 3-15 events total - this is a hard requirement (minimum 3, maximum 15)
 - Use neighborhood names from the provided data for zoneId and zoneName
 - The event "type" field should be descriptive (e.g., "transportation", "housing", "economic")
 - Each event MUST include a "title" field (3-8 words)
 - Make changes realistic and proportional to the policy's scope
 - Consider both positive and negative impacts
 - When including distribution objects, you MUST include complete objects with ALL fields
-- Generate 3-8 events based on the policy (don't exceed 15)
+- Generate events that accurately reflect how the policy would impact each neighborhood
 - Return ONLY the JSON array, nothing else"#,
         neighborhoods_context
     )
@@ -300,7 +305,10 @@ async fn identify_target_neighborhoods(
     };
 
     let user_prompt = format!(
-        "Analyze the following policy proposal and identify which neighborhoods would be affected:\n\nPolicy: {}\n\nSelected Zones: {}\n\nReturn a JSON array of neighborhood names that should have events generated.",
+        "Policy Proposal: {}\n\nSelected Zones: {}\n\n\
+         Identify all neighborhoods that would be directly or indirectly affected by this policy. \
+         Include neighborhoods that would experience spillover effects or secondary impacts. \
+         Return a JSON array of neighborhood names.",
         prompt, selected_zones_str
     );
 
@@ -578,9 +586,10 @@ async fn generate_events_with_full_context(
 
     let target_neighborhoods_str = target_neighborhoods.join(", ");
     let user_prompt = format!(
-        "Simulate the following policy proposal:\n\nPolicy: {}\n\nTarget Neighborhoods: {}\n\n\
-         Generate realistic events that would occur in each of these neighborhoods, with partial metrics updates that reflect \
-         how each event changes the neighborhood's state. Return the results as a JSON array of simulation chunks.",
+        "Policy Proposal: {}\n\nTarget Neighborhoods: {}\n\n\
+         Generate realistic events that would occur in each of these neighborhoods as a result of this policy. \
+         Include partial metrics updates that reflect how each event changes the neighborhood's state. \
+         Create as many events as needed to accurately represent the policy's impact on each neighborhood.",
         prompt, target_neighborhoods_str
     );
 
@@ -630,6 +639,7 @@ async fn generate_events_with_full_context(
         let mut event_count = 0;
         let mut parse_errors = 0u32;
         let mut phase2_usage: Option<Usage> = None;
+        let mut received_complete_chunk = false;
 
         futures_util::pin_mut!(stream);
         while let Some(chunk_result) = stream.next().await {
@@ -685,6 +695,7 @@ async fn generate_events_with_full_context(
                                                                 None
                                                             }
                                                             SimulationChunk::Complete { data } => {
+                                                                received_complete_chunk = true;
                                                                 eprintln!("✅ Streaming completion summary");
                                                                 Some(SimulationChunk::Complete { data })
                                                             }
@@ -699,11 +710,10 @@ async fn generate_events_with_full_context(
                                                     }
                                                     Err(err) => {
                                                         parse_errors += 1;
-                                                        if parse_errors <= 3 {
-                                                            let preview = chunk_json.chars().take(200).collect::<String>();
-                                                            eprintln!("✗ Failed to parse chunk ({} chars): {}", chunk_json.len(), err);
-                                                            eprintln!("Chunk preview: {}", preview);
-                                                        }
+                                                        let preview = chunk_json.chars().take(200).collect::<String>();
+                                                        eprintln!("⚠️  Failed to parse chunk #{} ({} chars): {}", parse_errors, chunk_json.len(), err);
+                                                        eprintln!("   Chunk preview: {}", preview);
+                                                        eprintln!("   Skipping malformed chunk and continuing...");
                                                     }
                                                 }
                                             }
@@ -724,6 +734,24 @@ async fn generate_events_with_full_context(
         eprintln!("   ✓ Phase 2 Complete:");
         eprintln!("      - Received {} SSE chunks", chunk_count);
         eprintln!("      - Generated {} events", event_count);
+        eprintln!("      - Parse errors: {}", parse_errors);
+
+        if !received_complete_chunk {
+            eprintln!("   ⚠️  No complete chunk received from AI, sending fallback completion");
+            let fallback_complete = SimulationChunk::Complete {
+                data: crate::types::SimulationComplete {
+                    summary: format!(
+                        "Simulation completed with {} events generated. {} events were skipped due to parsing errors.",
+                        event_count,
+                        parse_errors
+                    ),
+                },
+            };
+            if let Ok(json) = serde_json::to_string(&fallback_complete) {
+                let sse_data = format!("data: {}\n\n", json);
+                yield Ok::<_, std::io::Error>(Bytes::from(sse_data));
+            }
+        }
 
         if let Some(usage) = phase2_usage {
             eprintln!("      📊 Phase 2 Token Usage:");
