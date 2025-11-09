@@ -314,11 +314,7 @@ pub enum SimulationChunk {
 /// events are being generated and provide an estimate of how many to expect.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SimulationUpdate {
-    /// Estimated number of events that will be generated
-    /// This is based on the number of target neighborhoods (typically 1-2 events per neighborhood)
-    pub expected_event_count: u32,
-    /// Number of target neighborhoods events will be generated for
-    pub target_neighborhood_count: u32,
+    pub total: u32,
 }
 
 /// Completion message sent at the end of a simulation stream

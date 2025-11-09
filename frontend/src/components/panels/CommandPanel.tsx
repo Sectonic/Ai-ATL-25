@@ -210,7 +210,9 @@ export function CommandPanel() {
         chunkCount++
         console.log('Received chunk:', chunk.type, chunk)
 
-        if (chunk.type === 'event') {
+        if (chunk.type === 'update') {
+          console.log('Update chunk received:', chunk.data)
+        } else if (chunk.type === 'event') {
           addEventNotification(chunk.data)
           if (chunk.data.metrics) {
             updateMetricsFromEvent(chunk.data)

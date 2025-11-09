@@ -2,6 +2,7 @@ import type { EventNotification, Comment, NeighborhoodProperties } from '../stor
 
 export type SimulationChunk =
   | { type: 'event'; data: EventNotification }
+  | { type: 'update'; data: { total: number } }
   | { type: 'complete'; data: { summary: string } }
 
 const BACKEND_URL = 'http://localhost:8080/api/simulate'
@@ -352,6 +353,8 @@ export async function* simulatePolicy(
                   comments,
                 },
               }
+            } else if (chunk.type === 'update') {
+              yield chunk
             } else if (chunk.type === 'complete') {
               yield chunk
             }
