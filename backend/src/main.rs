@@ -17,6 +17,7 @@
 mod azure;
 mod constituents;
 mod handlers;
+mod neighborhoods;
 mod types;
 mod utils;
 
@@ -71,11 +72,22 @@ async fn main() -> std::io::Result<()> {
         Err(_) => eprintln!("   ✗ AZURE_API_KEY is NOT set (required for AI features)"),
     }
     eprintln!();
+    eprintln!("📊 Loading neighborhood database...");
+    let neighborhood_db = neighborhoods::NeighborhoodDatabase::new();
+    match &neighborhood_db {
+        Ok(db) => eprintln!("   ✓ Loaded {} neighborhoods from GeoJSON", db.count()),
+        Err(e) => eprintln!("   ⚠️  Warning: {}", e),
+    }
+    eprintln!();
     eprintln!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     eprintln!("Waiting for requests...\n");
 
+    let neighborhood_db = neighborhood_db.unwrap_or_default();
+
+    let db = std::sync::Arc::new(neighborhood_db);
     HttpServer::new(move || {
         let cors = Cors::permissive();
+        let db = db.clone();
 
         App::new().wrap(cors).service(
             web::scope("/api")

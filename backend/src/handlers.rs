@@ -4,6 +4,7 @@
 //! Handlers receive requests, call the appropriate business logic, and return responses.
 
 use crate::azure;
+use crate::neighborhoods::NeighborhoodDatabase;
 use crate::types::SimulationRequest;
 use actix_web::{HttpResponse, Result, web};
 
@@ -37,23 +38,33 @@ use actix_web::{HttpResponse, Result, web};
 ///   -H "Content-Type: application/json" \
 ///   -d '{"prompt": "Build light rail connecting downtown to midtown", "selectedZones": ["Downtown", "Midtown"]}'
 /// ```
-pub async fn simulate_policy(body: web::Json<SimulationRequest>) -> Result<HttpResponse> {
+pub async fn simulate_policy(
+    body: web::Json<SimulationRequest>,
+    db: web::Data<NeighborhoodDatabase>,
+) -> Result<HttpResponse> {
     let request = body.into_inner();
 
-    eprintln!("\n=== INCOMING SIMULATION REQUEST ===");
-    eprintln!("Prompt: {}", request.prompt);
-    eprintln!("Selected Zones: {:?}", request.selected_zones);
+    let zones_text = if request.selected_zones.is_empty() {
+        "All".to_string()
+    } else {
+        format!("{} zones", request.selected_zones.len())
+    };
+
+    eprintln!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    eprintln!("📥 Simulation Request");
+    eprintln!("   Policy: {}", request.prompt);
+    eprintln!("   Selected Zones: {}", zones_text);
     eprintln!(
-        "Neighborhood Context Count: {}",
+        "   Context: {} neighborhoods",
         request.neighborhood_context.len()
     );
     eprintln!(
-        "Neighborhood Properties Count: {}",
+        "   Properties: {} neighborhoods",
         request.neighborhood_properties.len()
     );
-    eprintln!("=== END REQUEST INFO ===\n");
+    eprintln!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-    let stream = azure::generate_simulation(request).await?;
+    let stream = azure::generate_simulation(request, std::sync::Arc::new(db.get_ref().clone())).await?;
 
     Ok(HttpResponse::Ok()
         .content_type("text/event-stream")

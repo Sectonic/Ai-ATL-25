@@ -307,11 +307,7 @@ pub enum SimulationChunk {
     Complete { data: SimulationComplete },
 }
 
-/// Update message sent at the start of Phase 2 to inform the client
-/// about expected event generation progress
-///
-/// This chunk is sent early in Phase 2 to let the client know that
-/// events are being generated and provide an estimate of how many to expect.
+/// This chunk is sent at the end of Phase 1 to let the client know how many events to expect.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SimulationUpdate {
     pub total: u32,
