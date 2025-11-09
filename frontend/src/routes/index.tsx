@@ -210,7 +210,7 @@ function HeroSection({ onGetStarted }: { onGetStarted: () => void }) {
                       transition={{ duration: 0.6 }}
                       className="text-white/50"
                     >
-                      type in a city policy.
+                      Type in a city policy.
                     </motion.span>
                   ) : (
                     <span>
