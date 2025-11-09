@@ -89,11 +89,14 @@ async fn main() -> std::io::Result<()> {
         let cors = Cors::permissive();
         let db = db.clone();
 
-        App::new().wrap(cors).service(
-            web::scope("/api")
-                .route("/simulate", web::post().to(handlers::simulate_policy))
-                .route("/messages", web::post().to(constituents::handle_messages)),
-        )
+        App::new()
+            .app_data(web::Data::from(db.clone()))
+            .wrap(cors)
+            .service(
+                web::scope("/api")
+                    .route("/simulate", web::post().to(handlers::simulate_policy))
+                    .route("/messages", web::post().to(constituents::handle_messages)),
+            )
     })
     .bind(("127.0.0.1", 8080))?
     .run()
