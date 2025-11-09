@@ -1,0 +1,150 @@
+[
+  {
+    "type": "event",
+    "data": {
+      "id": "event-1",
+      "zoneId": "Midtown",
+      "zoneName": "Midtown",
+      "type": "environment",
+      "title": "New Midtown Skyscraper Unveils Public Rooftop Park",
+      "description": "As part of the city's new green roof mandate, the '10th Street Spire,' a new commercial high-rise in Midtown, opens with a 15,000 sq ft publicly accessible green roof. The space features native plants, seating areas, and offers significant stormwater runoff reduction, immediately becoming a popular lunch spot for office workers and improving local air quality.",
+      "severity": 0.4,
+      "positivity": 0.9,
+      "coordinates": [
+        33.7811,
+        -84.3835
+      ],
+      "metrics": {
+        "zoneId": "Midtown",
+        "zoneName": "Midtown",
+        "livability_index": 71.2
+      }
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-2",
+      "zoneId": "West End",
+      "zoneName": "West End",
+      "type": "housing",
+      "title": "BeltLine Westside Trail Expansion Spurs 'Green Gentrification'",
+      "description": "A new segment of the BeltLine opens in the West End, featuring a community garden and two acres of new parkland. While celebrated for its green space, the amenity triggers a 5% jump in nearby property assessments. Long-term residents on fixed incomes report receiving unsolicited cash offers from developers, fueling community meetings about displacement.",
+      "severity": 0.7,
+      "positivity": -0.2,
+      "coordinates": [
+        33.7375,
+        -84.4161
+      ],
+      "metrics": {
+        "zoneId": "West End",
+        "zoneName": "West End",
+        "median_home_value": 405250,
+        "affordability_index": 7.15,
+        "race_distribution": {
+          "white": 11.2,
+          "black": 80.9,
+          "asian": 1.7,
+          "mixed": 1.4,
+          "hispanic": 3.1
+        },
+        "diversity_index": 0.33152899999999996
+      }
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-3",
+      "zoneId": "Downtown",
+      "zoneName": "Downtown",
+      "type": "transportation",
+      "title": "Parking Lot Conversion Near Arena Increases Event Parking Costs",
+      "description": "A large surface parking lot south of Mercedes-Benz Stadium is converted into a green space with bioswales to manage stormwater. The reduction in parking supply leads to a 25% increase in average event parking fees in the remaining lots, causing frustration for commuters and sports fans. MARTA, however, reports a slight uptick in ridership for stadium events.",
+      "severity": 0.5,
+      "positivity": 0.1,
+      "coordinates": [
+        33.7527,
+        -84.3959
+      ],
+      "metrics": {
+        "zoneId": "Downtown",
+        "zoneName": "Downtown"
+      }
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-4",
+      "zoneId": "Reynoldstown",
+      "zoneName": "Reynoldstown",
+      "type": "economic",
+      "title": "New BeltLine Development Attracts High-Income Earners",
+      "description": "A new mixed-use development opens on Memorial Drive in Reynoldstown, featuring a mandatory green roof, EV charging stations, and direct BeltLine access. The premium amenities attract new, higher-income residents, pushing the neighborhood's median income up but also increasing the cost of living and commercial rents for local businesses.",
+      "severity": 0.6,
+      "positivity": 0.3,
+      "coordinates": [
+        33.7518,
+        -84.3555
+      ],
+      "metrics": {
+        "zoneId": "Reynoldstown",
+        "zoneName": "Reynoldstown",
+        "median_income": 134500,
+        "median_home_value": 621000,
+        "affordability_index": 4.62
+      }
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-5",
+      "zoneId": "Buckhead Village",
+      "zoneName": "Buckhead Village",
+      "type": "economic",
+      "title": "Carbon Tax Spurs Green Tech Investment in Buckhead",
+      "description": "In response to the new carbon tax on commercial buildings, several property management firms in Buckhead Village partner with Georgia Tech to pilot new energy-efficient HVAC and smart window technologies. This initiative avoids tax penalties, reduces energy consumption, and creates a small hub for green building startups in the area.",
+      "severity": 0.4,
+      "positivity": 0.8,
+      "coordinates": [
+        33.8395,
+        -84.3825
+      ]
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-6",
+      "zoneId": "Atlantic Station",
+      "zoneName": "Atlantic Station",
+      "type": "community",
+      "title": "Atlantic Station Converts Parking to Public Plaza, Boosting Foot Traffic",
+      "description": "A central surface parking lot in Atlantic Station is successfully converted into a vibrant public plaza with native plant gardens and a dense network of EV charging stations. The new space hosts weekend markets and community events, increasing retail foot traffic by 15% and enhancing the neighborhood's reputation as a walkable, sustainable community.",
+      "severity": 0.5,
+      "positivity": 0.9,
+      "coordinates": [
+        33.7915,
+        -84.395
+      ],
+      "metrics": {
+        "zoneId": "Atlantic Station",
+        "zoneName": "Atlantic Station",
+        "population_total": 3245,
+        "livability_index": 76.1,
+        "derived": {
+          "higher_ed_percent": 0.0,
+          "density_index": 19.900650067459832
+        }
+      }
+    }
+  },
+  {
+    "type": "complete",
+    "data": {
+      "summary": "The green infrastructure initiative successfully increased green space and promoted sustainability, boosting livability in areas like Midtown and Atlantic Station. However, it also had mixed economic consequences, including increased parking costs in Downtown and accelerated gentrification pressures in BeltLine-adjacent neighborhoods like West End and Reynoldstown, raising concerns about housing affordability."
+    }
+  }
+]

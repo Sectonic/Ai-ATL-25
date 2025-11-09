@@ -1,0 +1,220 @@
+[
+  {
+    "type": "event",
+    "data": {
+      "id": "event-1",
+      "zoneId": "Buckhead Village",
+      "zoneName": "Buckhead Village",
+      "type": "housing",
+      "title": "Luxury High-Rise Announced Near Future Rail Station",
+      "description": "Following the light rail announcement, a national developer unveils plans for 'The Peachtree Spire,' a 40-story luxury mixed-use tower adjacent to the proposed Buckhead Village station. The project promises high-end retail and 350 residential units, causing an immediate spike in land value speculation.",
+      "severity": 0.6,
+      "positivity": 0.2,
+      "coordinates": [
+        33.8405,
+        -84.382
+      ],
+      "metrics": {
+        "zoneId": "Buckhead Village",
+        "zoneName": "Buckhead Village",
+        "median_home_value": 465000,
+        "affordability_index": 4.85,
+        "housing_density": 18.8
+      }
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-2",
+      "zoneId": "West End",
+      "zoneName": "West End",
+      "type": "economic",
+      "title": "Speculative Land Buys Surge Near BeltLine Stop",
+      "description": "Out-of-state investment firms begin aggressively purchasing commercial properties and single-family homes near the future BeltLine rail stop in the West End. Property taxes for long-term residents see an immediate double-digit percentage increase in assessments, fueling community-led protests against displacement.",
+      "severity": 0.8,
+      "positivity": -0.7,
+      "coordinates": [
+        33.7379,
+        -84.4145
+      ],
+      "metrics": {
+        "zoneId": "West End",
+        "zoneName": "West End",
+        "median_home_value": 435000,
+        "affordability_index": 8.3,
+        "livability_index": 44.5
+      }
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-3",
+      "zoneId": "Midtown",
+      "zoneName": "Midtown",
+      "type": "development",
+      "title": "Tech Campus Expansion Tied to New Transit Hub",
+      "description": "A major tech firm announces an expansion of its Midtown campus, citing the new light rail as a key factor for talent attraction. The expansion includes a new office tower and 800 residential units, attracting a younger, higher-income demographic to the area.",
+      "severity": 0.5,
+      "positivity": 0.6,
+      "coordinates": [
+        33.7828,
+        -84.3869
+      ],
+      "metrics": {
+        "zoneId": "Midtown",
+        "zoneName": "Midtown",
+        "population_total": 31250,
+        "median_income": 119500,
+        "education_distribution": {
+          "high_school_or_less": 0.0,
+          "some_college": 9.9,
+          "bachelors": 42.8,
+          "graduate": 42.2
+        },
+        "race_distribution": {
+          "white": 62.4,
+          "black": 13.1,
+          "asian": 13.5,
+          "mixed": 2.4,
+          "hispanic": 8.6
+        },
+        "diversity_index": 0.567266,
+        "derived": {
+          "higher_ed_percent": 85.0,
+          "density_index": 29.807325448302173
+        }
+      }
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-4",
+      "zoneId": "Downtown",
+      "zoneName": "Downtown",
+      "type": "transportation",
+      "title": "Major Thoroughfare Closed for Rail Construction",
+      "description": "Construction on the central light rail hub begins in the Gulch area, requiring a long-term closure of a key section of Peachtree Street. Commute times for Downtown workers increase, and local businesses report a significant drop in foot traffic.",
+      "severity": 0.7,
+      "positivity": -0.5,
+      "coordinates": [
+        33.7585,
+        -84.3921
+      ],
+      "metrics": {
+        "zoneId": "Downtown",
+        "zoneName": "Downtown",
+        "livability_index": 55.0,
+        "commute": {
+          "avg_minutes": 0.0,
+          "car_dependence": 0.0,
+          "transit_usage": 0.0
+        }
+      }
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-5",
+      "zoneId": "Adair Park",
+      "zoneName": "Adair Park",
+      "type": "community",
+      "title": "Anti-Displacement Task Force Formed by NPU",
+      "description": "In response to rising property values from the nearby BeltLine rail development, residents of Adair Park and NPU-V form an Anti-Displacement Task Force. They successfully lobby the city for a property tax freeze for legacy homeowners over the age of 65.",
+      "severity": 0.4,
+      "positivity": 0.8,
+      "coordinates": [
+        33.7301,
+        -84.4085
+      ],
+      "metrics": {
+        "zoneId": "Adair Park",
+        "zoneName": "Adair Park",
+        "livability_index": 55.0
+      }
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-6",
+      "zoneId": "Lindbergh/Morosgo",
+      "zoneName": "Lindbergh/Morosgo",
+      "type": "transportation",
+      "title": "Rail Line Opens, Boosting Transit Usage",
+      "description": "The new light rail line opens, integrating with the Lindbergh Center MARTA station. The neighborhood sees a significant increase in transit ridership and a corresponding decrease in car dependency. New bike lanes along the route are heavily utilized.",
+      "severity": 0.3,
+      "positivity": 0.9,
+      "coordinates": [
+        33.8235,
+        -84.3688
+      ],
+      "metrics": {
+        "zoneId": "Lindbergh/Morosgo",
+        "zoneName": "Lindbergh/Morosgo",
+        "livability_index": 73.0,
+        "commute": {
+          "avg_minutes": 0.0,
+          "car_dependence": 0.0,
+          "transit_usage": 0.0
+        }
+      }
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-7",
+      "zoneId": "Capitol View",
+      "zoneName": "Capitol View",
+      "type": "housing",
+      "title": "Community Land Trust Secures Vacant Lots for Affordable Housing",
+      "description": "A local community land trust, using funds from the city's transit equity program, acquires a portfolio of 30 vacant and blighted properties near the new rail line. The properties are slated for rehabilitation as permanently affordable rental and ownership units, slightly reducing the neighborhood's high vacancy rate.",
+      "severity": 0.4,
+      "positivity": 0.9,
+      "coordinates": [
+        33.7215,
+        -84.412
+      ],
+      "metrics": {
+        "zoneId": "Capitol View",
+        "zoneName": "Capitol View",
+        "affordability_index": 4.88,
+        "vacant_units": 325,
+        "vacancy_rate": 21.0,
+        "owner_occupancy": 54.5
+      }
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-8",
+      "zoneId": "Grant Park",
+      "zoneName": "Grant Park",
+      "type": "community",
+      "title": "Increased Park Usage Strains Neighborhood Parking",
+      "description": "The new transit options and dedicated bike lanes make Grant Park and the Zoo more accessible to the wider metro area. While celebrated, the influx of visitors creates severe parking shortages and traffic congestion on weekends, leading to resident complaints and calls for a residential parking permit program.",
+      "severity": 0.5,
+      "positivity": 0.3,
+      "coordinates": [
+        33.7362,
+        -84.3711
+      ],
+      "metrics": {
+        "zoneId": "Grant Park",
+        "zoneName": "Grant Park",
+        "livability_index": 70.5
+      }
+    }
+  },
+  {
+    "type": "complete",
+    "data": {
+      "summary": "The new light rail line successfully enhanced connectivity between key economic hubs and residential areas, boosting transit usage and spurring significant mixed-use development in Midtown and Buckhead. However, this growth dramatically intensified gentrification pressures in historically Black neighborhoods like the West End and Adair Park, leading to sharp increases in property values and displacement concerns. Community-led initiatives in some areas provided a small but important counterbalance by securing affordable housing options."
+    }
+  }
+]

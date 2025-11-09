@@ -1,0 +1,151 @@
+[
+  {
+    "type": "event",
+    "data": {
+      "id": "event-1",
+      "zoneId": "Pittsburgh",
+      "zoneName": "Pittsburgh",
+      "type": "housing",
+      "title": "Community Land Trust Established in Pittsburgh",
+      "description": "Leveraging the city's new affordable housing policy, the Pittsburgh Community Land Trust (PCLT) is officially formed. The trust acquires 30 vacant and dilapidated properties with the goal of renovating them for permanently affordable homeownership and rentals, directly combating displacement pressures.",
+      "severity": 0.4,
+      "positivity": 0.9,
+      "coordinates": [
+        33.7315,
+        -84.4021
+      ],
+      "metrics": {
+        "zoneId": "Pittsburgh",
+        "zoneName": "Pittsburgh"
+      }
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-2",
+      "zoneId": "Tuxedo Park",
+      "zoneName": "Tuxedo Park",
+      "type": "zoning",
+      "title": "Tuxedo Park Residents Launch Legal Challenge to Upzoning",
+      "description": "The Tuxedo Park Neighborhood Association files a lawsuit against the City of Atlanta, challenging the legality of the new ordinance allowing duplexes and triplexes in single-family zones. The campaign, 'Preserve Tuxedo Park,' argues the policy will destroy neighborhood character and property values, creating a significant political and legal battle for the city.",
+      "severity": 0.8,
+      "positivity": -0.7,
+      "coordinates": [
+        33.8445,
+        -84.3968
+      ]
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-3",
+      "zoneId": "Reynoldstown",
+      "zoneName": "Reynoldstown",
+      "type": "development",
+      "title": "Developer Utilizes Incentives for BeltLine Mixed-Income Project",
+      "description": "A major developer breaks ground on a 250-unit apartment complex adjacent to the BeltLine's Eastside Trail in Reynoldstown. By utilizing the new tax incentives, the project will designate 75 units (30%) as affordable. While adding needed housing, the project's market-rate units contribute to rising property values and gentrification concerns in the area.",
+      "severity": 0.6,
+      "positivity": 0.3,
+      "coordinates": [
+        33.752,
+        -84.3566
+      ],
+      "metrics": {
+        "zoneId": "Reynoldstown",
+        "zoneName": "Reynoldstown"
+      }
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-4",
+      "zoneId": "Campbellton Road",
+      "zoneName": "Campbellton Road",
+      "type": "transportation",
+      "title": "MARTA Increases Bus Frequency on Campbellton Road",
+      "description": "As part of the policy's transit expansion component, MARTA increases peak and off-peak bus service frequency along the Campbellton Road corridor. The move is celebrated by residents in the high-transit-usage neighborhood, reducing commute times and improving access to jobs and services.",
+      "severity": 0.3,
+      "positivity": 0.9,
+      "coordinates": [
+        33.7188,
+        -84.4442
+      ],
+      "metrics": {
+        "zoneId": "Campbellton Road",
+        "zoneName": "Campbellton Road"
+      }
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-5",
+      "zoneId": "English Avenue",
+      "zoneName": "English Avenue",
+      "type": "housing",
+      "title": "Land Trust Initiative Begins Renovating Vacant Homes",
+      "description": "A newly formed Community Land Trust, in partnership with Westside Future Fund, begins a large-scale project to acquire and renovate 120 of the neighborhood's 1,351 vacant housing units. This first phase makes a visible dent in the area's blight and significantly reduces the vacancy rate, creating new affordable housing opportunities for legacy residents.",
+      "severity": 0.7,
+      "positivity": 1.0,
+      "coordinates": [
+        33.7631,
+        -84.4125
+      ],
+      "metrics": {
+        "zoneId": "English Avenue",
+        "zoneName": "English Avenue"
+      }
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-6",
+      "zoneId": "Brandon",
+      "zoneName": "Brandon",
+      "type": "development",
+      "title": "First Duplex Project Approved Amid Neighborhood Opposition",
+      "description": "After a series of contentious public hearings, the city approves the demolition of a 1950s ranch home to be replaced by a luxury duplex. The project is the first of its kind in the neighborhood under the new upzoning rules and is seen as a test case, deepening divisions between pro-density advocates and long-time residents concerned about neighborhood character.",
+      "severity": 0.5,
+      "positivity": -0.2,
+      "coordinates": [
+        33.8391,
+        -84.4214
+      ],
+      "metrics": {
+        "zoneId": "Brandon",
+        "zoneName": "Brandon"
+      }
+    }
+  },
+  {
+    "type": "event",
+    "data": {
+      "id": "event-7",
+      "zoneId": "West End",
+      "zoneName": "West End",
+      "type": "development",
+      "title": "Transit-Oriented Development Breaks Ground at West End Station",
+      "description": "A 180-unit mixed-use, mixed-income development breaks ground on a former parking lot adjacent to the West End MARTA station. The project, which includes 54 affordable units via the tax incentive program, is praised for its transit-first design but raises concerns among some community members about the potential for accelerated displacement and increased traffic.",
+      "severity": 0.6,
+      "positivity": 0.4,
+      "coordinates": [
+        33.7358,
+        -84.4141
+      ],
+      "metrics": {
+        "zoneId": "West End",
+        "zoneName": "West End"
+      }
+    }
+  },
+  {
+    "type": "complete",
+    "data": {
+      "summary": "The comprehensive affordable housing policy generated divergent outcomes across Atlanta. In underserved communities like Pittsburgh and English Avenue, the Community Land Trust initiative proved highly effective at reducing vacancy and creating stable housing. In gentrifying areas like Reynoldstown and West End, tax incentives spurred mixed-income development but also intensified concerns about rising costs. Affluent, low-density neighborhoods like Tuxedo Park and Brandon mounted significant legal and political resistance to upzoning, limiting its immediate impact. Meanwhile, targeted transit improvements in areas like Campbellton Road provided direct benefits to existing residents."
+    }
+  }
+]
