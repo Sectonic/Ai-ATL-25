@@ -2,7 +2,7 @@ import type { EventNotification, Comment, NeighborhoodProperties } from '../stor
 
 export type SimulationChunk =
   | { type: 'event'; data: EventNotification }
-  | { type: 'update'; data: { message: string; zones_count?: number } }
+  | { type: 'update'; data: { message: string; total?: number } }
   | { type: 'complete'; data: { summary: string } }
 
 const BACKEND_URL = 'http://localhost:8080/api/simulate'

@@ -103,6 +103,7 @@ interface SimulationState {
   simulatedNeighborhoodData: Record<string, NeighborhoodProperties>
   neighborhoodDeltas: Record<string, Partial<NeighborhoodProperties>>
   layerVisibility: LayerVisibility
+  zonesAnalyzing: number | null
 
   setSimulationStatus: (status: SimulationStatus) => void
   setPromptText: (text: string) => void
@@ -119,6 +120,7 @@ interface SimulationState {
   updateMetricsFromEvent: (event: EventNotification) => void
   calculateDeltas: () => void
   toggleLayerVisibility: (layer: keyof LayerVisibility) => void
+  setZonesAnalyzing: (count: number | null) => void
   resetSimulation: () => void
 }
 
@@ -144,6 +146,7 @@ export const useSimulationStore = create<SimulationState>((set) => ({
     cityLimits: true,
     beltlineSubareas: false,
   },
+  zonesAnalyzing: null,
 
   setSimulationStatus: (status) => set({ simulationStatus: status }),
 
@@ -363,6 +366,8 @@ export const useSimulationStore = create<SimulationState>((set) => ({
       },
     })),
 
+  setZonesAnalyzing: (count) => set({ zonesAnalyzing: count }),
+
   resetSimulation: () =>
     set({
       simulationStatus: 'idle',
@@ -374,5 +379,6 @@ export const useSimulationStore = create<SimulationState>((set) => ({
       previousMapView: null,
       simulatedNeighborhoodData: {},
       neighborhoodDeltas: {},
+      zonesAnalyzing: null,
     }),
 }))

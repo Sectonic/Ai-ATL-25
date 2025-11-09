@@ -137,6 +137,7 @@ export function CommandPanel() {
     resetSimulation,
     clearEventNotifications,
     clearSelectedZones,
+    setZonesAnalyzing,
   } = useSimulationStore()
 
   const [localPrompt, setLocalPrompt] = useState('')
@@ -211,6 +212,7 @@ export function CommandPanel() {
         console.log('Received chunk:', chunk.type, chunk)
 
         if (chunk.type === 'event') {
+          setZonesAnalyzing(null)
           addEventNotification(chunk.data)
           if (chunk.data.metrics) {
             updateMetricsFromEvent(chunk.data)
@@ -220,18 +222,24 @@ export function CommandPanel() {
           calculateDeltas()
           setSimulationStatus('complete')
           clearSelectedZones()
+        } else if (chunk.type === 'update') {
+          if (chunk.data.total !== undefined) {
+            setZonesAnalyzing(chunk.data.total)
+          }
         }
       }
 
       if (chunkCount === 0) {
         console.warn('No chunks received from backend')
         setSimulationStatus('idle')
+        setZonesAnalyzing(null)
       }
     } catch (error) {
       console.error('Simulation error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       alert(`Simulation failed: ${errorMessage}\n\nCheck the browser console and backend terminal for details.`)
       setSimulationStatus('idle')
+      setZonesAnalyzing(null)
     }
   }
 
