@@ -7,6 +7,29 @@ import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { Loader2, Play, ChevronUp, X, Layers } from 'lucide-react'
 
+function AnalyzingLoader() {
+  return (
+    <div className="flex items-center gap-1">
+      {[0, 1, 2].map((index) => (
+        <motion.div
+          key={index}
+          className="w-1 h-3 bg-white/90 rounded-full"
+          animate={{
+            scaleY: [1, 1.5, 1],
+            opacity: [0.5, 1, 0.5],
+          }}
+          transition={{
+            duration: 1,
+            repeat: Infinity,
+            delay: index * 0.15,
+            ease: [0.4, 0, 0.2, 1],
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
 function TypewriterText({ text }: { text: string }) {
   const [displayedText, setDisplayedText] = useState('')
 
@@ -127,6 +150,7 @@ export function CommandPanel() {
     simulationStatus,
     simulationSummary,
     selectedZones,
+    zonesAnalyzing,
     setSimulationStatus,
     setPromptText,
     setSimulationSummary,
@@ -137,6 +161,7 @@ export function CommandPanel() {
     resetSimulation,
     clearEventNotifications,
     clearSelectedZones,
+    setZonesAnalyzing,
   } = useSimulationStore()
 
   const [localPrompt, setLocalPrompt] = useState('')
@@ -210,9 +235,8 @@ export function CommandPanel() {
         chunkCount++
         console.log('Received chunk:', chunk.type, chunk)
 
-        if (chunk.type === 'update') {
-          console.log('Update chunk received:', chunk.data)
-        } else if (chunk.type === 'event') {
+        if (chunk.type === 'event') {
+          setZonesAnalyzing(null)
           addEventNotification(chunk.data)
           if (chunk.data.metrics) {
             updateMetricsFromEvent(chunk.data)
@@ -222,18 +246,24 @@ export function CommandPanel() {
           calculateDeltas()
           setSimulationStatus('complete')
           clearSelectedZones()
+        } else if (chunk.type === 'update') {
+          if (chunk.data.total !== undefined) {
+            setZonesAnalyzing(chunk.data.total)
+          }
         }
       }
 
       if (chunkCount === 0) {
         console.warn('No chunks received from backend')
         setSimulationStatus('idle')
+        setZonesAnalyzing(null)
       }
     } catch (error) {
       console.error('Simulation error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       alert(`Simulation failed: ${errorMessage}\n\nCheck the browser console and backend terminal for details.`)
       setSimulationStatus('idle')
+      setZonesAnalyzing(null)
     }
   }
 
@@ -254,9 +284,40 @@ export function CommandPanel() {
   return (
     <div className="fixed bottom-4 left-[50.575%] -translate-x-1/2 w-[calc(60%-6rem)] z-10 pointer-events-none">
       <motion.div layout transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}>
-        <AnimatePresence>
-          {simulationStatus !== 'loading' && (
+        <AnimatePresence mode="wait">
+          {simulationStatus === 'loading' && zonesAnalyzing !== null ? (
             <motion.div
+              key="analyzing"
+              layout
+              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+              animate={{
+                opacity: 1,
+                height: 'auto',
+                marginBottom: 8
+              }}
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              transition={{
+                duration: 0.3,
+                ease: [0.4, 0, 0.2, 1],
+                layout: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
+              }}
+              className="flex items-center gap-2 pointer-events-auto"
+            >
+              <div className="rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <AnalyzingLoader />
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-white/90">
+                      {zonesAnalyzing} {zonesAnalyzing === 1 ? 'zone' : 'zones'} affected
+                    </span>
+                    <span className="text-xs text-white/60">Analyzing...</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ) : simulationStatus !== 'loading' ? (
+            <motion.div
+              key="buttons"
               layout
               initial={{ opacity: 0, height: 0, marginBottom: 0 }}
               animate={{
@@ -288,7 +349,7 @@ export function CommandPanel() {
                 New Simulation
               </button>
             </motion.div>
-          )}
+          ) : null}
         </AnimatePresence>
         <AnimatePresence mode="wait">
           {simulationStatus === 'idle' && (

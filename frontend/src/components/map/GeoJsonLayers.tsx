@@ -9,7 +9,15 @@ import type { Feature } from 'geojson'
 
 export function GeoJsonLayers() {
   const map = useMap()
-  const { selectedZones, addSelectedZone, removeSelectedZone, clearSelectedZones, selectedEventId, simulationStatus } = useSimulationStore()
+  const {
+    selectedZones,
+    addSelectedZone,
+    removeSelectedZone,
+    clearSelectedZones,
+    selectedEventId,
+    simulationStatus,
+    setHoveredNeighborhood
+  } = useSimulationStore()
   const { data: neighborhoodsData, isLoading } = useNeighborhoods()
   const clickStartTime = useRef<number>(0)
   const clickStartPos = useRef<{ x: number; y: number } | null>(null)
@@ -128,6 +136,15 @@ export function GeoJsonLayers() {
             },
             click: (e: L.LeafletMouseEvent) => {
               handleFeatureClick(feature, e)
+            },
+            mouseover: () => {
+              const featureName = feature.properties?.name
+              if (featureName) {
+                setHoveredNeighborhood(featureName)
+              }
+            },
+            mouseout: () => {
+              setHoveredNeighborhood(null)
             },
           })
         }}
