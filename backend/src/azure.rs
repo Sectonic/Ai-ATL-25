@@ -312,10 +312,10 @@ INTERDEPENDENCY RULES (MANDATORY):
 - CRITICAL: If you include a "derived" object, it MUST have BOTH "higher_ed_percent" AND "density_index" (never partial)
 
 GUIDELINES:
-- Event count: Generate a DYNAMIC number of events (3-15 range) based on policy complexity and scope:
+- Event count: Generate a DYNAMIC number of events (3-13 range) based on policy complexity and scope:
   * Simple, focused policies (e.g., single infrastructure change): 3-6 events
   * Moderate policies (e.g., multi-neighborhood program): 5-10 events
-  * Complex, wide-ranging policies (e.g., city-wide initiative): 8-15 events
+  * Complex, wide-ranging policies (e.g., city-wide initiative): 8-13 events
   * The number should reflect the actual impact scope - don't pad with unnecessary events
 - Use exact neighborhood names from provided data for zoneId and zoneName
 - Event "type": descriptive category (e.g., "transportation", "housing", "economic", "infrastructure")
@@ -637,9 +637,9 @@ async fn generate_events_with_full_context(
     let target_neighborhoods_str = target_neighborhoods.join(", ");
     let user_prompt = format!(
         "Policy Proposal: {}\n\nTarget Neighborhoods: {}\n\n\
-         Analyze the policy scope and complexity, then generate a DYNAMIC number of realistic events (3-15 range) \
+         Analyze the policy scope and complexity, then generate a DYNAMIC number of realistic events (3-13 range) \
          that accurately represent the policy's impact. For simple policies, generate fewer events (3-6). \
-         For complex or wide-ranging policies, generate more events (8-15). The number should match the actual \
+         For complex or wide-ranging policies, generate more events (8-13). The number should match the actual \
          scope and impact of the policy - don't generate unnecessary events just to reach a target number.\n\n\
          Include partial metrics updates that reflect how each event changes the neighborhood's state.\n\n\
          CRITICAL: Return ONLY a valid JSON array in the exact format specified. Do not include markdown code blocks, \
