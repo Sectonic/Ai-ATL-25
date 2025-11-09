@@ -179,6 +179,41 @@ function generateComments(eventType: string, positivity: number): Comment[] {
   return comments.sort((a, b) => a.timestamp - b.timestamp)
 }
 
+export interface MinimalNeighborhoodContext {
+  name: string
+  baseline_description?: string
+  current_events?: string[]
+  neighboring_neighborhoods?: string[]
+}
+
+export function buildMinimalNeighborhoodContext(
+  selectedZones: string[],
+  neighborhoodsData: GeoJSON.FeatureCollection
+): MinimalNeighborhoodContext[] {
+  const zonesToProcess = selectedZones.length === 0
+    ? neighborhoodsData.features.map((f) => f.properties?.name).filter(Boolean) as string[]
+    : selectedZones
+
+  return zonesToProcess
+    .map((neighborhoodName) => {
+      const feature = neighborhoodsData.features.find(
+        (f) => f.properties?.name === neighborhoodName
+      )
+
+      if (!feature || !feature.properties) return null
+
+      const props = feature.properties
+
+      return {
+        name: props.name || '',
+        baseline_description: props.baseline_description,
+        current_events: props.current_events,
+        neighboring_neighborhoods: props.neighboring_neighborhoods,
+      }
+    })
+    .filter((ctx) => ctx !== null) as MinimalNeighborhoodContext[]
+}
+
 export function buildNeighborhoodProperties(
   selectedZones: string[],
   neighborhoodsData: GeoJSON.FeatureCollection
@@ -250,15 +285,17 @@ export async function* simulatePolicy(
   selectedZones: string[],
   neighborhoodsData: GeoJSON.FeatureCollection
 ): AsyncGenerator<SimulationChunk> {
+  const neighborhoodContext = buildMinimalNeighborhoodContext(selectedZones, neighborhoodsData)
   const neighborhoodProperties = buildNeighborhoodProperties(selectedZones, neighborhoodsData)
 
   const zonesToSend = selectedZones.length === 0
-    ? neighborhoodProperties.map((props) => props.name)
+    ? neighborhoodContext.map((ctx) => ctx.name)
     : selectedZones
 
   const payload = {
     prompt,
     selectedZones: zonesToSend,
+    neighborhoodContext,
     neighborhoodProperties,
   }
 
