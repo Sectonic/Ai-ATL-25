@@ -5,7 +5,7 @@ import { EventNotificationPanel } from '../components/panels/EventNotificationPa
 import { CommandPanel } from '../components/panels/CommandPanel'
 import { DataPanel } from '../components/panels/DataPanel'
 import { AppHeader } from '../components/layout/AppHeader'
-import { AnalyzingNotification } from '../components/panels/AnalyzingNotification'
+import { CursorFollower } from '../components/map/CursorFollower'
 
 export const Route = createFileRoute('/app')({
   component: App,
@@ -21,10 +21,10 @@ function App() {
     >
       <AtlantaMap />
       <AppHeader />
-      <AnalyzingNotification />
       <EventNotificationPanel />
       <CommandPanel />
       <DataPanel />
+      <CursorFollower />
     </motion.div>
   )
 }

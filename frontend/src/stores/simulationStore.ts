@@ -104,6 +104,7 @@ interface SimulationState {
   neighborhoodDeltas: Record<string, Partial<NeighborhoodProperties>>
   layerVisibility: LayerVisibility
   zonesAnalyzing: number | null
+  hoveredNeighborhood: string | null
 
   setSimulationStatus: (status: SimulationStatus) => void
   setPromptText: (text: string) => void
@@ -121,6 +122,7 @@ interface SimulationState {
   calculateDeltas: () => void
   toggleLayerVisibility: (layer: keyof LayerVisibility) => void
   setZonesAnalyzing: (count: number | null) => void
+  setHoveredNeighborhood: (name: string | null) => void
   resetSimulation: () => void
 }
 
@@ -147,6 +149,7 @@ export const useSimulationStore = create<SimulationState>((set) => ({
     beltlineSubareas: false,
   },
   zonesAnalyzing: null,
+  hoveredNeighborhood: null,
 
   setSimulationStatus: (status) => set({ simulationStatus: status }),
 
@@ -367,6 +370,8 @@ export const useSimulationStore = create<SimulationState>((set) => ({
     })),
 
   setZonesAnalyzing: (count) => set({ zonesAnalyzing: count }),
+
+  setHoveredNeighborhood: (name) => set({ hoveredNeighborhood: name }),
 
   resetSimulation: () =>
     set({

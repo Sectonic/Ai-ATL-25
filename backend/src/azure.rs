@@ -15,6 +15,7 @@ use crate::utils::{
     complete_interdependent_metrics, lookup_neighborhoods_by_names,
 };
 use actix_web::web::Bytes;
+use async_stream::stream;
 use futures_util::{Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -623,21 +624,6 @@ async fn generate_events_with_full_context(
     let stream = response.bytes_stream();
 
     let output_stream = async_stream::stream! {
-        let expected_event_count = (target_neighborhoods.len() as u32).max(3).min(15);
-        let update_chunk = SimulationChunk::Update {
-            data: crate::types::SimulationUpdate {
-                expected_event_count,
-                target_neighborhood_count: target_neighborhoods.len() as u32,
-            },
-        };
-
-        if let Ok(json) = serde_json::to_string(&update_chunk) {
-            let sse_data = format!("data: {}\n\n", json);
-            eprintln!("   📤 Sending update chunk: expecting ~{} events for {} neighborhoods",
-                expected_event_count, target_neighborhoods.len());
-            yield Ok::<_, std::io::Error>(Bytes::from(sse_data));
-        }
-
         let mut json_parser = JsonArrayChunkParser::new();
         let mut sse_buffer = String::new();
         let mut chunk_count = 0;
@@ -868,6 +854,41 @@ pub async fn generate_simulation(
         target_neighborhoods.len()
     );
 
-    generate_events_with_full_context(prompt, target_neighborhoods, neighborhood_lookup, api_key)
-        .await
+    let expected_event_count = target_neighborhoods.len() as u32;
+    let update_chunk = SimulationChunk::Update {
+        data: crate::types::SimulationUpdate {
+            total: expected_event_count,
+        },
+    };
+
+    let update_bytes = if let Ok(json) = serde_json::to_string(&update_chunk) {
+        let sse_data = format!("data: {}\n\n", json);
+        eprintln!(
+            "   📤 Sending update chunk: expecting ~{} events for {} neighborhoods",
+            expected_event_count,
+            target_neighborhoods.len()
+        );
+        Ok(Bytes::from(sse_data))
+    } else {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "Failed to serialize update chunk",
+        ))
+    };
+
+    let phase2_stream = generate_events_with_full_context(
+        prompt,
+        target_neighborhoods,
+        neighborhood_lookup,
+        api_key,
+    )
+    .await?;
+
+    Ok(stream! {
+        yield update_bytes;
+        futures_util::pin_mut!(phase2_stream);
+        while let Some(item) = phase2_stream.next().await {
+            yield item;
+        }
+    })
 }
